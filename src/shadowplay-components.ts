@@ -20,6 +20,12 @@ export const ShapeIds = {
   Fish: 'fish',
   /** Two open hands side by side, thumbs together (wings). */
   Bird: 'bird',
+  /** Hidden: fist shell, two fingers pointing forward as eye stalks. */
+  Snail: 'snail',
+  /** Hidden: flat hand bent down from the wrist, a long neck and beak. */
+  Swan: 'swan',
+  /** Fingers half-curled, as if holding something small (one or two hands). */
+  Cup: 'cup',
 } as const;
 
 export const Hands = { None: 'none', Left: 'left', Right: 'right' } as const;
@@ -40,6 +46,8 @@ export const Stage = createComponent('Stage', {
   lampOn: { type: Types.Boolean, default: true },
   /** 0..1 lamp brightness; the story flickers it on. */
   lampLevel: { type: Types.Float32, default: 1, min: 0, max: 1 },
+  /** 0..1 finale: the released light floods the whole wall. */
+  finale: { type: Types.Float32, default: 0, min: 0, max: 1 },
 });
 
 /** The desk lamp; its bulb throws every shadow. */
@@ -58,6 +66,8 @@ export const ShapeRecognizer = createComponent('ShapeRecognizer', {
   /** Second requested shape, for story choices. */
   target2: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
   altTarget2: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
+  /** Free Stage: accept any performable shape, no request needed. */
+  freeMode: { type: Types.Boolean, default: false },
   /** Which requested shape (target or target2) was matched. */
   matchedShape: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
   /** True when the match was a two-hand shape. */
@@ -115,6 +125,8 @@ export const StoryState = createComponent('StoryState', {
   hintVisible: { type: Types.Boolean, default: false },
   /** Shape the 'show me' ghost hand demonstrates. */
   hintShape: { type: Types.String, default: 'rabbit' },
+  /** After the story: Free Stage, where any discovered creature can be performed. */
+  freeStage: { type: Types.Boolean, default: false },
   /** Branch taken at the last choice (for encore endings). */
   branch: { type: Types.String, default: '' },
   /** True while the Shadow Journal is open; the story waits. */
@@ -128,6 +140,8 @@ export const MothModes = {
   Following: 'following',
   Riding: 'riding',
   Resting: 'resting',
+  /** Tossed about by the storm around her rest point. */
+  Buffeted: 'buffeted',
 } as const;
 
 /** Mo, the moth who lost her glow. */
@@ -138,9 +152,18 @@ export const Moth = createComponent('Moth', {
   /** Stage-local rest point (fractions of stage width/height, -0.5..0.5). */
   restU: { type: Types.Float32, default: 0 },
   restV: { type: Types.Float32, default: 0.25 },
+  /** 0..1 how much of her glow Mo has back (the finale). */
+  glow: { type: Types.Float32, default: 0, min: 0, max: 1 },
 });
 
-export const ScenerySets = { None: 'none', Field: 'field', River: 'river', Forest: 'forest' } as const;
+export const ScenerySets = {
+  None: 'none',
+  Field: 'field',
+  River: 'river',
+  Forest: 'forest',
+  Storm: 'storm',
+  Sea: 'sea',
+} as const;
 
 /** Background silhouette set drawn behind the characters. */
 export const Scenery = createComponent('Scenery', {
@@ -171,4 +194,22 @@ export const ShadowJournal = createComponent('ShadowJournal', {
   lastAdded: { type: Types.String, default: '' },
   /** Comma-separated discovered creature ids (mirror of the IndexedDB store). */
   discovered: { type: Types.String, default: '' },
+});
+
+/** Something hidden in the dark that only shows where the lamp's light falls. */
+export const HiddenProp = createComponent('HiddenProp', {
+  prop: { type: Types.Enum, enum: { Hollow: 'hollow' }, default: 'hollow' },
+  active: { type: Types.Boolean, default: false },
+  /** Horizontal position as a fraction of stage width; it stands on the stage floor. */
+  u: { type: Types.Float32, default: -0.34 },
+  /** 0..1 how brightly the light pool currently reveals it. */
+  revealed: { type: Types.Float32, default: 0 },
+});
+
+/** Shape of the Day: a daily riddle whose answer is a shape. */
+export const DailyShape = createComponent('DailyShape', {
+  date: { type: Types.String, default: '' },
+  shape: { type: Types.String, default: '' },
+  riddle: { type: Types.String, default: '' },
+  solved: { type: Types.Boolean, default: false },
 });

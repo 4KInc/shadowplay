@@ -16,6 +16,8 @@ export const stageRuntime = {
   height: 0.75,
   /** Lamp bulb world position (the shadow projection origin). */
   bulb: new Vector3(),
+  /** Centre of the lamp's light pool on the stage (moves as the lamp is dragged). */
+  poolCenter: new Vector3(),
   lampOn: true,
 };
 

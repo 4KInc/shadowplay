@@ -364,12 +364,232 @@
     {
       "id": "end-ch3",
       "type": "narrate",
-      "text": "End of Chapter Three. The lighthouse is not far now."
+      "text": "End of Chapter Three."
     },
     {
-      "id": "to-be-continued",
-      "type": "end",
-      "text": "To be continued. Pinch the lamp switch to rest."
+      "id": "go-on-3",
+      "type": "continue",
+      "text": "Raise an open hand into the light to go on, or pinch the lamp switch to rest."
+    },
+    {
+      "id": "ch4",
+      "type": "chapter",
+      "chapter": "Chapter Four",
+      "text": "Chapter Four: The Storm"
+    },
+    {
+      "id": "ch4-clear-wolf",
+      "type": "actor",
+      "state": "hidden"
+    },
+    {
+      "id": "storm",
+      "type": "scenery",
+      "set": "storm"
+    },
+    {
+      "id": "mo-buffeted",
+      "type": "moth",
+      "mode": "buffeted",
+      "restU": 0.1,
+      "restV": 0.2
+    },
+    {
+      "id": "hollow-hidden",
+      "type": "prop",
+      "active": true,
+      "u": -0.34
+    },
+    {
+      "id": "storm-rises",
+      "type": "narrate",
+      "text": "The wind rises. Rain lashes the wall, and Mo is tossed about like a leaf."
+    },
+    {
+      "id": "shelter-somewhere",
+      "type": "narrate",
+      "text": "Somewhere nearby there is shelter, hidden in the dark."
+    },
+    {
+      "id": "search",
+      "type": "reveal",
+      "text": "Pinch the lamp and slide it along the desk to search the dark for shelter."
+    },
+    {
+      "id": "found-hollow",
+      "type": "narrate",
+      "text": "There! A hollow in the old tree."
+    },
+    {
+      "id": "mo-shelters",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.345,
+      "restV": -0.24
+    },
+    {
+      "id": "storm-waits",
+      "type": "narrate",
+      "text": "Mo creeps inside and waits out the storm, safe and dry."
+    },
+    {
+      "id": "storm-ends",
+      "type": "scenery",
+      "set": "none"
+    },
+    {
+      "id": "hollow-fades",
+      "type": "prop",
+      "active": false
+    },
+    {
+      "id": "wind-still",
+      "type": "narrate",
+      "text": "The rain stops. The wind is still strong enough to fly on."
+    },
+    {
+      "id": "want-wings",
+      "type": "request",
+      "shape": "bird",
+      "alt": "open",
+      "outlineU": -0.1,
+      "outlineV": 0.15,
+      "text": "Make a bird with two hands side by side, and carry Mo on the wind."
+    },
+    {
+      "id": "mo-flies",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "fly-to-sea",
+      "type": "carry",
+      "toU": 0.32,
+      "minV": 0.05,
+      "text": "Fly toward the sea."
+    },
+    {
+      "id": "mo-lands-4",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.42,
+      "restV": 0.1
+    },
+    {
+      "id": "wings-bow",
+      "type": "release",
+      "text": "Your wings fold, and the sea shines faintly ahead."
+    },
+    {
+      "id": "end-ch4",
+      "type": "narrate",
+      "text": "End of Chapter Four."
+    },
+    {
+      "id": "go-on-4",
+      "type": "continue",
+      "text": "Raise an open hand into the light to go on, or pinch the lamp switch to rest."
+    },
+    {
+      "id": "ch5",
+      "type": "chapter",
+      "chapter": "Chapter Five",
+      "text": "Chapter Five: The Lighthouse"
+    },
+    {
+      "id": "ch5-clear-wolf",
+      "type": "actor",
+      "state": "hidden"
+    },
+    {
+      "id": "sea",
+      "type": "scenery",
+      "set": "sea"
+    },
+    {
+      "id": "mo-at-sea",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.2,
+      "restV": -0.1
+    },
+    {
+      "id": "keeper-asleep",
+      "type": "narrate",
+      "text": "At last, the lighthouse by the sea. But the keeper is asleep, and the great light has gone out."
+    },
+    {
+      "id": "dark-lamp",
+      "type": "narrate",
+      "text": "Mo cannot borrow light from a lamp that is dark. Perhaps you can help."
+    },
+    {
+      "id": "want-cup",
+      "type": "request",
+      "shape": "cup",
+      "outlineU": -0.25,
+      "outlineV": -0.05,
+      "text": "Cup your hands together, as if holding something small and precious."
+    },
+    {
+      "id": "holding",
+      "type": "narrate",
+      "text": "You are holding the last of the light."
+    },
+    {
+      "id": "mo-rides-light",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "climb",
+      "type": "carry",
+      "toU": 0.2,
+      "minV": 0.18,
+      "text": "Carry the light up to the lamp room at the top of the tower."
+    },
+    {
+      "id": "let-go",
+      "type": "letgo",
+      "text": "Now open your hands, and let the light go."
+    },
+    {
+      "id": "light-free",
+      "type": "release",
+      "text": "The light leaps from your hands..."
+    },
+    {
+      "id": "finale",
+      "type": "finale",
+      "seconds": 4
+    },
+    {
+      "id": "lighthouse-wakes",
+      "type": "narrate",
+      "text": "...and pours out across the sea. The lighthouse wakes. And Mo... Mo is glowing again."
+    },
+    {
+      "id": "mo-glows",
+      "type": "moth",
+      "mode": "hovering",
+      "restU": 0.0,
+      "restV": 0.2
+    },
+    {
+      "id": "thank-you",
+      "type": "narrate",
+      "text": "Thank you, puppeteer. Every shadow needs a little light, and every light needs someone to hold it."
+    },
+    {
+      "id": "the-end",
+      "type": "chapter",
+      "chapter": "The End",
+      "text": "The End"
+    },
+    {
+      "id": "free-stage",
+      "type": "freestage",
+      "text": "Free Stage. Make any creature you know."
     }
   ]
 }

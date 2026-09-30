@@ -31,6 +31,8 @@ const SCAN_MIN_SECONDS = 1.2;
 const SCAN_TIMEOUT_SECONDS = 4;
 const EYE_TO_DESK = 0.45;
 const DIM_FADE_SECONDS = 2.5;
+/** Sliding the lamp sideways sweeps its aim across the wall this many times further. */
+const SWEEP_GAIN = 3.5;
 
 /**
  * Chooses the wall in front of the seated player (or a floating paper screen),
@@ -66,6 +68,9 @@ export class StageSetupSystem extends createSystem({
   private bestNormal = new Vector3();
   private bestPoint = new Vector3();
   private basis = new Matrix4();
+  /** Where the lamp was placed; dragging away from here sweeps the light. */
+  private lampHome = new Vector3();
+  private sweep = new Vector3();
 
   init(): void {
     this.spot = new SpotLight(0xffc27a, 6, 6, (38 * Math.PI) / 180, 0.55, 1.2);
@@ -257,9 +262,7 @@ export class StageSetupSystem extends createSystem({
       .addScaledVector(this.forward, lampForward)
       .addScaledVector(right, 0.16);
     lampObj.position.y = deskY;
-    const dx = center.x - lampObj.position.x;
-    const dz = center.z - lampObj.position.z;
-    lampObj.rotation.set(0, Math.atan2(-dx, -dz), 0);
+    this.lampHome.copy(lampObj.position);
 
     // The Shadow Journal lies on the desk on the other side, front edge to the player.
     for (const journal of this.queries.journals.entities) {
@@ -280,11 +283,28 @@ export class StageSetupSystem extends createSystem({
     stageRuntime.ready = true;
   }
 
+  /** Aim the lamp (and the light pool) according to how far it was slid along the desk. */
+  private updateAim(lamp: Entity): void {
+    const lampObj = lamp.object3D!;
+    this.sweep.subVectors(lampObj.position, this.lampHome);
+    const r = stageRuntime.right;
+    const half = stageRuntime.width * 0.45;
+    const du = Math.max(-half, Math.min(half, (this.sweep.x * r.x + this.sweep.z * r.z) * SWEEP_GAIN));
+    this.spotTarget.position.set(du, 0, 0);
+    this.pool.position.x = du;
+    stageRuntime.poolCenter.copy(stageRuntime.center).addScaledVector(r, du);
+    const p = lampObj.position;
+    const c = stageRuntime.poolCenter;
+    lampObj.rotation.set(0, Math.atan2(-(c.x - p.x), -(c.z - p.z)), 0);
+  }
+
   private updateLighting(stage: Entity, lamp: Entity, delta: number): void {
+    if (this.placed) this.updateAim(lamp);
+    const finale = stage.getValue(Stage, 'finale') ?? 0;
     const lampOn = Boolean(stage.getValue(Stage, 'lampOn'));
     const level = lampOn ? (stage.getValue(Stage, 'lampLevel') ?? 1) : 0;
     if (this.bulbMaterial) this.bulbMaterial.emissiveIntensity = 0.15 + 2.05 * level;
-    const targetDim = this.placed ? (stage.getValue(Stage, 'dim') ?? 0.6) : 0;
+    const targetDim = this.placed ? (stage.getValue(Stage, 'dim') ?? 0.6) * (1 - 0.75 * finale) : 0;
     const step = delta / DIM_FADE_SECONDS;
     this.dimLevel += Math.max(-step, Math.min(step, targetDim - this.dimLevel));
     this.shell.material.uniforms.uDim.value = this.dimLevel;
@@ -292,12 +312,13 @@ export class StageSetupSystem extends createSystem({
 
     const intensity = lamp.getValue(DeskLamp, 'intensity') ?? 6;
     const angleDeg = lamp.getValue(DeskLamp, 'angleDeg') ?? 38;
-    this.spot.intensity = this.placed ? intensity * level : 0;
-    this.spot.angle = (angleDeg * Math.PI) / 180;
+    this.spot.intensity = this.placed ? intensity * level * (1 + finale) : 0;
+    this.spot.angle = ((angleDeg + (70 - angleDeg) * finale) * Math.PI) / 180;
 
-    const warm = targetDim > 0 ? this.dimLevel / targetDim : 1;
+    const warm = targetDim > 0 ? Math.min(1, this.dimLevel / targetDim) : 1;
+    this.pool.scale.set(stageRuntime.width * 1.5 * (1 + 2.5 * finale), stageRuntime.height * 1.7 * (1 + 2.5 * finale), 1);
     const poolGain = this.paper.visible ? 0.18 : 0.4;
-    this.pool.material.uniforms.uIntensity.value = this.placed ? poolGain * warm * level : 0;
+    this.pool.material.uniforms.uIntensity.value = this.placed ? (poolGain + 0.5 * finale) * warm * level : 0;
     this.surface.visible = this.placed && level > 0.02;
 
     this.spot.getWorldPosition(stageRuntime.bulb);

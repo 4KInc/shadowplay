@@ -6,8 +6,8 @@ export const CREATURES: readonly { id: string; name: string; rig: string | null 
   { id: 'fish', name: 'Fish', rig: ShapeIds.Fish },
   { id: 'dog', name: 'Dog', rig: ShapeIds.Dog },
   { id: 'bird', name: 'Bird', rig: ShapeIds.Bird },
-  { id: 'snail', name: 'Snail', rig: null },
-  { id: 'swan', name: 'Swan', rig: null },
+  { id: 'snail', name: 'Snail', rig: ShapeIds.Snail },
+  { id: 'swan', name: 'Swan', rig: ShapeIds.Swan },
   { id: 'deer', name: 'Deer', rig: null },
   { id: 'crocodile', name: 'Crocodile', rig: null },
 ];

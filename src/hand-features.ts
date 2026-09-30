@@ -9,8 +9,9 @@ import { ShapeIds } from './shadowplay-components.js';
  *   5   spread between index/middle/ring (0 = together, 1 = splayed)
  *   6   thumb tip touching middle or ring tip (1 = touching)
  *   7   thumb held out from the palm (0 = tucked along the index, 1 = out)
+ *   8   index finger direction (1 = pointing up, 0.5 = level, 0 = down)
  */
-export const FEATURE_COUNT = 8;
+export const FEATURE_COUNT = 9;
 
 type ShapeId = (typeof ShapeIds)[keyof typeof ShapeIds];
 
@@ -22,41 +23,59 @@ export interface ShapeTemplate {
   weight: readonly number[];
 }
 
-//                   thumb idx mid ring pinky spread touch thumbOut
+//                   thumb idx mid ring pinky spread touch thumbOut up
 export const TEMPLATES: readonly ShapeTemplate[] = [
   {
     // Shadow rabbit: index + middle up as ears, thumb meets ring/middle tip.
     id: ShapeIds.Rabbit,
-    value: [0.5, 0, 0, 1, 1, 0.5, 1, 0.5],
-    weight: [0, 1.2, 1.2, 1, 0.7, 0, 1.2, 0],
+    value: [0.5, 0, 0, 1, 1, 0.5, 1, 0.5, 1],
+    weight: [0, 1.2, 1.2, 1, 0.7, 0, 1.2, 0, 0.6],
   },
   {
     // Easier rabbit (accessibility alternative): two fingers up, thumb free.
     id: ShapeIds.Ears,
-    value: [0.5, 0, 0, 1, 1, 0.5, 0, 0.5],
-    weight: [0, 1.2, 1.2, 1, 0.7, 0, 1.2, 0],
+    value: [0.5, 0, 0, 1, 1, 0.5, 0, 0.5, 1],
+    weight: [0, 1.2, 1.2, 1, 0.7, 0, 1.2, 0, 0.6],
   },
   {
     id: ShapeIds.Open,
-    value: [0, 0, 0, 0, 0, 1, 0, 1],
-    weight: [0.4, 1, 1, 1, 1, 1, 0.6, 0.3],
+    value: [0, 0, 0, 0, 0, 1, 0, 1, 0.5],
+    weight: [0.4, 1, 1, 1, 1, 1, 0.6, 0.3, 0],
   },
   {
     // Shadow dog: flat fingers together as the snout, thumb up as the ear.
     id: ShapeIds.Dog,
-    value: [0, 0, 0, 0, 0.5, 0, 0, 1],
-    weight: [0.6, 1, 1, 1, 0, 1.2, 0.8, 1.2],
+    value: [0, 0, 0, 0, 0.5, 0, 0, 1, 0.5],
+    weight: [0.6, 1, 1, 1, 0, 1.2, 0.8, 1.2, 0.4],
   },
   {
     // Shadow fish: flat hand, fingers together, thumb tucked along the side.
     id: ShapeIds.Fish,
-    value: [0.3, 0, 0, 0, 0, 0, 0, 0],
-    weight: [0, 1, 1, 1, 0.8, 1.2, 0.5, 1.2],
+    value: [0.3, 0, 0, 0, 0, 0, 0, 0, 0.5],
+    weight: [0, 1, 1, 1, 0.8, 1.2, 0.5, 1.2, 0.6],
+  },
+  {
+    // Hidden swan: the fish's flat hand, bent down from the wrist (neck and beak).
+    id: ShapeIds.Swan,
+    value: [0.3, 0, 0, 0, 0, 0, 0, 0, 0],
+    weight: [0, 1, 1, 1, 0.8, 1, 0.4, 0.8, 1.4],
+  },
+  {
+    // Hidden snail: fist shell, index + middle pointing forward as eye stalks.
+    id: ShapeIds.Snail,
+    value: [0.5, 0, 0, 1, 1, 0.5, 0.5, 0.5, 0.5],
+    weight: [0, 1.2, 1.2, 1, 0.7, 0, 0, 0, 1.4],
+  },
+  {
+    // Cupped hand holding something small.
+    id: ShapeIds.Cup,
+    value: [0.3, 0.5, 0.5, 0.5, 0.5, 0, 0, 0.5, 0.5],
+    weight: [0.3, 1, 1, 1, 1, 0.6, 0.4, 0, 0],
   },
   {
     id: ShapeIds.Fist,
-    value: [0.5, 1, 1, 1, 1, 0, 0.5, 0.5],
-    weight: [0, 1, 1, 1, 1, 0, 0, 0],
+    value: [0.5, 1, 1, 1, 1, 0, 0.5, 0.5, 0.5],
+    weight: [0, 1, 1, 1, 1, 0, 0, 0, 0],
   },
 ];
 
@@ -105,6 +124,10 @@ export function computeFeatures(joints: Float32Array, out: Float32Array): void {
   out[6] = clamp01(1 - (touch - 0.25) / 0.45);
   // Thumb tip to index knuckle: ~0.35 palm lengths tucked, ~0.9 held out.
   out[7] = clamp01((dist(joints, 4, 6) / palm - 0.4) / 0.45);
+  // Index knuckle -> tip against world up.
+  const dy = joints[9 * 3 + 1] - joints[6 * 3 + 1];
+  const len = dist(joints, 6, 9);
+  out[8] = len > 1e-6 ? clamp01((dy / len + 1) / 2) : 0.5;
 }
 
 export interface MatchResult {

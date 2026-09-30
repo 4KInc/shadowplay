@@ -1,6 +1,7 @@
 import { createSystem, Entity, VisibilityState } from '@iwsdk/core';
 import { loadProgress, saveProgress } from './journal-store.js';
 import {
+  HiddenProp,
   Moth,
   PuppetStates,
   Scenery,
@@ -20,6 +21,8 @@ const CHAPTER_SECONDS = 3.2;
 const LAMP_SECONDS = 1.8;
 const GROW_HOLD_SECONDS = 0.6;
 const CONTINUE_HOLD_SECONDS = 1.0;
+const REVEAL_HOLD_SECONDS = 0.8;
+const LETGO_HOLD_SECONDS = 0.5;
 const PAUSED_CAPTION = 'Paused. Pinch the lamp switch to continue.';
 const JOURNAL_CAPTION = 'Your Shadow Journal. Pinch the book to close it.';
 
@@ -47,6 +50,7 @@ export class StorySystem extends createSystem({
   scenery: { required: [Scenery] },
   actors: { required: [StageActor] },
   journals: { required: [ShadowJournal] },
+  props: { required: [HiddenProp] },
 }) {
   private script: StoryScript | null = null;
   private beatTime = 0;
@@ -227,6 +231,25 @@ export class StorySystem extends createSystem({
       case 'end':
         this.setTargets(stage, ShapeIds.None, ShapeIds.None, ShapeIds.None, ShapeIds.None);
         break;
+      case 'prop':
+        for (const p of this.queries.props.entities) {
+          if (beat.u !== undefined) p.setValue(HiddenProp, 'u', beat.u);
+          p.setValue(HiddenProp, 'active', beat.active);
+        }
+        break;
+      case 'freestage':
+        // The story is over: Mo keeps her glow and every creature is free to play.
+        stage.setValue(Stage, 'lampLevel', 1);
+        stage.setValue(Stage, 'finale', 0);
+        this.setTargets(stage, ShapeIds.None, ShapeIds.None, ShapeIds.None, ShapeIds.None);
+        stage.setValue(ShapeRecognizer, 'freeMode', true);
+        story.setValue(StoryState, 'freeStage', true);
+        for (const m of this.queries.moths.entities) {
+          m.setValue(Moth, 'glow', 1);
+          if (m.getValue(Moth, 'mode') === 'hidden') m.setValue(Moth, 'mode', 'hovering');
+        }
+        void saveProgress({ beatIndex: index, chapter: 'Free Stage', branch: story.getValue(StoryState, 'branch') ?? '', savedAt: Date.now() });
+        break;
       default:
         break;
     }
@@ -304,7 +327,28 @@ export class StorySystem extends createSystem({
         this.holdTime = open('left') || open('right') ? this.holdTime + delta : 0;
         return this.holdTime >= CONTINUE_HOLD_SECONDS ? done : null;
       }
+      case 'reveal': {
+        let revealed = 0;
+        for (const p of this.queries.props.entities) revealed = Math.max(revealed, p.getValue(HiddenProp, 'revealed') ?? 0);
+        this.holdTime = revealed >= 0.8 ? this.holdTime + delta : 0;
+        return this.holdTime >= REVEAL_HOLD_SECONDS ? done : null;
+      }
+      case 'letgo': {
+        const open = (side: 'left' | 'right') =>
+          stage.getValue(ShapeRecognizer, side === 'left' ? 'leftShape' : 'rightShape') === ShapeIds.Open ||
+          stage.getValue(ShapeRecognizer, side === 'left' ? 'leftShape' : 'rightShape') === ShapeIds.Bird;
+        this.holdTime = open('left') || open('right') ? this.holdTime + delta : 0;
+        return this.holdTime >= LETGO_HOLD_SECONDS ? done : null;
+      }
+      case 'finale': {
+        const f = Math.min(1, t / beat.seconds);
+        const eased = f * f * (3 - 2 * f);
+        stage.setValue(Stage, 'finale', eased);
+        for (const m of this.queries.moths.entities) m.setValue(Moth, 'glow', eased);
+        return f >= 1 ? done : null;
+      }
       case 'end':
+      case 'freestage':
         return null;
       default:
         return done;

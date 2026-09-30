@@ -46,7 +46,8 @@
           "width": 1.2,
           "dim": 0.6,
           "lampOn": true,
-          "lampLevel": 0
+          "lampLevel": 0,
+          "finale": 0
         },
         "ShapeRecognizer": {
           "target": "none",
@@ -54,7 +55,8 @@
           "tolerance": 0.3,
           "holdSeconds": 0.5,
           "target2": "none",
-          "altTarget2": "none"
+          "altTarget2": "none",
+          "freeMode": false
         }
       }
     },
@@ -128,7 +130,8 @@
           "hintAfterSeconds": 15,
           "hintVisible": false,
           "resume": true,
-          "hintShape": "rabbit"
+          "hintShape": "rabbit",
+          "freeStage": false
         }
       }
     },
@@ -150,7 +153,8 @@
           "mode": "hidden",
           "followedSeconds": 0,
           "restU": 0.18,
-          "restV": 0.3
+          "restV": 0.3,
+          "glow": 0
         }
       }
     },
@@ -295,6 +299,112 @@
           "pendingAdd": "",
           "lastAdded": "",
           "discovered": ""
+        }
+      }
+    },
+    {
+      "id": "snail-puppet",
+      "name": "Snail Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "snail",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "swan-puppet",
+      "name": "Swan Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "swan",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "cup-puppet",
+      "name": "Cup Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "cup",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "hollow-tree",
+      "name": "Hollow Tree",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          -0.4,
+          0.9,
+          -1.99
+        ]
+      },
+      "components": {
+        "HiddenProp": {
+          "prop": "hollow",
+          "active": false,
+          "u": -0.34,
+          "revealed": 0
+        }
+      }
+    },
+    {
+      "id": "shape-of-the-day",
+      "name": "Shape of the Day",
+      "content": {
+        "type": "group"
+      },
+      "components": {
+        "DailyShape": {
+          "date": "",
+          "shape": "",
+          "riddle": "",
+          "solved": false
         }
       }
     }

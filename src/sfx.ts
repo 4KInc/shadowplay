@@ -46,3 +46,10 @@ export function playSoftRise(): void {
   tone(523.25, 0, 0.5, 0.06, 'triangle');
   tone(784, 0.12, 0.7, 0.05, 'triangle');
 }
+
+const MUSIC_BOX = [659.25, 783.99, 987.77, 783.99, 880, 659.25, 587.33, 783.99];
+
+/** One note of the placeholder Free Stage music-box loop (call on a beat). */
+export function playMusicBoxNote(step: number): void {
+  tone(MUSIC_BOX[step % MUSIC_BOX.length], 0, 1.4, 0.035);
+}

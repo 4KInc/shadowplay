@@ -71,3 +71,12 @@ export async function loadProgress(): Promise<StoryProgress | null> {
 export async function saveProgress(progress: StoryProgress): Promise<void> {
   await run(PROGRESS, 'readwrite', (s) => s.put(progress, 'story'));
 }
+
+/** Date (YYYY-MM-DD, local) of the last solved Shape of the Day. */
+export async function loadDailySolved(): Promise<string | null> {
+  return run<string>(PROGRESS, 'readonly', (s) => s.get('daily') as IDBRequest<string>);
+}
+
+export async function saveDailySolved(date: string): Promise<void> {
+  await run(PROGRESS, 'readwrite', (s) => s.put(date, 'daily'));
+}

@@ -9,7 +9,8 @@ import {
   ShapeGeometry,
   Vector3,
 } from '@iwsdk/core';
-import { Scenery, ScenerySets } from './shadowplay-components.js';
+import { buildSea, buildStorm, ScenerySet } from './scenery-sets.js';
+import { Scenery, ScenerySets, Stage } from './shadowplay-components.js';
 import { stageRuntime } from './stage-runtime.js';
 
 /** Deterministic PRNG so the field looks the same every time. */
@@ -105,11 +106,16 @@ interface SceneryRuntime {
   forest: Group;
   forestLevel: number;
   geometries: ShapeGeometry[];
+  storm: ScenerySet;
+  stormLevel: number;
+  sea: ScenerySet;
+  seaLevel: number;
 }
 
 /** Background silhouette sets (currently the Chapter One field), faded in by the story. */
 export class ScenerySystem extends createSystem({
   scenery: { required: [Scenery] },
+  stages: { required: [Stage] },
 }) {
   private runtimes = new Map<Entity, SceneryRuntime>();
   private quat = new Quaternion();
@@ -125,6 +131,8 @@ export class ScenerySystem extends createSystem({
         rt.geometries.forEach((g) => g.dispose());
         rt.material.dispose();
         rt.moonMaterial.dispose();
+        rt.storm.dispose();
+        rt.sea.dispose();
         this.runtimes.delete(entity);
       }),
     );
@@ -180,14 +188,17 @@ export class ScenerySystem extends createSystem({
     trees.renderOrder = 3;
     forest.add(trees);
 
+    const storm = buildStorm(material);
+    const sea = buildSea(material);
     const root = new Group();
     root.name = 'scenery';
-    root.add(field, river, forest);
+    root.add(field, river, forest, storm.group, sea.group);
     entity.object3D.add(root);
     const rt = {
       root, field, clumps, material, level: 0,
       river, waves, moon, moonMaterial, riverLevel: 0,
       forest, forestLevel: 0, geometries,
+      storm, stormLevel: 0, sea, seaLevel: 0,
     };
     this.runtimes.set(entity, rt);
     return rt;
@@ -208,12 +219,17 @@ export class ScenerySystem extends createSystem({
       rt.level = fade(rt.level, set === ScenerySets.Field);
       rt.riverLevel = fade(rt.riverLevel, set === ScenerySets.River);
       rt.forestLevel = fade(rt.forestLevel, set === ScenerySets.Forest);
+      rt.stormLevel = fade(rt.stormLevel, set === ScenerySets.Storm);
+      rt.seaLevel = fade(rt.seaLevel, set === ScenerySets.Sea);
       // One shared ink material: sets cross-fade through each other's level.
-      rt.material.opacity = 0.9 * Math.max(rt.level, rt.riverLevel, rt.forestLevel);
+      rt.material.opacity = 0.9 * Math.max(rt.level, rt.riverLevel, rt.forestLevel, rt.stormLevel, rt.seaLevel);
       rt.field.visible = rt.level > 0.001;
       rt.river.visible = rt.riverLevel > 0.001;
       rt.forest.visible = rt.forestLevel > 0.001;
-      rt.root.visible = rt.field.visible || rt.river.visible || rt.forest.visible;
+      rt.storm.group.visible = rt.stormLevel > 0.001;
+      rt.sea.group.visible = rt.seaLevel > 0.001;
+      rt.root.visible =
+        rt.field.visible || rt.river.visible || rt.forest.visible || rt.storm.group.visible || rt.sea.group.visible;
       rt.moonMaterial.opacity = 0.5 * rt.riverLevel;
 
       const n = stageRuntime.normal;
@@ -233,6 +249,11 @@ export class ScenerySystem extends createSystem({
       rt.waves[1].position.x = -(((this.time * 0.02) % 0.22) - 0.11);
       // Keep the moon round despite the stage's non-uniform scale.
       rt.moon.scale.set(1, stageRuntime.width / stageRuntime.height, 1);
+      const finale = this.queries.stages.entities.values().next().value?.getValue(Stage, 'finale') ?? 0;
+      rt.storm.group.scale.set(stageRuntime.width, stageRuntime.height, 1);
+      rt.sea.group.scale.set(stageRuntime.width, stageRuntime.height, 1);
+      if (rt.storm.group.visible) rt.storm.update(this.time, rt.stormLevel, finale);
+      if (rt.sea.group.visible) rt.sea.update(this.time, rt.seaLevel, finale);
     }
   }
 }

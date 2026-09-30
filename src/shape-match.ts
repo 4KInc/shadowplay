@@ -12,6 +12,17 @@ const GRACE_SECONDS = 0.15;
 const BIRD_WRIST_GAP = 0.22;
 const BIRD_MAX_CURL = 0.35;
 
+/** Free Stage: every shape that can be performed, mapped to its character. */
+const FREE_ACCEPT: Readonly<Record<string, string>> = {
+  [ShapeIds.Rabbit]: ShapeIds.Rabbit,
+  [ShapeIds.Ears]: ShapeIds.Rabbit,
+  [ShapeIds.Fish]: ShapeIds.Fish,
+  [ShapeIds.Dog]: ShapeIds.Dog,
+  [ShapeIds.Bird]: ShapeIds.Bird,
+  [ShapeIds.Snail]: ShapeIds.Snail,
+  [ShapeIds.Swan]: ShapeIds.Swan,
+};
+
 interface HandEval {
   shape: string;
   inLight: boolean;
@@ -43,19 +54,22 @@ export class ShapeMatchSystem extends createSystem({
       const tolerance = entity.getValue(ShapeRecognizer, 'tolerance') ?? 0.3;
       this.evaluate(handRuntime.left, tolerance, this.left);
       this.evaluate(handRuntime.right, tolerance, this.right);
-      const twoHanded = this.detectBird();
-      if (twoHanded) this.left.shape = this.right.shape = ShapeIds.Bird;
+      const pair = this.detectPair();
+      const twoHanded = pair !== null;
+      if (pair) this.left.shape = this.right.shape = pair;
       this.publish(entity);
 
       const t1 = entity.getValue(ShapeRecognizer, 'target') ?? ShapeIds.None;
       const t2 = entity.getValue(ShapeRecognizer, 'target2') ?? ShapeIds.None;
-      if (t1 === ShapeIds.None && t2 === ShapeIds.None) {
+      const free = Boolean(entity.getValue(ShapeRecognizer, 'freeMode'));
+      if (t1 === ShapeIds.None && t2 === ShapeIds.None && !free) {
         entity.setValue(ShapeRecognizer, 'heldFor', 0);
         continue;
       }
       if (entity.getValue(ShapeRecognizer, 'matchedHand') !== Hands.None) {
-        // A live bird upgrades to two hands when the second hand joins (and back).
-        if (entity.getValue(ShapeRecognizer, 'matchedShape') === ShapeIds.Bird) {
+        // A live bird or cup upgrades to two hands when the second hand joins (and back).
+        const live = entity.getValue(ShapeRecognizer, 'matchedShape');
+        if (live === ShapeIds.Bird || live === ShapeIds.Cup) {
           entity.setValue(ShapeRecognizer, 'twoHanded', twoHanded);
         }
         continue;
@@ -67,7 +81,7 @@ export class ShapeMatchSystem extends createSystem({
         if (shape === ShapeIds.None) return ShapeIds.None;
         if (shape === t1 || (a1 !== ShapeIds.None && shape === a1)) return t1;
         if (shape === t2 || (a2 !== ShapeIds.None && shape === a2)) return t2;
-        return ShapeIds.None;
+        return free ? (FREE_ACCEPT[shape] ?? ShapeIds.None) : ShapeIds.None;
       };
       const rightTarget = this.right.inLight ? requested(this.right.shape) : ShapeIds.None;
       const leftTarget = this.left.inLight ? requested(this.left.shape) : ShapeIds.None;
@@ -87,7 +101,7 @@ export class ShapeMatchSystem extends createSystem({
       if (held >= (entity.getValue(ShapeRecognizer, 'holdSeconds') ?? 0.5)) {
         entity.setValue(ShapeRecognizer, 'matchedHand', rightTarget !== ShapeIds.None ? Hands.Right : Hands.Left);
         entity.setValue(ShapeRecognizer, 'matchedShape', this.candidate as never);
-        entity.setValue(ShapeRecognizer, 'twoHanded', twoHanded && this.candidate === ShapeIds.Bird);
+        entity.setValue(ShapeRecognizer, 'twoHanded', twoHanded && this.candidate === pair);
       }
     }
   }
@@ -111,16 +125,21 @@ export class ShapeMatchSystem extends createSystem({
     }
   }
 
-  /** Both hands open, in the light, wrists side by side. */
-  private detectBird(): boolean {
+  /**
+   * Two-hand shapes: both hands in the light, wrists side by side, and either
+   * both open (the bird) or both cupped (holding the light).
+   */
+  private detectPair(): string | null {
     const l = handRuntime.left;
     const r = handRuntime.right;
-    if (!l.tracked || !r.tracked || !this.left.inLight || !this.right.inLight) return false;
-    if (this.left.curl > BIRD_MAX_CURL || this.right.curl > BIRD_MAX_CURL) return false;
+    if (!l.tracked || !r.tracked || !this.left.inLight || !this.right.inLight) return null;
     const dx = l.joints[0] - r.joints[0];
     const dy = l.joints[1] - r.joints[1];
     const dz = l.joints[2] - r.joints[2];
-    return Math.sqrt(dx * dx + dy * dy + dz * dz) < BIRD_WRIST_GAP;
+    if (Math.sqrt(dx * dx + dy * dy + dz * dz) >= BIRD_WRIST_GAP) return null;
+    if (this.left.curl <= BIRD_MAX_CURL && this.right.curl <= BIRD_MAX_CURL) return ShapeIds.Bird;
+    if (this.left.shape === ShapeIds.Cup && this.right.shape === ShapeIds.Cup) return ShapeIds.Cup;
+    return null;
   }
 
   private publish(entity: Entity): void {

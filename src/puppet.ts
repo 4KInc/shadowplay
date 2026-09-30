@@ -116,6 +116,8 @@ export class PuppetSystem extends createSystem({
       else {
         rt.fill.opacity = Math.max(0, rt.fill.opacity - delta * 1.5);
         rt.eyeMat.opacity = 0;
+        // Free Stage: any discovered shape comes alive without a request.
+        if (recognizer?.getValue(ShapeRecognizer, 'freeMode')) this.tryWake(entity, rt, recognizer);
       }
       rt.rig.animate(this.time, delta, features);
 
@@ -149,6 +151,12 @@ export class PuppetSystem extends createSystem({
     rt.fill.opacity += (target - rt.fill.opacity) * Math.min(1, delta * 10);
     rt.eyeMat.opacity = 0;
 
+    this.tryWake(entity, rt, rec);
+  }
+
+  /** Brings the puppet alive when the recognizer has matched its shape. */
+  private tryWake(entity: Entity, rt: PuppetRuntime, rec: Entity | undefined): void {
+    const shape = entity.getValue(ShadowPuppet, 'shape');
     const matched = rec?.getValue(ShapeRecognizer, 'matchedHand') ?? Hands.None;
     if (matched !== Hands.None && rec?.getValue(ShapeRecognizer, 'matchedShape') === shape) {
       rt.twoHanded = Boolean(rec.getValue(ShapeRecognizer, 'twoHanded'));
@@ -174,7 +182,8 @@ export class PuppetSystem extends createSystem({
     rt.fill.opacity = 0.92 * Math.min(1, rt.alive * 1.5);
     rt.eyeMat.opacity = rt.fill.opacity;
 
-    if (entity.getValue(ShadowPuppet, 'shape') === ShapeIds.Bird) {
+    const shapeId = entity.getValue(ShadowPuppet, 'shape');
+    if (shapeId === ShapeIds.Bird || shapeId === ShapeIds.Cup) {
       const two = Boolean(rec?.getValue(ShapeRecognizer, 'twoHanded'));
       if (two !== rt.twoHanded) {
         rt.twoHanded = two;

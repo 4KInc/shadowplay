@@ -136,8 +136,6 @@ export class LampControlSystem extends createSystem({
       p.x = this.headPos.x + (dx / reach) * clamped;
       p.z = this.headPos.z + (dz / reach) * clamped;
     }
-    // Keep the shade aimed at the stage.
-    const c = stageRuntime.center;
-    lampObj.rotation.set(0, Math.atan2(-(c.x - p.x), -(c.z - p.z)), 0);
+    // StageSetupSystem re-aims the shade: sliding the lamp sweeps its light.
   }
 }

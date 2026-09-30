@@ -1,4 +1,15 @@
-import { Group, Material, Mesh, Shape, ShapeGeometry } from '@iwsdk/core';
+import {
+  AddEquation,
+  CustomBlending,
+  Group,
+  Material,
+  Mesh,
+  MeshBasicMaterial,
+  OneFactor,
+  Shape,
+  ShapeGeometry,
+  ZeroFactor,
+} from '@iwsdk/core';
 import { ShapeIds } from './shadowplay-components.js';
 import { buildRabbit } from './silhouettes.js';
 
@@ -224,8 +235,167 @@ function rabbitRig(fill: Material, eyeMat: Material): PuppetRig {
   };
 }
 
+// ---------------------------------------------------------------- snail (hidden)
+
+function snailFoot(): Shape {
+  const s = new Shape();
+  s.moveTo(-0.5, -0.24);
+  s.lineTo(0.3, -0.24);
+  s.bezierCurveTo(0.44, -0.24, 0.5, -0.12, 0.46, 0.0);
+  s.bezierCurveTo(0.43, 0.07, 0.34, 0.07, 0.3, 0.0);
+  s.bezierCurveTo(0.24, -0.1, 0.0, -0.12, -0.4, -0.14);
+  s.bezierCurveTo(-0.5, -0.15, -0.52, -0.22, -0.5, -0.24);
+  return s;
+}
+function snailStalk(): Shape {
+  const s = new Shape();
+  s.moveTo(-0.012, 0);
+  s.lineTo(-0.008, 0.2);
+  s.absarc(0, 0.2, 0.028, Math.PI, 0, true);
+  s.lineTo(0.012, 0);
+  s.closePath();
+  return s;
+}
+const snailGeo = {
+  foot: new ShapeGeometry(snailFoot(), 12),
+  shell: new ShapeGeometry(circle(0.23), 32),
+  stalk: new ShapeGeometry(snailStalk(), 8),
+};
+
+function buildSnail(fill: Material, eyeMat: Material): PuppetRig {
+  const root = new Group();
+  root.name = 'snail';
+  const shell = mesh(snailGeo.shell, fill, 'snail-shell', 6, -0.0015);
+  shell.position.set(-0.1, 0.02, -0.0015);
+  const front = pivot('snail-stalk-front', 0.4, 0.02, -0.003, mesh(snailGeo.stalk, fill, 'snail-stalk-front-mesh', 4));
+  const back = pivot('snail-stalk-back', 0.36, 0.03, -0.003, mesh(snailGeo.stalk, fill, 'snail-stalk-back-mesh', 4));
+  const eye = eyeAt(eyeMat, 0.42, -0.02);
+  eye.scale.setScalar(0.6);
+  root.add(mesh(snailGeo.foot, fill, 'snail-foot', 5), shell, front, back, eye);
+  return {
+    root,
+    eye,
+    seat: { x: -0.1, y: 0.27 },
+    animate(time, _delta, f) {
+      // Eye stalks follow the index and middle fingers.
+      front.rotation.z = -0.35 - (f ? f[1] : 0.1 + 0.1 * Math.sin(time)) * 1.1;
+      back.rotation.z = -0.1 - (f ? f[2] : 0.1 + 0.1 * Math.sin(time + 1)) * 1.1;
+    },
+  };
+}
+
+// ---------------------------------------------------------------- swan (hidden)
+
+function swanBody(): Shape {
+  const s = new Shape();
+  s.moveTo(-0.46, 0.02);
+  s.bezierCurveTo(-0.42, -0.18, 0.2, -0.2, 0.32, -0.04);
+  s.bezierCurveTo(0.3, 0.03, 0.22, 0.06, 0.12, 0.06);
+  s.bezierCurveTo(-0.02, 0.14, -0.22, 0.12, -0.3, 0.1);
+  s.bezierCurveTo(-0.38, 0.14, -0.48, 0.18, -0.54, 0.22);
+  s.lineTo(-0.46, 0.02);
+  return s;
+}
+function swanNeck(): Shape {
+  const s = new Shape();
+  s.moveTo(-0.04, 0);
+  s.bezierCurveTo(-0.08, 0.2, 0.1, 0.3, 0.05, 0.48);
+  s.bezierCurveTo(0.04, 0.56, 0.1, 0.61, 0.17, 0.59);
+  s.lineTo(0.3, 0.54);
+  s.lineTo(0.16, 0.51);
+  s.bezierCurveTo(0.11, 0.49, 0.11, 0.45, 0.13, 0.41);
+  s.bezierCurveTo(0.19, 0.27, 0.05, 0.2, 0.05, 0);
+  s.closePath();
+  return s;
+}
+const swanGeo = { body: new ShapeGeometry(swanBody(), 14), neck: new ShapeGeometry(swanNeck(), 14) };
+
+function buildSwan(fill: Material, eyeMat: Material): PuppetRig {
+  const root = new Group();
+  root.name = 'swan';
+  const neck = pivot('swan-neck', 0.16, 0.02, -0.0015, mesh(swanGeo.neck, fill, 'swan-neck-mesh', 6));
+  const eye = eyeAt(eyeMat, 0.15, 0.55);
+  eye.scale.setScalar(0.6);
+  neck.add(eye);
+  root.add(mesh(swanGeo.body, fill, 'swan-body', 5), neck);
+  return {
+    root,
+    eye,
+    seat: { x: -0.18, y: 0.14 },
+    animate(time) {
+      neck.rotation.z = Math.sin(time * 0.7) * 0.06;
+    },
+  };
+}
+
+// ---------------------------------------------------------------- held light (cup)
+
+/** Add light to colour without touching alpha, so it glows over passthrough. */
+function glowMaterial(color: number): MeshBasicMaterial {
+  return new MeshBasicMaterial({
+    color,
+    transparent: true,
+    depthWrite: false,
+    blending: CustomBlending,
+    blendEquation: AddEquation,
+    blendSrc: OneFactor,
+    blendDst: OneFactor,
+    blendSrcAlpha: ZeroFactor,
+    blendDstAlpha: OneFactor,
+  });
+}
+
+const glowGeo = new ShapeGeometry(circle(1), 40);
+
+const LIGHT_LAYERS: readonly { r: number; color: number }[] = [
+  { r: 0.34, color: 0x3a2008 },
+  { r: 0.22, color: 0x7a4814 },
+  { r: 0.13, color: 0xd89a44 },
+  { r: 0.07, color: 0xfff0c8 },
+];
+
+/** The last of the lighthouse's light, held in cupped hands: layered warm glow. */
+function buildLight(fill: MeshBasicMaterial, eyeMat: Material): PuppetRig {
+  const root = new Group();
+  root.name = 'held-light';
+  const layers = LIGHT_LAYERS.map((l, i) => {
+    const material = glowMaterial(l.color);
+    const m = new Mesh(glowGeo, material);
+    m.name = `held-light-${i}`;
+    m.renderOrder = 8 + i;
+    m.scale.setScalar(l.r);
+    m.position.z = i * 0.0005;
+    root.add(m);
+    return { mesh: m, material, r: l.r, color: l.color };
+  });
+  // A hidden 'eye' keeps the shared blink logic harmless.
+  const eye = eyeAt(eyeMat, 0, 0);
+  eye.visible = false;
+  root.add(eye);
+  return {
+    root,
+    eye,
+    seat: { x: 0, y: 0.26 },
+    animate(time) {
+      const flicker = 1 + 0.06 * Math.sin(time * 9) + 0.04 * Math.sin(time * 23);
+      // Additive glow brightens colour, so fade it by the puppet's fill opacity.
+      const k = fill.opacity / 0.92;
+      for (const layer of layers) {
+        layer.material.color.setHex(layer.color).multiplyScalar(k);
+        layer.mesh.scale.setScalar(layer.r * flicker);
+      }
+    },
+  };
+}
+
 export function buildPuppetRig(shape: string, fill: Material, eyeMat: Material): PuppetRig {
   switch (shape) {
+    case ShapeIds.Snail:
+      return buildSnail(fill, eyeMat);
+    case ShapeIds.Swan:
+      return buildSwan(fill, eyeMat);
+    case ShapeIds.Cup:
+      return buildLight(fill as MeshBasicMaterial, eyeMat);
     case ShapeIds.Fish:
       return buildFish(fill, eyeMat);
     case ShapeIds.Dog:

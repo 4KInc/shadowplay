@@ -38,6 +38,11 @@ export type StoryBeat =
   | { id: string; type: 'journal'; creature: string; text: string }
   | { id: string; type: 'continue'; text: string }
   | { id: string; type: 'goto'; to: string }
+  | { id: string; type: 'prop'; active: boolean; u?: number }
+  | { id: string; type: 'reveal'; text: string }
+  | { id: string; type: 'letgo'; text: string }
+  | { id: string; type: 'finale'; seconds: number }
+  | { id: string; type: 'freestage'; text: string }
   | { id: string; type: 'end'; text: string };
 
 export interface StoryScript {

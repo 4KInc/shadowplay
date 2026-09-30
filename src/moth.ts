@@ -1,4 +1,18 @@
-import { createSystem, Entity, MeshBasicMaterial, Quaternion, Vector3 } from '@iwsdk/core';
+import {
+  AddEquation,
+  Color,
+  createSystem,
+  CustomBlending,
+  Entity,
+  Mesh,
+  MeshBasicMaterial,
+  OneFactor,
+  Quaternion,
+  Shape,
+  ShapeGeometry,
+  Vector3,
+  ZeroFactor,
+} from '@iwsdk/core';
 import { buildMoth, MothRig } from './silhouettes.js';
 import { Moth, MothModes, PuppetStates, ShadowPuppet } from './shadowplay-components.js';
 import { handRuntime, isOnStage, projectToStage, stageRuntime } from './stage-runtime.js';
@@ -6,6 +20,9 @@ import { handRuntime, isOnStage, projectToStage, stageRuntime } from './stage-ru
 const INDEX_TIP = 9;
 /** Moth wingspan as a fraction of stage width. */
 const SIZE = 0.075;
+const INK = new Color(0x0a0810);
+const GLOW = new Color(0xffc870);
+const HALO = new Color(0xffb45a);
 
 interface MothRuntime {
   rig: MothRig;
@@ -14,6 +31,8 @@ interface MothRuntime {
   target: Vector3;
   mode: string;
   flap: number;
+  halo: Mesh;
+  haloMat: MeshBasicMaterial;
 }
 
 /**
@@ -38,6 +57,8 @@ export class MothSystem extends createSystem({
         if (!rt) return;
         rt.rig.root.removeFromParent();
         rt.fill.dispose();
+        rt.haloMat.dispose();
+        rt.halo.geometry.dispose();
         this.runtimes.delete(entity);
       }),
     );
@@ -48,8 +69,29 @@ export class MothSystem extends createSystem({
     if (rt || !entity.object3D) return rt;
     const fill = new MeshBasicMaterial({ color: 0x0a0810, transparent: true, opacity: 0 });
     const rig = buildMoth(fill);
+    // Her glow, returned in the finale: an additive halo behind the wings.
+    const haloMat = new MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      depthWrite: false,
+      blending: CustomBlending,
+      blendEquation: AddEquation,
+      blendSrc: OneFactor,
+      blendDst: OneFactor,
+      blendSrcAlpha: ZeroFactor,
+      blendDstAlpha: OneFactor,
+    });
+    const disc = new Shape();
+    disc.absarc(0, 0, 1, 0, Math.PI * 2, false);
+    const halo = new Mesh(new ShapeGeometry(disc, 32), haloMat);
+    halo.name = 'moth-halo';
+    halo.renderOrder = 8;
+    halo.position.z = -0.004;
+    rig.root.add(halo);
     entity.object3D.add(rig.root);
-    rt = { rig, fill, pos: new Vector3(), target: new Vector3(), mode: MothModes.Hidden, flap: 0 };
+    rt = {
+      rig, fill, pos: new Vector3(), target: new Vector3(), mode: MothModes.Hidden, flap: 0, halo, haloMat,
+    };
     this.runtimes.set(entity, rt);
     return rt;
   }
@@ -115,6 +157,13 @@ export class MothSystem extends createSystem({
             }
           }
           break;
+        case MothModes.Buffeted:
+          // Tossed by the storm: fast wings, big gusty drift around her spot.
+          follow = 3;
+          flapRate = 26;
+          flutter = 3.2;
+          this.stagePoint(restU + Math.sin(this.time * 1.3) * 0.08, restV + Math.sin(this.time * 2.1) * 0.05, rt.target);
+          break;
         case MothModes.Riding:
           follow = 14;
           flapRate = 3;
@@ -125,6 +174,12 @@ export class MothSystem extends createSystem({
 
       rt.pos.lerp(rt.target, Math.min(1, delta * follow));
       rt.fill.opacity += (visible * 0.92 - rt.fill.opacity) * Math.min(1, delta * 3);
+      const glow = entity.getValue(Moth, 'glow') ?? 0;
+      rt.fill.color.copy(INK).lerp(GLOW, glow);
+      const pulse = 0.85 + 0.15 * Math.sin(this.time * 3);
+      rt.haloMat.color.copy(HALO).multiplyScalar(0.45 * glow * pulse * (rt.fill.opacity / 0.92));
+      rt.halo.visible = glow > 0.01;
+      rt.halo.scale.setScalar(0.6 + 0.5 * glow);
       rt.flap += delta * flapRate;
       const fold = 0.35 + 0.65 * Math.abs(Math.cos(rt.flap));
       rt.rig.wingRight.scale.x = fold;

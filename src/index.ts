@@ -1,10 +1,12 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { CaptionSystem } from './captions.js';
+import { FreeStageSystem } from './free-stage.js';
 import { HandCasterSystem } from './hand-caster.js';
 import { JournalSystem } from './journal.js';
 import { LampControlSystem } from './lamp-control.js';
 import { MothSystem } from './moth.js';
+import { HiddenPropSystem } from './props.js';
 import { PuppetSystem } from './puppet.js';
 import { ScenerySystem } from './scenery.js';
 import { ShapeMatchSystem } from './shape-match.js';
@@ -22,10 +24,12 @@ World.create(
     .registerSystem(LampControlSystem)
     .registerSystem(ShapeMatchSystem)
     .registerSystem(StorySystem)
+    .registerSystem(FreeStageSystem)
     .registerSystem(PuppetSystem)
     .registerSystem(MothSystem)
     .registerSystem(StageActorSystem)
     .registerSystem(ScenerySystem)
+    .registerSystem(HiddenPropSystem)
     .registerSystem(JournalSystem)
     .registerSystem(CaptionSystem);
 });

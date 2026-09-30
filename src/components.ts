@@ -1,6 +1,8 @@
 import { defineComponents } from '@iwsdk/core';
 import {
+  DailyShape,
   DeskLamp,
+  HiddenProp,
   Moth,
   Scenery,
   ShadowJournal,
@@ -21,4 +23,6 @@ export default defineComponents([
   Scenery,
   StageActor,
   ShadowJournal,
+  HiddenProp,
+  DailyShape,
 ]);

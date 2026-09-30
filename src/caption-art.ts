@@ -113,6 +113,21 @@ export function drawHandHint(g: CanvasRenderingContext2D, shape: string): void {
     hintLabel(g, 'flat, thumb up');
     return;
   }
+  if (shape === 'cup') {
+    // Two hands cupped together, fingers half-curled, as if holding water.
+    g.beginPath();
+    g.moveTo(110, 250);
+    g.bezierCurveTo(110, 420, 402, 420, 402, 250);
+    g.lineTo(360, 250);
+    g.bezierCurveTo(350, 350, 162, 350, 152, 250);
+    g.closePath();
+    g.fill();
+    g.stroke();
+    for (const x of [124, 150, 362, 388]) capsule(g, x, 250, x + (x < 256 ? 16 : -16), 200, 13);
+    capsule(g, 200, 400, 312, 400, 30);
+    hintLabel(g, 'cup your hands');
+    return;
+  }
   if (shape === 'bird') {
     // Two open hands side by side, thumbs hooked together at the centre.
     for (const side of [-1, 1]) {
