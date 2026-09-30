@@ -3,86 +3,64 @@
   "units": "meters",
   "components": {
     "com.iwsdk.components.IBLGradient": {
-      "sky": [0.6902, 0.749, 0.7843, 1],
-      "equator": [0.6584, 0.7084, 0.7913, 1],
-      "ground": [0.807, 0.7758, 0.7454, 1],
-      "intensity": 1
+      "sky": [
+        0.32,
+        0.3,
+        0.36,
+        1
+      ],
+      "equator": [
+        0.36,
+        0.3,
+        0.26,
+        1
+      ],
+      "ground": [
+        0.18,
+        0.15,
+        0.13,
+        1
+      ],
+      "intensity": 0.6
     }
   },
   "resources": {},
   "nodes": [
     {
-      "id": "plant-sansevieria",
-      "name": "Plant Sansevieria",
-      "metadata": {
-        "iwsdk.validation": {
-          "allowFloating": true
-        }
-      },
+      "id": "stage",
+      "name": "Stage",
       "content": {
-        "type": "asset",
-        "asset": "plant-sansevieria"
+        "type": "group"
       },
       "transform": {
-        "position": [1.2, 0.2, -1.8],
-        "scale": 2
+        "position": [
+          0,
+          1.25,
+          -2
+        ]
       },
       "components": {
-        "RayInteractable": {},
-        "DistanceGrabbable": {
-          "movementMode": "MoveFromTarget"
-        }
-      }
-    },
-    {
-      "id": "robot",
-      "name": "Robot",
-      "metadata": {
-        "iwsdk.validation": {
-          "allowFloating": true
-        }
-      },
-      "content": {
-        "type": "asset",
-        "asset": "robot"
-      },
-      "transform": {
-        "position": [-1.2, 0.4, -1.8]
-      },
-      "components": {
-        "AudioSource": {
-          "src": "./audio/chime.mp3",
-          "maxInstances": 3,
-          "playbackMode": "fade-restart"
+        "Stage": {
+          "mode": "pending",
+          "distance": 2,
+          "width": 1.2,
+          "dim": 0.6,
+          "lampOn": true,
+          "lampLevel": 0
         },
-        "RayInteractable": {},
-        "Robot": {}
-      }
-    },
-    {
-      "id": "welcome-panel",
-      "name": "Welcome Panel",
-      "content": {
-        "type": "asset",
-        "asset": "welcome-panel"
-      },
-      "transform": {
-        "position": [0, 1.6, -2],
-        "scale": 0.4
-      },
-      "components": {
-        "RayInteractable": {},
-        "ScreenSpace": {
-          "top": "20px",
-          "left": "20px",
-          "width": "25vw",
-          "height": "40%"
+        "ShapeRecognizer": {
+          "target": "none",
+          "altTarget": "none",
+          "tolerance": 0.3,
+          "holdSeconds": 0.5,
+          "target2": "none",
+          "altTarget2": "none"
         }
       }
     },
     {
-      "id": "webxr-banner",
-      "name": "WebXR Banner",
+      "id": "desk-lamp",
+      "name": "Desk Lamp",
       "metadata": {
         "iwsdk.validation": {
           "allowFloating": true
@@ -90,14 +68,235 @@
       },
       "content": {
         "type": "asset",
-        "asset": "webxr-banner"
+        "asset": "desk-lamp"
       },
       "transform": {
-        "position": [0, 1, 1.8],
-        "rotationDeg": [0, 180, 0],
-        "scale": [1, -1, 1]
+        "position": [
+          0.12,
+          0.72,
+          -0.3
+        ]
       },
-      "components": {}
+      "components": {
+        "DeskLamp": {
+          "intensity": 6,
+          "angleDeg": 38,
+          "heldBy": "none"
+        }
+      }
+    },
+    {
+      "id": "rabbit-puppet",
+      "name": "Rabbit Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "rabbit",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "story",
+      "name": "Story",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.98
+        ]
+      },
+      "components": {
+        "StoryState": {
+          "script": "story/the-moth.story.json",
+          "status": "loading",
+          "hintAfterSeconds": 15,
+          "hintVisible": false,
+          "resume": true,
+          "hintShape": "rabbit"
+        }
+      }
+    },
+    {
+      "id": "moth",
+      "name": "Mo the Moth",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.4,
+          -1.98
+        ]
+      },
+      "components": {
+        "Moth": {
+          "mode": "hidden",
+          "followedSeconds": 0,
+          "restU": 0.18,
+          "restV": 0.3
+        }
+      }
+    },
+    {
+      "id": "scenery",
+      "name": "Scenery",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          0.9,
+          -1.99
+        ]
+      },
+      "components": {
+        "Scenery": {
+          "set": "none"
+        }
+      }
+    },
+    {
+      "id": "fish-puppet",
+      "name": "Fish Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "fish",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "dog-puppet",
+      "name": "Dog Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "dog",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "bird-puppet",
+      "name": "Bird Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "bird",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "wolf",
+      "name": "Shadow Wolf",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0.4,
+          1.1,
+          -1.99
+        ]
+      },
+      "components": {
+        "StageActor": {
+          "actor": "wolf",
+          "state": "hidden",
+          "u": 0.26,
+          "v": -0.26
+        }
+      }
+    },
+    {
+      "id": "shadow-journal",
+      "name": "Shadow Journal",
+      "metadata": {
+        "iwsdk.validation": {
+          "allowFloating": true
+        }
+      },
+      "content": {
+        "type": "asset",
+        "asset": "journal-book"
+      },
+      "transform": {
+        "position": [
+          -0.2,
+          0.72,
+          -0.28
+        ],
+        "rotationDeg": [
+          0,
+          11,
+          0
+        ]
+      },
+      "components": {
+        "ShadowJournal": {
+          "open": false,
+          "count": 0,
+          "pendingAdd": "",
+          "lastAdded": "",
+          "discovered": ""
+        }
+      }
     }
   ]
 }

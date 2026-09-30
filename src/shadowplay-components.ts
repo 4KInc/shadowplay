@@ -1,0 +1,174 @@
+import { createComponent, Types } from '@iwsdk/core';
+
+/** Where the story is performed. */
+export const StageModes = {
+  Pending: 'pending',
+  Wall: 'wall',
+  Screen: 'screen',
+} as const;
+
+/** Shapes the recognizer can report. */
+export const ShapeIds = {
+  None: 'none',
+  Open: 'open',
+  Rabbit: 'rabbit',
+  Dog: 'dog',
+  Fist: 'fist',
+  /** Easier one-hand rabbit: two fingers up, thumb free. */
+  Ears: 'ears',
+  /** Flat hand, fingers together, thumb tucked along the side. */
+  Fish: 'fish',
+  /** Two open hands side by side, thumbs together (wings). */
+  Bird: 'bird',
+} as const;
+
+export const Hands = { None: 'none', Left: 'left', Right: 'right' } as const;
+
+export const PuppetStates = {
+  Hidden: 'hidden',
+  Outline: 'outline',
+  Alive: 'alive',
+  Releasing: 'releasing',
+} as const;
+
+/** The stage root: the wall region (or floating paper screen) and room dimming. */
+export const Stage = createComponent('Stage', {
+  mode: { type: Types.Enum, enum: StageModes, default: StageModes.Pending },
+  distance: { type: Types.Float32, default: 2, min: 0, max: 5, label: 'Wall distance (m)' },
+  width: { type: Types.Float32, default: 1.2, min: 0.2, max: 3, label: 'Stage width (m)' },
+  dim: { type: Types.Float32, default: 0.6, min: 0, max: 0.95, label: 'Room dimming' },
+  lampOn: { type: Types.Boolean, default: true },
+  /** 0..1 lamp brightness; the story flickers it on. */
+  lampLevel: { type: Types.Float32, default: 1, min: 0, max: 1 },
+});
+
+/** The desk lamp; its bulb throws every shadow. */
+export const DeskLamp = createComponent('DeskLamp', {
+  intensity: { type: Types.Float32, default: 6, min: 0, max: 40, label: 'Candela' },
+  angleDeg: { type: Types.Float32, default: 38, min: 10, max: 80 },
+  /** Set while a hand pinch-drags the lamp along the desk. */
+  heldBy: { type: Types.Enum, enum: { None: 'none', Left: 'left', Right: 'right' }, default: 'none' },
+});
+
+/** Joint-angle recognizer state, one per stage. */
+export const ShapeRecognizer = createComponent('ShapeRecognizer', {
+  target: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
+  /** Accessibility alternative that also satisfies the request. */
+  altTarget: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
+  /** Second requested shape, for story choices. */
+  target2: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
+  altTarget2: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
+  /** Which requested shape (target or target2) was matched. */
+  matchedShape: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
+  /** True when the match was a two-hand shape. */
+  twoHanded: { type: Types.Boolean, default: false },
+  tolerance: {
+    type: Types.Float32,
+    default: 0.3,
+    min: 0.1,
+    max: 0.6,
+    label: 'Tolerance (strict -> forgiving)',
+  },
+  holdSeconds: { type: Types.Float32, default: 0.5, min: 0.1, max: 2 },
+  leftShape: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
+  rightShape: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
+  leftScore: { type: Types.Float32, default: 0 },
+  rightScore: { type: Types.Float32, default: 0 },
+  leftInLight: { type: Types.Boolean, default: false },
+  rightInLight: { type: Types.Boolean, default: false },
+  heldFor: { type: Types.Float32, default: 0 },
+  matchedHand: { type: Types.Enum, enum: Hands, default: Hands.None },
+});
+
+/** A silhouette character that comes alive when its shape is cast. */
+export const ShadowPuppet = createComponent('ShadowPuppet', {
+  shape: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.Rabbit },
+  state: { type: Types.Enum, enum: PuppetStates, default: PuppetStates.Hidden },
+  hand: { type: Types.Enum, enum: Hands, default: Hands.None },
+  /** Where the waiting outline sits, as fractions of stage width/height. */
+  outlineU: { type: Types.Float32, default: 0 },
+  outlineV: { type: Types.Float32, default: 0 },
+  /** Current silhouette length as a fraction of stage width (set while alive). */
+  size: { type: Types.Float32, default: 0 },
+});
+
+export const StoryStatuses = {
+  Loading: 'loading',
+  Waiting: 'waiting',
+  Playing: 'playing',
+  Paused: 'paused',
+  Ended: 'ended',
+} as const;
+
+/** Story engine progress; the beat script lives in public/story/*.story.json. */
+export const StoryState = createComponent('StoryState', {
+  script: { type: Types.String, default: 'story/the-moth.story.json' },
+  /** Resume from the last chapter reached (saved in IndexedDB). */
+  resume: { type: Types.Boolean, default: true },
+  status: { type: Types.Enum, enum: StoryStatuses, default: StoryStatuses.Loading },
+  chapter: { type: Types.String, default: '' },
+  beatIndex: { type: Types.Int16, default: -1 },
+  beatId: { type: Types.String, default: '' },
+  caption: { type: Types.String, default: '' },
+  /** Seconds a request waits before the 'show me' ghost hand appears (0 = always). */
+  hintAfterSeconds: { type: Types.Float32, default: 15, min: 0, max: 120 },
+  hintVisible: { type: Types.Boolean, default: false },
+  /** Shape the 'show me' ghost hand demonstrates. */
+  hintShape: { type: Types.String, default: 'rabbit' },
+  /** Branch taken at the last choice (for encore endings). */
+  branch: { type: Types.String, default: '' },
+  /** True while the Shadow Journal is open; the story waits. */
+  journalOpen: { type: Types.Boolean, default: false },
+});
+
+export const MothModes = {
+  Hidden: 'hidden',
+  Arriving: 'arriving',
+  Hovering: 'hovering',
+  Following: 'following',
+  Riding: 'riding',
+  Resting: 'resting',
+} as const;
+
+/** Mo, the moth who lost her glow. */
+export const Moth = createComponent('Moth', {
+  mode: { type: Types.Enum, enum: MothModes, default: MothModes.Hidden },
+  /** Seconds spent close to a fingertip shadow while Following. */
+  followedSeconds: { type: Types.Float32, default: 0 },
+  /** Stage-local rest point (fractions of stage width/height, -0.5..0.5). */
+  restU: { type: Types.Float32, default: 0 },
+  restV: { type: Types.Float32, default: 0.25 },
+});
+
+export const ScenerySets = { None: 'none', Field: 'field', River: 'river', Forest: 'forest' } as const;
+
+/** Background silhouette set drawn behind the characters. */
+export const Scenery = createComponent('Scenery', {
+  set: { type: Types.Enum, enum: ScenerySets, default: ScenerySets.None },
+});
+
+export const ActorStates = {
+  Hidden: 'hidden',
+  Blocking: 'blocking',
+  Fleeing: 'fleeing',
+  Dozing: 'dozing',
+} as const;
+
+/** Story-controlled shadow characters that are not puppets (the wolf). */
+export const StageActor = createComponent('StageActor', {
+  actor: { type: Types.Enum, enum: { Wolf: 'wolf' }, default: 'wolf' },
+  state: { type: Types.Enum, enum: ActorStates, default: ActorStates.Hidden },
+  u: { type: Types.Float32, default: 0.3 },
+  v: { type: Types.Float32, default: -0.12 },
+});
+
+/** The desk book that collects every creature discovered (IndexedDB-backed). */
+export const ShadowJournal = createComponent('ShadowJournal', {
+  open: { type: Types.Boolean, default: false },
+  count: { type: Types.Int16, default: 0 },
+  /** Set by the story to record a creature; the journal system consumes it. */
+  pendingAdd: { type: Types.String, default: '' },
+  lastAdded: { type: Types.String, default: '' },
+  /** Comma-separated discovered creature ids (mirror of the IndexedDB store). */
+  discovered: { type: Types.String, default: '' },
+});
