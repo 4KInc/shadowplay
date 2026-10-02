@@ -98,8 +98,12 @@ export class HandCasterSystem extends createSystem(
     const session = this.world.xrSession;
     let seenLeft = false;
     let seenRight = false;
+    let hands = 0;
+    let controllers = 0;
     if (frame && refSpace && session) {
       for (const source of session.inputSources) {
+        if (source.hand) hands++;
+        else if (source.gamepad) controllers++;
         if (!source.hand || (source.handedness !== 'left' && source.handedness !== 'right')) continue;
         const caster = this.hands[source.handedness];
         if (this.sampleHand(caster, source.hand, frame, refSpace)) {
@@ -108,6 +112,7 @@ export class HandCasterSystem extends createSystem(
         }
       }
     }
+    handRuntime.controllersOnly = controllers > 0 && hands === 0;
     this.finish(this.hands.left, seenLeft);
     this.finish(this.hands.right, seenRight);
   }

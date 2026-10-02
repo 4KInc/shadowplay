@@ -16,7 +16,7 @@ import {
   StoryStatuses,
 } from './shadowplay-components.js';
 import { loadStoryScript, readingSeconds, StoryBeat, StoryScript } from './story-script.js';
-import { stageRuntime } from './stage-runtime.js';
+import { handRuntime, stageRuntime } from './stage-runtime.js';
 
 const CHAPTER_SECONDS = 3.2;
 const LAMP_SECONDS = 1.8;
@@ -26,6 +26,12 @@ const REVEAL_HOLD_SECONDS = 0.8;
 const LETGO_HOLD_SECONDS = 0.5;
 const PAUSED_CAPTION = 'Paused. Pinch the lamp switch to continue.';
 const JOURNAL_CAPTION = 'Your Shadow Journal. Pinch the book to close it.';
+const TITLE_CAPTION =
+  'Shadowplay. A lamp on your desk, a story on your wall. Put on your Meta Quest and press Enter XR to begin.';
+const OUTSIDE_XR_CAPTION = 'Paused. Press Enter XR to return to the story.';
+const HANDS_CAPTION = 'Shadowplay is played with your hands. Put your controllers down and let the headset see your hands.';
+/** Grace period before the hands-first guard pauses (controllers being set down). */
+const CONTROLLER_GRACE_SECONDS = 1;
 
 /** Lamp flicker envelope for the prologue: stutters, catches, then warms up. */
 function flicker(t: number): number {
@@ -60,6 +66,10 @@ export class StorySystem extends createSystem({
   private holdTime = 0;
   private beatCaption = '';
   private blurred = false;
+  private inXR = false;
+  /** Browser attract mode (before any XR session) is showing. */
+  private attract = false;
+  private controllerTime = 0;
   private loading = false;
   private resumeAt = -1;
   private lastAliveShape: string = ShapeIds.None;
@@ -70,8 +80,31 @@ export class StorySystem extends createSystem({
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((state) => {
         this.blurred = state === VisibilityState.VisibleBlurred;
+        this.inXR = state !== VisibilityState.NonImmersive;
       }),
     );
+  }
+
+  /** Title card with the lamp lit and Mo fluttering, until an XR session starts. */
+  private showAttract(story: Entity, stage: Entity): void {
+    const started = (story.getValue(StoryState, 'beatIndex') ?? -1) >= 0;
+    setIfChanged(story, 'status', StoryStatuses.Waiting);
+    setIfChanged(story, 'caption', started ? OUTSIDE_XR_CAPTION : TITLE_CAPTION);
+    if (started || this.attract) return;
+    this.attract = true;
+    stage.setValue(Stage, 'lampLevel', 1);
+    for (const m of this.queries.moths.entities) {
+      m.setValue(Moth, 'restU', 0.12);
+      m.setValue(Moth, 'restV', 0.18);
+      m.setValue(Moth, 'mode', 'hovering');
+    }
+  }
+
+  /** Entering XR: clear the title card so the Prologue (or resume) starts cleanly. */
+  private leaveAttract(stage: Entity): void {
+    this.attract = false;
+    if (this.resumeAt <= 0) stage.setValue(Stage, 'lampLevel', 0);
+    for (const m of this.queries.moths.entities) m.setValue(Moth, 'mode', 'hidden');
   }
 
   /** Story entities may exist before this system registers, so load lazily. */
@@ -107,12 +140,23 @@ export class StorySystem extends createSystem({
       return;
     }
 
+    // Outside XR (e.g. the hosted link on a desktop): a title card, not the story.
+    if (!this.inXR) {
+      this.showAttract(story, stage);
+      return;
+    }
+    if (this.attract) this.leaveAttract(stage);
+
+    // Hands first: controllers but no hands pauses the story with a gentle note.
+    this.controllerTime = handRuntime.controllersOnly ? this.controllerTime + delta : 0;
+    const needHands = this.controllerTime > CONTROLLER_GRACE_SECONDS;
+
     const journalOpen = Boolean(first(this.queries.journals.entities)?.getValue(ShadowJournal, 'open'));
     if (story.getValue(StoryState, 'journalOpen') !== journalOpen) story.setValue(StoryState, 'journalOpen', journalOpen);
-    const paused = !stage.getValue(Stage, 'lampOn') || this.blurred || journalOpen;
+    const paused = !stage.getValue(Stage, 'lampOn') || this.blurred || journalOpen || needHands;
     if (paused) {
       setIfChanged(story, 'status', StoryStatuses.Paused);
-      setIfChanged(story, 'caption', journalOpen ? JOURNAL_CAPTION : PAUSED_CAPTION);
+      setIfChanged(story, 'caption', needHands ? HANDS_CAPTION : journalOpen ? JOURNAL_CAPTION : PAUSED_CAPTION);
       return;
     }
     if (status === StoryStatuses.Paused) story.setValue(StoryState, 'caption', this.beatCaption);

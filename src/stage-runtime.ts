@@ -56,7 +56,12 @@ function makeHand(): HandSample {
 }
 
 /** Written by HandCasterSystem each XR frame. */
-export const handRuntime = { left: makeHand(), right: makeHand() };
+export const handRuntime = {
+  left: makeHand(),
+  right: makeHand(),
+  /** The session has controllers but no hand input (hands-first guard). */
+  controllersOnly: false,
+};
 
 /**
  * Project a world point from the lamp bulb onto the stage plane.

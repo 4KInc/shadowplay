@@ -163,12 +163,14 @@ export class StageSetupSystem extends createSystem({
       this.watchedRef = ref;
     }
 
-    const headObj = this.player.head;
+    // In XR the tracked head; in the desktop browser the camera actually rendering.
+    const headObj = this.inXR ? this.player.head : this.world.camera;
     headObj.updateWorldMatrix(true, false);
     this.head.setFromMatrixPosition(headObj.matrixWorld);
     headObj.getWorldDirection(this.forward);
-    // Object3D.getWorldDirection returns +Z; the viewer looks down -Z.
-    this.forward.negate();
+    // Object3D.getWorldDirection returns +Z (the viewer looks down -Z); cameras
+    // already return their look direction.
+    if (!(headObj as Object3D & { isCamera?: boolean }).isCamera) this.forward.negate();
     this.forward.y = 0;
     if (this.forward.lengthSq() < 1e-6) this.forward.set(0, 0, -1);
     this.forward.normalize();
@@ -281,6 +283,12 @@ export class StageSetupSystem extends createSystem({
     this.normal.copy(this.forward).negate();
     this.tmpB.copy(this.head).addScaledVector(this.forward, SCREEN_DISTANCE);
     this.tmpB.y = this.head.y + 0.05;
+    if (!this.inXR) {
+      // Desktop browser (the hosted link): centre the screen in the actual view,
+      // pitch included, so the title card and captions are framed.
+      this.world.camera.getWorldDirection(this.tmpA);
+      this.tmpB.copy(this.head).addScaledVector(this.tmpA, SCREEN_DISTANCE);
+    }
     const width = SCREEN_DISTANCE * WIDTH_PER_METER;
     this.applyStage(stage, lamp, this.tmpB, this.normal, width, SCREEN_DISTANCE, StageModes.Screen, false);
   }
@@ -333,6 +341,11 @@ export class StageSetupSystem extends createSystem({
       .addScaledVector(this.forward, lampForward)
       .addScaledVector(right, 0.16);
     lampObj.position.y = deskY;
+    if (!this.inXR) {
+      // Desktop browser: keep the lamp low and to the side, out of the frame.
+      lampObj.position.copy(this.head).addScaledVector(this.forward, 0.55).addScaledVector(right, 0.45);
+      lampObj.position.y = this.head.y - 0.62;
+    }
     this.lampHome.copy(lampObj.position);
 
     // The Shadow Journal lies on the desk on the other side, front edge to the player.
