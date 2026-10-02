@@ -41,6 +41,16 @@ const HINT_BUTTONS: readonly [string, string][] = [
   ['hint-always', HintModes.Always],
 ];
 
+const CHAPTER_BUTTONS: readonly [string, string, string][] = [
+  ['chap-prologue', 'prologue', 'the Prologue'],
+  ['chap-ch1', 'ch1', 'Chapter One'],
+  ['chap-ch2', 'ch2', 'Chapter Two'],
+  ['chap-ch3', 'ch3', 'Chapter Three'],
+  ['chap-ch4', 'ch4', 'Chapter Four'],
+  ['chap-ch5', 'ch5', 'Chapter Five'],
+];
+const LOCKED = { backgroundColor: '#1d1826', borderColor: '#2e2639', color: '#6b5f7a' };
+
 const SELECTED = { backgroundColor: '#e0a24a', borderColor: '#f2c47a', color: '#1a1320' };
 const UNSELECTED = { backgroundColor: '#2b2338', borderColor: '#4a3d5c', color: '#f6e3bd' };
 
@@ -64,6 +74,8 @@ export class SettingsSystem extends createSystem({
   private loaded = false;
   private loading = false;
   private applied = '';
+  /** Last unlock list shown on the chapter buttons. */
+  private shownUnlocks: string | null = null;
   private quat = new Quaternion();
   private yAxis = new Vector3(0, 1, 0);
 
@@ -83,7 +95,19 @@ export class SettingsSystem extends createSystem({
       if (this.applied) void saveSettings({ tolerance, hints, oneHand });
       this.applied = key;
     }
+    this.refreshChapters();
     this.place(settings);
+  }
+
+  /** Dim chapters the player has not reached yet. */
+  private refreshChapters(): void {
+    const unlocks = first(this.queries.stories.entities)?.getValue(StoryState, 'unlocked') ?? '';
+    if (unlocks === this.shownUnlocks || this.buttons.size === 0) return;
+    this.shownUnlocks = unlocks;
+    const reached = unlocks.split(',');
+    for (const [id, chapter] of CHAPTER_BUTTONS) {
+      this.buttons.get(id)?.setProperties(reached.includes(chapter) ? UNSELECTED : LOCKED);
+    }
   }
 
   private load(settings: Entity): void {
@@ -117,6 +141,19 @@ export class SettingsSystem extends createSystem({
     for (const [id, value] of TOLERANCE_BUTTONS) on(id, () => settings.setValue(Settings, 'tolerance', value as never));
     for (const [id, value] of HINT_BUTTONS) on(id, () => settings.setValue(Settings, 'hints', value as never));
     on('one-hand-toggle', () => settings.setValue(Settings, 'oneHand', !settings.getValue(Settings, 'oneHand')));
+    for (const [id, chapter, name] of CHAPTER_BUTTONS) {
+      on(id, () => {
+        const story = first(this.queries.stories.entities);
+        const unlocked = (story?.getValue(StoryState, 'unlocked') ?? '').split(',');
+        if (!story || !unlocked.includes(chapter)) {
+          this.status?.setProperties({ text: 'Reach this chapter in the story first.' });
+          return;
+        }
+        for (const j of this.queries.journals.entities) j.setValue(ShadowJournal, 'open', false);
+        story.setValue(StoryState, 'jumpTo', chapter);
+        this.status?.setProperties({ text: `Starting ${name}...` });
+      });
+    }
     on('replace-stage-button', () => {
       // Close the journal so the stage can be found again, then re-place it.
       for (const j of this.queries.journals.entities) j.setValue(ShadowJournal, 'open', false);
@@ -132,6 +169,7 @@ export class SettingsSystem extends createSystem({
     if (this.oneHandLabel) this.oneHandLabel.name = 'one-hand-label';
     if (this.status) this.status.name = 'status-text';
     this.applied = '';
+    this.shownUnlocks = null;
   }
 
   private apply(tolerance: string, hints: string, oneHand: boolean): void {

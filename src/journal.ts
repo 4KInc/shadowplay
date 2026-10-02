@@ -39,6 +39,7 @@ export class JournalSystem extends createSystem({
   private eye = new MeshBasicMaterial({ color: 0xd88a2c, transparent: true, opacity: 0 });
   private level = 0;
   private dirty = true;
+  private endingsShown = '';
   private quat = new Quaternion();
   private yAxis = new Vector3(0, 1, 0);
 
@@ -132,12 +133,18 @@ export class JournalSystem extends createSystem({
   }
 
   private updateOverlay(open: boolean, delta: number): void {
+    const endings = this.queries.stories.entities.values().next().value?.getValue(StoryState, 'endings') ?? '';
+    if (endings !== this.endingsShown) {
+      this.endingsShown = endings;
+      this.dirty = true;
+    }
     const target = open && stageRuntime.ready ? 1 : 0;
     this.level += Math.sign(target - this.level) * Math.min(Math.abs(target - this.level), delta * 3);
     this.overlay.visible = this.level > 0.001;
     if (!this.overlay.visible) return;
     if (this.dirty) {
-      drawJournalPage(this.page.canvas.getContext('2d')!, this.discovered);
+      const endingsFound = this.endingsShown ? this.endingsShown.split(',').length : 0;
+      drawJournalPage(this.page.canvas.getContext('2d')!, this.discovered, endingsFound);
       this.page.texture.needsUpdate = true;
       for (const [id, rig] of this.rigs) rig.root.visible = this.discovered.has(id);
       this.dirty = false;

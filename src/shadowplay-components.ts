@@ -141,6 +141,12 @@ export const StoryState = createComponent('StoryState', {
   branch: { type: Types.String, default: '' },
   /** True while the Shadow Journal is open; the story waits. */
   journalOpen: { type: Types.Boolean, default: false },
+  /** Chapter beat ids the player has reached (comma-separated; persisted). */
+  unlocked: { type: Types.String, default: '' },
+  /** Chapter Three endings seen (comma-separated branch ids; persisted). */
+  endings: { type: Types.String, default: '' },
+  /** Set to a chapter beat id to jump straight to that chapter. */
+  jumpTo: { type: Types.String, default: '' },
 });
 
 export const MothModes = {

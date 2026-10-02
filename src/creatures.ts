@@ -24,7 +24,12 @@ export function slotCenter(index: number): { x: number; y: number } {
 }
 
 /** Paper page with title, slot frames and labels (silhouettes are 3D overlays). */
-export function drawJournalPage(g: CanvasRenderingContext2D, discovered: ReadonlySet<string>): void {
+export function drawJournalPage(
+  g: CanvasRenderingContext2D,
+  discovered: ReadonlySet<string>,
+  endingsFound = 0,
+  endingsTotal = 2,
+): void {
   const grad = g.createRadialGradient(PAGE_W / 2, PAGE_H / 2, 80, PAGE_W / 2, PAGE_H / 2, 620);
   grad.addColorStop(0, '#f3e6c8');
   grad.addColorStop(1, '#d9c294');
@@ -39,7 +44,11 @@ export function drawJournalPage(g: CanvasRenderingContext2D, discovered: Readonl
   g.fillText('Shadow Journal', PAGE_W / 2, 72);
   g.font = 'italic 400 28px Georgia, serif';
   const found = CREATURES.filter((c) => discovered.has(c.id)).length;
-  g.fillText(`${found} of ${CREATURES.length} creatures found`, PAGE_W / 2, 112);
+  g.fillText(
+    `${found} of ${CREATURES.length} creatures found  ·  Endings found: ${endingsFound} of ${endingsTotal}`,
+    PAGE_W / 2,
+    112,
+  );
 
   CREATURES.forEach((c, i) => {
     const { x, y } = slotCenter(i);

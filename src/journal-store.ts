@@ -103,3 +103,17 @@ export async function loadRecordedTemplates(): Promise<{ shape: string; mask: st
 export async function saveRecordedTemplates(templates: { shape: string; mask: string }[]): Promise<void> {
   await run(PROGRESS, 'readwrite', (s) => s.put(templates, 'silhouettes'));
 }
+
+export interface Unlocks {
+  chapters: string[];
+  endings: string[];
+}
+
+/** Chapters reached and endings seen, for chapter select and encore endings. */
+export async function loadUnlocks(): Promise<Unlocks> {
+  return (await run<Unlocks>(PROGRESS, 'readonly', (s) => s.get('unlocks') as IDBRequest<Unlocks>)) ?? { chapters: [], endings: [] };
+}
+
+export async function saveUnlocks(unlocks: Unlocks): Promise<void> {
+  await run(PROGRESS, 'readwrite', (s) => s.put(unlocks, 'unlocks'));
+}

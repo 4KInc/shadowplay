@@ -1,5 +1,5 @@
 import { createSystem, Entity, VisibilityState } from '@iwsdk/core';
-import { loadProgress, saveProgress } from './journal-store.js';
+import { loadProgress, loadUnlocks, saveProgress, saveUnlocks } from './journal-store.js';
 import {
   HiddenProp,
   Moth,
@@ -70,6 +70,8 @@ export class StorySystem extends createSystem({
   /** Browser attract mode (before any XR session) is showing. */
   private attract = false;
   private controllerTime = 0;
+  private unlocked = new Set<string>();
+  private endings = new Set<string>();
   private loading = false;
   private resumeAt = -1;
   private lastAliveShape: string = ShapeIds.None;
@@ -83,6 +85,21 @@ export class StorySystem extends createSystem({
         this.inXR = state !== VisibilityState.NonImmersive;
       }),
     );
+  }
+
+  /** Remember a reached chapter and/or a seen ending (persisted). */
+  private unlock(story: Entity, chapter: string | null, ending: string | null): void {
+    const before = this.unlocked.size + this.endings.size;
+    if (chapter) this.unlocked.add(chapter);
+    if (ending) this.endings.add(ending);
+    if (this.unlocked.size + this.endings.size === before) return;
+    this.publishUnlocks(story);
+    void saveUnlocks({ chapters: [...this.unlocked], endings: [...this.endings] });
+  }
+
+  private publishUnlocks(story: Entity): void {
+    story.setValue(StoryState, 'unlocked', [...this.unlocked].join(','));
+    story.setValue(StoryState, 'endings', [...this.endings].join(','));
   }
 
   /** Title card with the lamp lit and Mo fluttering, until an XR session starts. */
@@ -111,9 +128,16 @@ export class StorySystem extends createSystem({
   private load(story: Entity): void {
     this.loading = true;
     const resume = Boolean(story.getValue(StoryState, 'resume'));
-    Promise.all([loadStoryScript(story.getValue(StoryState, 'script') ?? ''), resume ? loadProgress() : null])
-      .then(([script, progress]) => {
+    Promise.all([
+      loadStoryScript(story.getValue(StoryState, 'script') ?? ''),
+      resume ? loadProgress() : null,
+      loadUnlocks(),
+    ])
+      .then(([script, progress, unlocks]) => {
         this.script = script;
+        for (const c of unlocks.chapters) this.unlocked.add(c);
+        for (const e of unlocks.endings) this.endings.add(e);
+        this.publishUnlocks(story);
         if (progress && progress.beatIndex > 0 && progress.beatIndex < script.beats.length) {
           this.resumeAt = progress.beatIndex;
           story.setValue(StoryState, 'branch', progress.branch ?? '');
@@ -132,6 +156,16 @@ export class StorySystem extends createSystem({
     if (settings?.getValue(Settings, 'replayRequested')) {
       settings.setValue(Settings, 'replayRequested', false);
       this.restart(story, stage);
+    }
+    // Chapter select: jump straight to a chapter the player has reached.
+    const jumpTo = story.getValue(StoryState, 'jumpTo') ?? '';
+    if (jumpTo) {
+      story.setValue(StoryState, 'jumpTo', '');
+      const index = this.indexOf(jumpTo);
+      if (index >= 0 && this.unlocked.has(jumpTo)) {
+        this.restart(story, stage);
+        if (index > 0) this.resumeAt = index;
+      }
     }
     const status = story.getValue(StoryState, 'status');
     if (status === StoryStatuses.Ended) return;
@@ -257,6 +291,7 @@ export class StorySystem extends createSystem({
     switch (beat.type) {
       case 'chapter':
         story.setValue(StoryState, 'chapter', beat.chapter);
+        this.unlock(story, beat.id, null);
         void saveProgress({
           beatIndex: index,
           chapter: beat.chapter,
@@ -376,6 +411,7 @@ export class StorySystem extends createSystem({
         if (chosen === null) return null;
         const option = beat.options.find((o) => o.shape === chosen)!;
         story.setValue(StoryState, 'branch', option.goto);
+        this.unlock(story, null, option.goto);
         // Keep only the chosen shape requested, so a slipped hand re-forms it.
         this.setTargets(stage, option.shape, option.alt ?? ShapeIds.None, ShapeIds.None, ShapeIds.None);
         for (const o of beat.options) {

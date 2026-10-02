@@ -114,6 +114,16 @@
     <span id="one-hand-label" class="toggle-text">One-hand mode: Off</span>
   </button>
 
+  <div class="label">Play a chapter</div>
+  <div class="row">
+    <button id="chap-prologue" class="option">Prologue</button>
+    <button id="chap-ch1" class="option">1</button>
+    <button id="chap-ch2" class="option">2</button>
+    <button id="chap-ch3" class="option">3</button>
+    <button id="chap-ch4" class="option">4</button>
+    <button id="chap-ch5" class="option">5</button>
+  </div>
+
   <div class="label">Stage</div>
   <button id="replace-stage-button" class="toggle">
     <span class="toggle-text">Re-place stage on the wall ahead</span>
