@@ -2,6 +2,7 @@ import { createSystem, Entity } from '@iwsdk/core';
 import { CREATURES } from './creatures.js';
 import { loadDailySolved, saveDailySolved } from './journal-store.js';
 import { playChime, playMusicBoxNote } from './sfx.js';
+import { stageRuntime } from './stage-runtime.js';
 import {
   DailyShape,
   PuppetStates,
@@ -55,6 +56,8 @@ export class FreeStageSystem extends createSystem({
   private musicTime = 0;
   private musicStep = 0;
   private alive = new Set<string>();
+  /** Cached riddle caption; rebuilt only when the riddle or its solved state changes. */
+  private base = '';
 
   update(delta: number): void {
     const story = first(this.queries.stories.entities);
@@ -67,7 +70,7 @@ export class FreeStageSystem extends createSystem({
     this.musicTime += delta;
     if (this.musicTime >= MUSIC_STEP_SECONDS) {
       this.musicTime = 0;
-      playMusicBoxNote(this.musicStep++);
+      playMusicBoxNote(this.musicStep++, stageRuntime.center);
     }
 
     for (const puppet of this.queries.puppets.entities) {
@@ -79,7 +82,8 @@ export class FreeStageSystem extends createSystem({
     }
 
     this.messageTime = Math.max(0, this.messageTime - delta);
-    story.setValue(StoryState, 'caption', this.messageTime > 0 ? this.message : this.baseCaption(daily));
+    const caption = this.messageTime > 0 ? this.message : this.base;
+    if (story.getValue(StoryState, 'caption') !== caption) story.setValue(StoryState, 'caption', caption);
   }
 
   private load(daily: Entity): void {
@@ -91,6 +95,7 @@ export class FreeStageSystem extends createSystem({
     daily.setValue(DailyShape, 'riddle', riddle);
     loadDailySolved().then((solvedOn) => {
       daily.setValue(DailyShape, 'solved', solvedOn === today);
+      this.base = this.baseCaption(daily);
       this.loaded = true;
     });
   }
@@ -117,8 +122,9 @@ export class FreeStageSystem extends createSystem({
     }
     if (shape === daily.getValue(DailyShape, 'shape') && !daily.getValue(DailyShape, 'solved')) {
       daily.setValue(DailyShape, 'solved', true);
+      this.base = this.baseCaption(daily);
       void saveDailySolved(daily.getValue(DailyShape, 'date') ?? localDate());
-      playChime();
+      playChime(stageRuntime.center);
       this.say(`Shape of the Day solved: the ${creature?.name ?? shape}! Come back tomorrow for a new riddle.`);
     }
   }

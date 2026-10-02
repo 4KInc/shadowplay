@@ -109,7 +109,7 @@ export class JournalSystem extends createSystem({
     const chapter = this.queries.stories.entities.values().next().value?.getValue(StoryState, 'chapter') ?? '';
     journal.setValue(ShadowJournal, 'lastAdded', id);
     this.pulse = 1;
-    playSoftRise();
+    playSoftRise(journal.object3D?.position);
     if (this.discovered.has(id)) return;
     this.discovered.add(id);
     void saveCreature({ id, discoveredAt: Date.now(), chapter });

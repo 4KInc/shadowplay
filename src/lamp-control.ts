@@ -95,7 +95,7 @@ export class LampControlSystem extends createSystem({
       this.switchObj.getWorldPosition(this.switchPos);
       if (this.point.distanceTo(this.switchPos) < SWITCH_REACH) {
         stage.setValue(Stage, 'lampOn', !stage.getValue(Stage, 'lampOn'));
-        playClick();
+        playClick(this.switchPos);
         return;
       }
     }
@@ -106,7 +106,7 @@ export class LampControlSystem extends createSystem({
       this.bookPos.y += 0.03;
       if (this.point.distanceTo(this.bookPos) < BOOK_REACH) {
         journal.setValue(ShadowJournal, 'open', !journal.getValue(ShadowJournal, 'open'));
-        playClick();
+        playClick(this.bookPos);
         return;
       }
     }

@@ -10,7 +10,7 @@ import {
   Types,
   Vector3,
 } from '@iwsdk/core';
-import { handRuntime, HandSample, JOINT_COUNT } from './stage-runtime.js';
+import { handRuntime, HandSample, JOINT_COUNT, SILHOUETTE_LAYER } from './stage-runtime.js';
 
 type Pair = readonly [number, number, number]; // joint a, joint b, fixed radius (0 = from joints)
 
@@ -65,7 +65,7 @@ export class HandCasterSystem extends createSystem(
     const cylinder = new CylinderGeometry(1, 1, 1, 10, 1, true);
     const root = new Group();
     root.name = 'hand-casters';
-    const make = (sample: HandSample, side: string): HandCaster => {
+    const make = (sample: HandSample, side: 'left' | 'right'): HandCaster => {
       const joints = new InstancedMesh(sphere, this.material, JOINT_COUNT);
       const bones = new InstancedMesh(cylinder, this.material, BONES.length);
       joints.name = `hand-caster-${side}-joints`;
@@ -74,6 +74,8 @@ export class HandCasterSystem extends createSystem(
         mesh.castShadow = true;
         mesh.frustumCulled = false;
         mesh.count = 0;
+        // Layer 0 for the lamp's shadow pass, plus a per-hand layer for silhouette matching.
+        mesh.layers.enable(SILHOUETTE_LAYER[side]);
         root.add(mesh);
       }
       return { sample, joints, bones, xrHand: null, spaces: [] };

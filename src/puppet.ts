@@ -1,5 +1,4 @@
 import { createSystem, Entity, MeshBasicMaterial, Quaternion, Vector3 } from '@iwsdk/core';
-import { computeFeatures, FEATURE_COUNT } from './hand-features.js';
 import { buildPuppetRig, PuppetRig } from './puppet-rigs.js';
 import { playChime } from './sfx.js';
 import {
@@ -52,7 +51,6 @@ export class PuppetSystem extends createSystem({
   recognizers: { required: [ShapeRecognizer] },
 }) {
   private runtimes = new Map<Entity, PuppetRuntime>();
-  private features = new Float32Array(FEATURE_COUNT);
   private palm = new Vector3();
   private palm2 = new Vector3();
   private hit = new Vector3();
@@ -106,7 +104,7 @@ export class PuppetSystem extends createSystem({
       if (state !== rt.lastState) {
         // Entering Releasing from anywhere (e.g. the story's bow) starts the fade.
         if (state === PuppetStates.Releasing) rt.fade = Math.max(rt.fade, rt.fill.opacity / 0.92);
-        if (state === PuppetStates.Alive) playChime();
+        if (state === PuppetStates.Alive) playChime(obj.position);
         rt.lastState = state;
       }
       let features: Float32Array | null = null;
@@ -119,7 +117,9 @@ export class PuppetSystem extends createSystem({
         // Free Stage: any discovered shape comes alive without a request.
         if (recognizer?.getValue(ShapeRecognizer, 'freeMode')) this.tryWake(entity, rt, recognizer);
       }
-      rt.rig.animate(this.time, delta, features);
+      // Fully faded characters are skipped entirely (no draw calls, no animation).
+      rt.rig.root.visible = rt.fill.opacity > 0.002;
+      if (rt.rig.root.visible) rt.rig.animate(this.time, delta, features);
 
       obj.position.copy(rt.pos).addScaledVector(stageRuntime.normal, 0.01);
       rt.rig.root.scale.set(rt.scale * rt.facing, rt.scale, rt.scale);
@@ -216,8 +216,7 @@ export class PuppetSystem extends createSystem({
         const span = rt.twoHanded ? TWO_HAND_SPAN : 1;
         const target = Math.min(stageRuntime.width * MAX_SIZE, HAND_LENGTH * CHARACTER_SCALE * span * t * pop);
         rt.scale += (target - rt.scale) * k;
-        computeFeatures(hand.joints, this.features);
-        features = this.features;
+        features = hand.features;
       }
     }
     this.blink(rt, delta);

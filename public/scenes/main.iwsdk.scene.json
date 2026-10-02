@@ -57,6 +57,13 @@
           "target2": "none",
           "altTarget2": "none",
           "freeMode": false
+        },
+        "SilhouetteMatcher": {
+          "enabled": true,
+          "threshold": 0.55,
+          "rateHz": 5,
+          "recordShape": "",
+          "templateCount": 0
         }
       }
     },
@@ -405,6 +412,76 @@
           "shape": "",
           "riddle": "",
           "solved": false
+        }
+      }
+    },
+    {
+      "id": "settings-panel",
+      "name": "Settings Panel",
+      "content": {
+        "type": "asset",
+        "asset": "settings-panel"
+      },
+      "transform": {
+        "position": [
+          0.8,
+          -5,
+          -1.95
+        ]
+      },
+      "components": {
+        "RayInteractable": {},
+        "Settings": {
+          "tolerance": "normal",
+          "hints": "delayed",
+          "oneHand": false,
+          "replayRequested": false
+        }
+      }
+    },
+    {
+      "id": "deer-puppet",
+      "name": "Deer Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "deer",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "crocodile-puppet",
+      "name": "Crocodile Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "crocodile",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
         }
       }
     }

@@ -388,8 +388,136 @@ function buildLight(fill: MeshBasicMaterial, eyeMat: Material): PuppetRig {
   };
 }
 
+// ---------------------------------------------------------------- deer (hidden, two hands)
+
+/** Thin quad from (x1, y1) to (x2, y2): antler beams and tines. */
+function twig(x1: number, y1: number, x2: number, y2: number, w: number): Shape {
+  const a = Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2;
+  const nx = Math.cos(a) * w;
+  const ny = Math.sin(a) * w;
+  const s = new Shape();
+  s.moveTo(x1 + nx, y1 + ny);
+  s.lineTo(x2 + nx * 0.5, y2 + ny * 0.5);
+  s.lineTo(x2 - nx * 0.5, y2 - ny * 0.5);
+  s.lineTo(x1 - nx, y1 - ny);
+  s.closePath();
+  return s;
+}
+
+function deerBody(): Shape {
+  const s = new Shape();
+  s.moveTo(-0.4, 0.02);
+  s.bezierCurveTo(-0.42, 0.14, -0.3, 0.2, -0.1, 0.18);
+  s.bezierCurveTo(0.1, 0.17, 0.2, 0.2, 0.24, 0.28);
+  s.lineTo(0.3, 0.5);
+  s.bezierCurveTo(0.32, 0.56, 0.38, 0.58, 0.44, 0.55);
+  s.lineTo(0.53, 0.48);
+  s.lineTo(0.47, 0.44);
+  s.lineTo(0.35, 0.42);
+  s.lineTo(0.31, 0.2);
+  s.lineTo(0.31, -0.32);
+  s.lineTo(0.27, -0.32);
+  s.lineTo(0.25, -0.02);
+  s.bezierCurveTo(0.1, -0.04, -0.15, -0.04, -0.28, 0.0);
+  s.lineTo(-0.3, -0.32);
+  s.lineTo(-0.34, -0.32);
+  s.lineTo(-0.38, -0.04);
+  s.lineTo(-0.45, 0.05);
+  s.closePath();
+  return s;
+}
+
+function antler(): Shape[] {
+  return [
+    twig(0, 0, -0.08, 0.24, 0.014),
+    twig(-0.03, 0.09, 0.05, 0.17, 0.01),
+    twig(-0.06, 0.17, 0.0, 0.28, 0.009),
+    twig(-0.08, 0.23, -0.17, 0.31, 0.009),
+  ];
+}
+
+const deerGeo = { body: new ShapeGeometry(deerBody(), 12), antler: new ShapeGeometry(antler(), 1) };
+
+function buildDeer(fill: Material, eyeMat: Material): PuppetRig {
+  const root = new Group();
+  root.name = 'deer';
+  const near = pivot('deer-antler-near', 0.38, 0.56, -0.0015, mesh(deerGeo.antler, fill, 'deer-antler-near-mesh', 6));
+  const far = pivot('deer-antler-far', 0.35, 0.56, -0.003, mesh(deerGeo.antler, fill, 'deer-antler-far-mesh', 4));
+  far.scale.setScalar(0.9);
+  const eye = eyeAt(eyeMat, 0.42, 0.51);
+  eye.scale.setScalar(0.6);
+  root.add(mesh(deerGeo.body, fill, 'deer-body', 5), near, far, eye);
+  return {
+    root,
+    eye,
+    seat: { x: -0.1, y: 0.2 },
+    animate(time) {
+      near.rotation.z = Math.sin(time * 0.9) * 0.05;
+      far.rotation.z = Math.sin(time * 0.9 + 0.6) * 0.05;
+    },
+  };
+}
+
+// ---------------------------------------------------------------- crocodile (hidden, two hands)
+
+function crocBody(): Shape {
+  const s = new Shape();
+  s.moveTo(-0.56, 0.0);
+  s.bezierCurveTo(-0.3, 0.04, -0.15, 0.1, 0.05, 0.1);
+  s.lineTo(0.14, 0.08);
+  s.lineTo(0.14, -0.02);
+  s.lineTo(0.5, -0.03);
+  s.lineTo(0.48, -0.065);
+  s.lineTo(0.14, -0.075);
+  s.bezierCurveTo(-0.05, -0.09, -0.3, -0.03, -0.56, 0.0);
+  return s;
+}
+function crocLegs(): Shape[] {
+  return [twig(-0.22, -0.04, -0.27, -0.15, 0.03), twig(0.02, -0.06, 0.06, -0.16, 0.03)];
+}
+function crocUpperJaw(): Shape {
+  const s = new Shape();
+  s.moveTo(0, 0.05);
+  s.lineTo(0.4, 0.0);
+  s.lineTo(0.42, -0.02);
+  // Teeth along the jaw line.
+  for (let x = 0.38; x > 0.02; x -= 0.05) {
+    s.lineTo(x, -0.04);
+    s.lineTo(x - 0.025, -0.02);
+  }
+  s.lineTo(0, -0.02);
+  s.closePath();
+  return s;
+}
+const crocGeo = {
+  body: new ShapeGeometry(crocBody(), 12),
+  legs: new ShapeGeometry(crocLegs(), 1),
+  jaw: new ShapeGeometry(crocUpperJaw(), 1),
+};
+
+function buildCrocodile(fill: Material, eyeMat: Material): PuppetRig {
+  const root = new Group();
+  root.name = 'crocodile';
+  const jaw = pivot('crocodile-jaw', 0.12, 0.04, -0.0015, mesh(crocGeo.jaw, fill, 'crocodile-jaw-mesh', 6));
+  const eye = eyeAt(eyeMat, 0.17, 0.1);
+  eye.scale.setScalar(0.6);
+  root.add(mesh(crocGeo.body, fill, 'crocodile-body', 5), mesh(crocGeo.legs, fill, 'crocodile-legs', 6, -0.0015), jaw, eye);
+  return {
+    root,
+    eye,
+    seat: { x: -0.12, y: 0.12 },
+    animate(time) {
+      jaw.rotation.z = Math.max(0, Math.sin(time * 2.2)) * 0.35;
+    },
+  };
+}
+
 export function buildPuppetRig(shape: string, fill: Material, eyeMat: Material): PuppetRig {
   switch (shape) {
+    case ShapeIds.Deer:
+      return buildDeer(fill, eyeMat);
+    case ShapeIds.Crocodile:
+      return buildCrocodile(fill, eyeMat);
     case ShapeIds.Snail:
       return buildSnail(fill, eyeMat);
     case ShapeIds.Swan:

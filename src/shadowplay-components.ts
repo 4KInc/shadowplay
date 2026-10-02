@@ -26,6 +26,10 @@ export const ShapeIds = {
   Swan: 'swan',
   /** Fingers half-curled, as if holding something small (one or two hands). */
   Cup: 'cup',
+  /** Hidden two-hand: both hands up, fingers spread as antlers. */
+  Deer: 'deer',
+  /** Hidden two-hand: two flat hands stacked as snapping jaws. */
+  Crocodile: 'crocodile',
 } as const;
 
 export const Hands = { None: 'none', Left: 'left', Right: 'right' } as const;
@@ -48,6 +52,10 @@ export const Stage = createComponent('Stage', {
   lampLevel: { type: Types.Float32, default: 1, min: 0, max: 1 },
   /** 0..1 finale: the released light floods the whole wall. */
   finale: { type: Types.Float32, default: 0, min: 0, max: 1 },
+  /** Set to find the wall and place the stage again (e.g. after the player moves). */
+  replaceRequested: { type: Types.Boolean, default: false },
+  /** Width of the chosen wall (0 for the floating screen). */
+  wallWidth: { type: Types.Float32, default: 0 },
 });
 
 /** The desk lamp; its bulb throws every shadow. */
@@ -66,6 +74,8 @@ export const ShapeRecognizer = createComponent('ShapeRecognizer', {
   /** Second requested shape, for story choices. */
   target2: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
   altTarget2: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
+  /** Accessibility: two-hand shapes are optional (an open hand is also the bird). */
+  oneHand: { type: Types.Boolean, default: false },
   /** Free Stage: accept any performable shape, no request needed. */
   freeMode: { type: Types.Boolean, default: false },
   /** Which requested shape (target or target2) was matched. */
@@ -120,8 +130,8 @@ export const StoryState = createComponent('StoryState', {
   beatIndex: { type: Types.Int16, default: -1 },
   beatId: { type: Types.String, default: '' },
   caption: { type: Types.String, default: '' },
-  /** Seconds a request waits before the 'show me' ghost hand appears (0 = always). */
-  hintAfterSeconds: { type: Types.Float32, default: 15, min: 0, max: 120 },
+  /** Seconds a request waits before the 'show me' ghost hand appears (0 = always, -1 = never). */
+  hintAfterSeconds: { type: Types.Float32, default: 15, min: -1, max: 120 },
   hintVisible: { type: Types.Boolean, default: false },
   /** Shape the 'show me' ghost hand demonstrates. */
   hintShape: { type: Types.String, default: 'rabbit' },
@@ -212,4 +222,44 @@ export const DailyShape = createComponent('DailyShape', {
   shape: { type: Types.String, default: '' },
   riddle: { type: Types.String, default: '' },
   solved: { type: Types.Boolean, default: false },
+});
+
+export const ToleranceLevels = {
+  Strict: 'strict',
+  Normal: 'normal',
+  Forgiving: 'forgiving',
+  VeryForgiving: 'very-forgiving',
+} as const;
+
+export const HintModes = { Off: 'off', Delayed: 'delayed', Always: 'always' } as const;
+
+/** Player accessibility options (persisted in IndexedDB), shown beside the open journal. */
+export const Settings = createComponent('Settings', {
+  tolerance: { type: Types.Enum, enum: ToleranceLevels, default: ToleranceLevels.Normal },
+  hints: { type: Types.Enum, enum: HintModes, default: HintModes.Delayed },
+  /** Two-hand shapes become optional: their one-hand alternative works everywhere. */
+  oneHand: { type: Types.Boolean, default: false },
+  /** Set by the panel; the story system restarts from the Prologue and clears it. */
+  replayRequested: { type: Types.Boolean, default: false },
+});
+
+/**
+ * Recognition method 2: silhouette matching. Each hand's shadow is rendered
+ * from the lamp into a tiny buffer a few times per second and compared with
+ * stored silhouette templates (intersection over union).
+ */
+export const SilhouetteMatcher = createComponent('SilhouetteMatcher', {
+  enabled: { type: Types.Boolean, default: true },
+  /** Overlap needed to count as a match (the brief starts around 55%). */
+  threshold: { type: Types.Float32, default: 0.55, min: 0.3, max: 0.9 },
+  /** Readbacks per second. */
+  rateHz: { type: Types.Float32, default: 5, min: 1, max: 15 },
+  leftShape: { type: Types.String, default: '' },
+  leftOverlap: { type: Types.Float32, default: 0 },
+  rightShape: { type: Types.String, default: '' },
+  rightOverlap: { type: Types.Float32, default: 0 },
+  templateCount: { type: Types.Int16, default: 0 },
+  /** Dev recorder: a shape id captures the next in-light hand shadow as a template; '!clear' wipes recordings. */
+  recordShape: { type: Types.String, default: '' },
+  lastRecorded: { type: Types.String, default: '' },
 });

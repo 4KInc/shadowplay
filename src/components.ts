@@ -5,9 +5,11 @@ import {
   HiddenProp,
   Moth,
   Scenery,
+  Settings,
   ShadowJournal,
   ShadowPuppet,
   ShapeRecognizer,
+  SilhouetteMatcher,
   Stage,
   StageActor,
   StoryState,
@@ -25,4 +27,6 @@ export default defineComponents([
   ShadowJournal,
   HiddenProp,
   DailyShape,
+  Settings,
+  SilhouetteMatcher,
 ]);

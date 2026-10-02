@@ -1,0 +1,124 @@
+<!--
+  Shadowplay settings, shown beside the open Shadow Journal page.
+  Sizes are UIKit units (centimetres). Pressed with hand rays (pinch).
+  Selected options are highlighted at runtime by SettingsSystem.
+-->
+<style>
+  .root {
+    flex-direction: column;
+    width: 38;
+    padding-top: 2.2;
+    padding-bottom: 2.2;
+    padding-left: 2.4;
+    padding-right: 2.4;
+    gap: 1.3;
+    background-color: #17121f;
+    border-radius: 2.4;
+    border-width: 0.25;
+    border-color: #b8863b;
+  }
+
+  .title {
+    font-size: 2.8;
+    font-weight: 700;
+    color: #f2c47a;
+  }
+
+  .label {
+    font-size: 1.5;
+    font-weight: 600;
+    color: #d9c7a3;
+    margin-top: 0.6;
+  }
+
+  .row {
+    flex-direction: row;
+    gap: 0.6;
+  }
+
+  .option {
+    flex-grow: 1;
+    justify-content: center;
+    align-items: center;
+    height: 3.8;
+    padding-left: 0.6;
+    padding-right: 0.6;
+    border-radius: 1.2;
+    background-color: #2b2338;
+    border-width: 0.15;
+    border-color: #4a3d5c;
+    color: #f6e3bd;
+    font-size: 1.35;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .toggle {
+    justify-content: center;
+    align-items: center;
+    height: 3.8;
+    border-radius: 1.2;
+    background-color: #2b2338;
+    border-width: 0.15;
+    border-color: #4a3d5c;
+    cursor: pointer;
+  }
+
+  .toggle-text {
+    color: #f6e3bd;
+    font-size: 1.45;
+    font-weight: 600;
+  }
+
+  .replay {
+    justify-content: center;
+    align-items: center;
+    height: 4.2;
+    margin-top: 0.8;
+    border-radius: 1.2;
+    background-color: #3a2716;
+    border-width: 0.2;
+    border-color: #e0a24a;
+    color: #f2c47a;
+    font-size: 1.5;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .status {
+    font-size: 1.25;
+    color: #bfae8e;
+    text-align: center;
+  }
+</style>
+<div class="root">
+  <div class="title">Settings</div>
+
+  <div class="label">Shape recognition</div>
+  <div class="row">
+    <button id="tol-strict" class="option">Strict</button>
+    <button id="tol-normal" class="option">Normal</button>
+    <button id="tol-forgiving" class="option">Forgiving</button>
+    <button id="tol-very-forgiving" class="option">Very forgiving</button>
+  </div>
+
+  <div class="label">Show-me hints</div>
+  <div class="row">
+    <button id="hint-off" class="option">Off</button>
+    <button id="hint-delayed" class="option">After 15 s</button>
+    <button id="hint-always" class="option">Always</button>
+  </div>
+
+  <div class="label">Two-hand shapes</div>
+  <button id="one-hand-toggle" class="toggle">
+    <span id="one-hand-label" class="toggle-text">One-hand mode: Off</span>
+  </button>
+
+  <div class="label">Stage</div>
+  <button id="replace-stage-button" class="toggle">
+    <span class="toggle-text">Re-place stage on the wall ahead</span>
+  </button>
+
+  <button id="replay-button" class="replay">Replay story from the beginning</button>
+  <div id="status-text" class="status">Pinch an option to choose it.</div>
+</div>

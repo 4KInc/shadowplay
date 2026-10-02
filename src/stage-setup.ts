@@ -30,6 +30,10 @@ const WIDTH_PER_METER = 2 * Math.tan((16.5 * Math.PI) / 180);
 const SCAN_MIN_SECONDS = 1.2;
 const SCAN_TIMEOUT_SECONDS = 4;
 const EYE_TO_DESK = 0.45;
+/** How far outside a detected wall's outline the point straight ahead may fall. */
+const WALL_MARGIN = 0.25;
+/** Narrowest stage we will build on a small wall. */
+const MIN_STAGE_WIDTH = 0.35;
 const DIM_FADE_SECONDS = 2.5;
 /** Sliding the lamp sideways sweeps its aim across the wall this many times further. */
 const SWEEP_GAIN = 3.5;
@@ -68,6 +72,13 @@ export class StageSetupSystem extends createSystem({
   private bestNormal = new Vector3();
   private bestPoint = new Vector3();
   private basis = new Matrix4();
+  private right = new Vector3();
+  private corner = new Vector3();
+  /** Chosen wall's horizontal extent, relative to the point straight ahead. */
+  private bestUMin = 0;
+  private bestUMax = 0;
+  private watchedRef: XRReferenceSpace | null = null;
+  private onReset = () => this.resetPlacement();
   /** Where the lamp was placed; dragging away from here sweeps the light. */
   private lampHome = new Vector3();
   private sweep = new Vector3();
@@ -88,6 +99,7 @@ export class StageSetupSystem extends createSystem({
     this.spotTarget.name = 'lamp-spot-target';
 
     this.cleanupFuncs.push(
+      () => this.watchedRef?.removeEventListener('reset', this.onReset),
       this.world.visibilityState.subscribe((state) => {
         const inXR = state !== VisibilityState.NonImmersive;
         if (inXR !== this.inXR) {
@@ -139,6 +151,18 @@ export class StageSetupSystem extends createSystem({
     const stage = this.stageEntity!;
     const lamp = this.lampEntity!;
 
+    // Re-place on request (Settings) or when the headset recenters the space.
+    if (stage.getValue(Stage, 'replaceRequested')) {
+      stage.setValue(Stage, 'replaceRequested', false);
+      this.resetPlacement();
+    }
+    const ref = this.world.xrReferenceSpace;
+    if (ref !== this.watchedRef) {
+      this.watchedRef?.removeEventListener('reset', this.onReset);
+      ref?.addEventListener('reset', this.onReset);
+      this.watchedRef = ref;
+    }
+
     const headObj = this.player.head;
     headObj.updateWorldMatrix(true, false);
     this.head.setFromMatrixPosition(headObj.matrixWorld);
@@ -181,14 +205,49 @@ export class StageSetupSystem extends createSystem({
       if (dist < MIN_WALL || dist > MAX_WALL) continue;
       const facing = -(this.normal.x * this.forward.x + this.normal.z * this.forward.z);
       if (facing < FRONT_COS) continue;
+      // The point straight ahead must lie on this wall's detected outline.
+      if (!this.measureWall(plane, obj, dist, facing)) continue;
       const score = facing - dist * 0.05;
       if (score > bestScore) {
         bestScore = score;
         this.bestNormal.copy(this.normal);
         this.bestPoint.copy(obj.position);
+        this.bestUMin = this.uMin;
+        this.bestUMax = this.uMax;
       }
     }
     return bestScore > -Infinity;
+  }
+
+  private uMin = 0;
+  private uMax = 0;
+
+  /**
+   * Project the wall outline onto the wall's horizontal axis, relative to the
+   * point straight ahead of the player; reject the wall if that point (or the
+   * player's eye height) falls outside the outline by more than the margin.
+   */
+  private measureWall(plane: XRPlane, obj: Object3D, dist: number, facing: number): boolean {
+    const n = this.normal;
+    this.right.set(n.z, 0, -n.x).normalize();
+    this.tmpB.copy(this.head).addScaledVector(this.forward, dist / Math.max(0.2, facing));
+    obj.updateMatrixWorld();
+    let uMin = Infinity;
+    let uMax = -Infinity;
+    let vMin = Infinity;
+    let vMax = -Infinity;
+    for (const p of plane.polygon) {
+      this.corner.set(p.x, p.y, p.z).applyMatrix4(obj.matrixWorld);
+      const u = (this.corner.x - this.tmpB.x) * this.right.x + (this.corner.z - this.tmpB.z) * this.right.z;
+      const v = this.corner.y - this.head.y;
+      if (u < uMin) uMin = u;
+      if (u > uMax) uMax = u;
+      if (v < vMin) vMin = v;
+      if (v > vMax) vMax = v;
+    }
+    this.uMin = uMin;
+    this.uMax = uMax;
+    return uMin - WALL_MARGIN <= 0 && uMax + WALL_MARGIN >= 0 && vMin - 0.5 <= 0 && vMax + 0.5 >= 0;
   }
 
   private placeOnWall(stage: Entity, lamp: Entity): void {
@@ -199,14 +258,26 @@ export class StageSetupSystem extends createSystem({
     // Ray from the head along its horizontal forward to the wall plane.
     const along = dist / Math.max(0.2, -this.forward.dot(n));
     const close = dist < CLOSE_WALL;
-    const width = Math.min(1.5, Math.max(0.45, dist * WIDTH_PER_METER));
-    this.tmpB.copy(this.head).addScaledVector(this.forward, along).addScaledVector(n, 0.004);
+    // Fit the stage to the wall: shrink for narrow walls, slide it to stay on them.
+    const wallWidth = this.bestUMax - this.bestUMin;
+    const width = Math.max(MIN_STAGE_WIDTH, Math.min(1.5, Math.max(0.45, dist * WIDTH_PER_METER), wallWidth * 0.9));
+    const half = width / 2;
+    const shift =
+      wallWidth <= width ? (this.bestUMin + this.bestUMax) / 2 : Math.min(this.bestUMax - half, Math.max(this.bestUMin + half, 0));
+    this.right.set(n.z, 0, -n.x).normalize();
+    this.tmpB
+      .copy(this.head)
+      .addScaledVector(this.forward, along)
+      .addScaledVector(this.right, shift)
+      .addScaledVector(n, 0.004);
+    stage.setValue(Stage, 'wallWidth', wallWidth);
     // Close walls usually sit behind a monitor: lift the stage above it.
     this.tmpB.y = this.head.y + (close ? 0.28 : 0.05);
     this.applyStage(stage, lamp, this.tmpB, n, width, dist, StageModes.Wall, close);
   }
 
   private placeScreen(stage: Entity, lamp: Entity): void {
+    stage.setValue(Stage, 'wallWidth', 0);
     this.normal.copy(this.forward).negate();
     this.tmpB.copy(this.head).addScaledVector(this.forward, SCREEN_DISTANCE);
     this.tmpB.y = this.head.y + 0.05;

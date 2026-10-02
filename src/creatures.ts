@@ -8,8 +8,8 @@ export const CREATURES: readonly { id: string; name: string; rig: string | null 
   { id: 'bird', name: 'Bird', rig: ShapeIds.Bird },
   { id: 'snail', name: 'Snail', rig: ShapeIds.Snail },
   { id: 'swan', name: 'Swan', rig: ShapeIds.Swan },
-  { id: 'deer', name: 'Deer', rig: null },
-  { id: 'crocodile', name: 'Crocodile', rig: null },
+  { id: 'deer', name: 'Deer', rig: ShapeIds.Deer },
+  { id: 'crocodile', name: 'Crocodile', rig: ShapeIds.Crocodile },
 ];
 
 export const PAGE_W = 1024;

@@ -5,6 +5,7 @@ import {
   Moth,
   PuppetStates,
   Scenery,
+  Settings,
   ShadowJournal,
   ShadowPuppet,
   ShapeIds,
@@ -51,6 +52,7 @@ export class StorySystem extends createSystem({
   actors: { required: [StageActor] },
   journals: { required: [ShadowJournal] },
   props: { required: [HiddenProp] },
+  settings: { required: [Settings] },
 }) {
   private script: StoryScript | null = null;
   private beatTime = 0;
@@ -93,23 +95,28 @@ export class StorySystem extends createSystem({
     const stage = first(this.queries.stages.entities);
     if (story && !this.script && !this.loading) this.load(story);
     if (!story || !stage || !this.script) return;
+    const settings = first(this.queries.settings.entities);
+    if (settings?.getValue(Settings, 'replayRequested')) {
+      settings.setValue(Settings, 'replayRequested', false);
+      this.restart(story, stage);
+    }
     const status = story.getValue(StoryState, 'status');
     if (status === StoryStatuses.Ended) return;
     if (!stageRuntime.ready) {
-      story.setValue(StoryState, 'status', StoryStatuses.Waiting);
+      setIfChanged(story, 'status', StoryStatuses.Waiting);
       return;
     }
 
     const journalOpen = Boolean(first(this.queries.journals.entities)?.getValue(ShadowJournal, 'open'));
-    story.setValue(StoryState, 'journalOpen', journalOpen);
+    if (story.getValue(StoryState, 'journalOpen') !== journalOpen) story.setValue(StoryState, 'journalOpen', journalOpen);
     const paused = !stage.getValue(Stage, 'lampOn') || this.blurred || journalOpen;
     if (paused) {
-      story.setValue(StoryState, 'status', StoryStatuses.Paused);
-      story.setValue(StoryState, 'caption', journalOpen ? JOURNAL_CAPTION : PAUSED_CAPTION);
+      setIfChanged(story, 'status', StoryStatuses.Paused);
+      setIfChanged(story, 'caption', journalOpen ? JOURNAL_CAPTION : PAUSED_CAPTION);
       return;
     }
     if (status === StoryStatuses.Paused) story.setValue(StoryState, 'caption', this.beatCaption);
-    story.setValue(StoryState, 'status', StoryStatuses.Playing);
+    setIfChanged(story, 'status', StoryStatuses.Playing);
 
     let index = story.getValue(StoryState, 'beatIndex') ?? -1;
     if (index < 0) {
@@ -131,6 +138,41 @@ export class StorySystem extends createSystem({
       if (next < this.script.beats.length) this.enter(story, stage, next);
       else story.setValue(StoryState, 'status', StoryStatuses.Ended);
     }
+  }
+
+  /** Replay from the Prologue: reset every story-driven actor; keep the journal. */
+  private restart(story: Entity, stage: Entity): void {
+    this.resumeAt = -1;
+    this.beatTime = 0;
+    this.holdTime = 0;
+    this.growFrom = 0;
+    this.lastAliveShape = ShapeIds.None;
+    story.setValue(StoryState, 'beatIndex', -1);
+    story.setValue(StoryState, 'status', StoryStatuses.Waiting);
+    story.setValue(StoryState, 'freeStage', false);
+    story.setValue(StoryState, 'branch', '');
+    story.setValue(StoryState, 'chapter', '');
+    story.setValue(StoryState, 'hintVisible', false);
+    this.setCaption(story, '');
+    stage.setValue(Stage, 'lampOn', true);
+    stage.setValue(Stage, 'lampLevel', 0);
+    stage.setValue(Stage, 'finale', 0);
+    this.setTargets(stage, ShapeIds.None, ShapeIds.None, ShapeIds.None, ShapeIds.None);
+    stage.setValue(ShapeRecognizer, 'freeMode', false);
+    for (const p of this.queries.puppets.entities) {
+      const alive = p.getValue(ShadowPuppet, 'state') === PuppetStates.Alive;
+      p.setValue(ShadowPuppet, 'state', alive ? PuppetStates.Releasing : PuppetStates.Hidden);
+    }
+    for (const m of this.queries.moths.entities) {
+      m.setValue(Moth, 'mode', 'hidden');
+      m.setValue(Moth, 'glow', 0);
+      m.setValue(Moth, 'followedSeconds', 0);
+    }
+    for (const e of this.queries.scenery.entities) e.setValue(Scenery, 'set', 'none');
+    for (const a of this.queries.actors.entities) a.setValue(StageActor, 'state', 'hidden');
+    for (const p of this.queries.props.entities) p.setValue(HiddenProp, 'active', false);
+    for (const j of this.queries.journals.entities) j.setValue(ShadowJournal, 'open', false);
+    void saveProgress({ beatIndex: 0, chapter: 'Prologue', branch: '', savedAt: Date.now() });
   }
 
   private indexOf(id: string): number {
@@ -321,10 +363,8 @@ export class StorySystem extends createSystem({
         return u >= beat.toU && (beat.minV === undefined || v >= beat.minV) ? done : null;
       }
       case 'continue': {
-        const open = (side: 'left' | 'right') =>
-          stage.getValue(ShapeRecognizer, side === 'left' ? 'leftShape' : 'rightShape') === ShapeIds.Open &&
-          Boolean(stage.getValue(ShapeRecognizer, side === 'left' ? 'leftInLight' : 'rightInLight'));
-        this.holdTime = open('left') || open('right') ? this.holdTime + delta : 0;
+        const open = openInLight(stage, 'left') || openInLight(stage, 'right');
+        this.holdTime = open ? this.holdTime + delta : 0;
         return this.holdTime >= CONTINUE_HOLD_SECONDS ? done : null;
       }
       case 'reveal': {
@@ -334,10 +374,8 @@ export class StorySystem extends createSystem({
         return this.holdTime >= REVEAL_HOLD_SECONDS ? done : null;
       }
       case 'letgo': {
-        const open = (side: 'left' | 'right') =>
-          stage.getValue(ShapeRecognizer, side === 'left' ? 'leftShape' : 'rightShape') === ShapeIds.Open ||
-          stage.getValue(ShapeRecognizer, side === 'left' ? 'leftShape' : 'rightShape') === ShapeIds.Bird;
-        this.holdTime = open('left') || open('right') ? this.holdTime + delta : 0;
+        const open = handOpened(stage, 'left') || handOpened(stage, 'right');
+        this.holdTime = open ? this.holdTime + delta : 0;
         return this.holdTime >= LETGO_HOLD_SECONDS ? done : null;
       }
       case 'finale': {
@@ -359,7 +397,7 @@ export class StorySystem extends createSystem({
   private awaitAlive(story: Entity, shapes: string[], t: number): string | null {
     const alive = shapes.find((s) => this.puppetFor(s)?.getValue(ShadowPuppet, 'state') === PuppetStates.Alive);
     const hintAfter = story.getValue(StoryState, 'hintAfterSeconds') ?? 15;
-    story.setValue(StoryState, 'hintVisible', alive === undefined && t >= hintAfter);
+    story.setValue(StoryState, 'hintVisible', alive === undefined && hintAfter >= 0 && t >= hintAfter);
     if (alive === undefined || t <= 0.3) return null;
     this.lastAliveShape = alive;
     return alive;
@@ -382,6 +420,23 @@ export class StorySystem extends createSystem({
     }
     return undefined;
   }
+}
+
+/** Write a StoryState string/enum field only when it changes. */
+function setIfChanged(story: Entity, field: 'status' | 'caption', value: string): void {
+  if (story.getValue(StoryState, field) !== value) story.setValue(StoryState, field, value as never);
+}
+
+/** An open hand held in the lamp light (to continue to the next chapter). */
+function openInLight(stage: Entity, side: 'left' | 'right'): boolean {
+  const shape = stage.getValue(ShapeRecognizer, side === 'left' ? 'leftShape' : 'rightShape');
+  return shape === ShapeIds.Open && Boolean(stage.getValue(ShapeRecognizer, side === 'left' ? 'leftInLight' : 'rightInLight'));
+}
+
+/** Hands opened (one open hand, or both as the open-winged pair). */
+function handOpened(stage: Entity, side: 'left' | 'right'): boolean {
+  const shape = stage.getValue(ShapeRecognizer, side === 'left' ? 'leftShape' : 'rightShape');
+  return shape === ShapeIds.Open || shape === ShapeIds.Bird;
 }
 
 function first<T>(set: Iterable<T>): T | undefined {

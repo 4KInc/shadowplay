@@ -179,6 +179,7 @@ export class MothSystem extends createSystem({
       const pulse = 0.85 + 0.15 * Math.sin(this.time * 3);
       rt.haloMat.color.copy(HALO).multiplyScalar(0.45 * glow * pulse * (rt.fill.opacity / 0.92));
       rt.halo.visible = glow > 0.01;
+      rt.rig.root.visible = rt.fill.opacity > 0.002;
       rt.halo.scale.setScalar(0.6 + 0.5 * glow);
       rt.flap += delta * flapRate;
       const fold = 0.35 + 0.65 * Math.abs(Math.cos(rt.flap));

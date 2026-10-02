@@ -23,6 +23,9 @@ export const stageRuntime = {
 
 export const JOINT_COUNT = 25;
 
+/** Render layers that isolate each hand's shadow casters for silhouette matching. */
+export const SILHOUETTE_LAYER = { left: 2, right: 3 } as const;
+
 export interface HandSample {
   tracked: boolean;
   /** 25 WebXR joints x (x, y, z), world space. */
@@ -30,6 +33,13 @@ export interface HandSample {
   radii: Float32Array;
   /** Set by the puppet system while a character replaces this hand's shadow. */
   hideCasters: boolean;
+  /** Joint-angle features for this frame (written by the shape matcher). */
+  features: Float32Array;
+  /** Best silhouette template match at or above threshold ('' if none). */
+  silhouetteShape: string;
+  silhouetteOverlap: number;
+  /** performance.now() of the readback that produced the match. */
+  silhouetteAt: number;
 }
 
 function makeHand(): HandSample {
@@ -38,6 +48,10 @@ function makeHand(): HandSample {
     joints: new Float32Array(JOINT_COUNT * 3),
     radii: new Float32Array(JOINT_COUNT),
     hideCasters: false,
+    features: new Float32Array(9),
+    silhouetteShape: '',
+    silhouetteOverlap: 0,
+    silhouetteAt: 0,
   };
 }
 

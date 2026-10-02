@@ -1,5 +1,6 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
+import { AudioSystem } from './audio.js';
 import { CaptionSystem } from './captions.js';
 import { FreeStageSystem } from './free-stage.js';
 import { HandCasterSystem } from './hand-caster.js';
@@ -9,6 +10,8 @@ import { MothSystem } from './moth.js';
 import { HiddenPropSystem } from './props.js';
 import { PuppetSystem } from './puppet.js';
 import { ScenerySystem } from './scenery.js';
+import { SettingsSystem } from './settings.js';
+import { SilhouetteSystem } from './silhouette.js';
 import { ShapeMatchSystem } from './shape-match.js';
 import { StageSetupSystem } from './stage-setup.js';
 import { StorySystem } from './story.js';
@@ -22,6 +25,7 @@ World.create(
     .registerSystem(StageSetupSystem)
     .registerSystem(HandCasterSystem)
     .registerSystem(LampControlSystem)
+    .registerSystem(SilhouetteSystem)
     .registerSystem(ShapeMatchSystem)
     .registerSystem(StorySystem)
     .registerSystem(FreeStageSystem)
@@ -31,5 +35,7 @@ World.create(
     .registerSystem(ScenerySystem)
     .registerSystem(HiddenPropSystem)
     .registerSystem(JournalSystem)
-    .registerSystem(CaptionSystem);
+    .registerSystem(SettingsSystem)
+    .registerSystem(CaptionSystem)
+    .registerSystem(AudioSystem);
 });

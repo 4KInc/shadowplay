@@ -80,3 +80,26 @@ export async function loadDailySolved(): Promise<string | null> {
 export async function saveDailySolved(date: string): Promise<void> {
   await run(PROGRESS, 'readwrite', (s) => s.put(date, 'daily'));
 }
+
+export interface StoredSettings {
+  tolerance: string;
+  hints: string;
+  oneHand: boolean;
+}
+
+export async function loadSettings(): Promise<StoredSettings | null> {
+  return run<StoredSettings>(PROGRESS, 'readonly', (s) => s.get('settings') as IDBRequest<StoredSettings>);
+}
+
+export async function saveSettings(settings: StoredSettings): Promise<void> {
+  await run(PROGRESS, 'readwrite', (s) => s.put(settings, 'settings'));
+}
+
+/** Silhouette templates recorded on this device (recognition method 2). */
+export async function loadRecordedTemplates(): Promise<{ shape: string; mask: string }[]> {
+  return (await run<{ shape: string; mask: string }[]>(PROGRESS, 'readonly', (s) => s.get('silhouettes') as IDBRequest<{ shape: string; mask: string }[]>)) ?? [];
+}
+
+export async function saveRecordedTemplates(templates: { shape: string; mask: string }[]): Promise<void> {
+  await run(PROGRESS, 'readwrite', (s) => s.put(templates, 'silhouettes'));
+}

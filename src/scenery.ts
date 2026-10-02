@@ -214,13 +214,11 @@ export class ScenerySystem extends createSystem({
       if (!stageRuntime.ready) continue;
 
       const set = entity.getValue(Scenery, 'set');
-      const fade = (level: number, on: boolean) =>
-        level + Math.sign((on ? 1 : 0) - level) * Math.min(Math.abs((on ? 1 : 0) - level), delta * 0.6);
-      rt.level = fade(rt.level, set === ScenerySets.Field);
-      rt.riverLevel = fade(rt.riverLevel, set === ScenerySets.River);
-      rt.forestLevel = fade(rt.forestLevel, set === ScenerySets.Forest);
-      rt.stormLevel = fade(rt.stormLevel, set === ScenerySets.Storm);
-      rt.seaLevel = fade(rt.seaLevel, set === ScenerySets.Sea);
+      rt.level = fade(rt.level, delta, set === ScenerySets.Field);
+      rt.riverLevel = fade(rt.riverLevel, delta, set === ScenerySets.River);
+      rt.forestLevel = fade(rt.forestLevel, delta, set === ScenerySets.Forest);
+      rt.stormLevel = fade(rt.stormLevel, delta, set === ScenerySets.Storm);
+      rt.seaLevel = fade(rt.seaLevel, delta, set === ScenerySets.Sea);
       // One shared ink material: sets cross-fade through each other's level.
       rt.material.opacity = 0.9 * Math.max(rt.level, rt.riverLevel, rt.forestLevel, rt.stormLevel, rt.seaLevel);
       rt.field.visible = rt.level > 0.001;
@@ -256,4 +254,10 @@ export class ScenerySystem extends createSystem({
       if (rt.sea.group.visible) rt.sea.update(this.time, rt.seaLevel, finale);
     }
   }
+}
+
+/** Step a set's fade level toward on/off at a gentle rate. */
+function fade(level: number, delta: number, on: boolean): number {
+  const target = on ? 1 : 0;
+  return level + Math.sign(target - level) * Math.min(Math.abs(target - level), delta * 0.6);
 }
