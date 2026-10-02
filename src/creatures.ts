@@ -42,12 +42,12 @@ export function drawJournalPage(
   g.textAlign = 'center';
   g.font = 'italic 600 52px Georgia, "Times New Roman", serif';
   g.fillText('Shadow Journal', PAGE_W / 2, 72);
-  g.font = 'italic 400 28px Georgia, serif';
+  g.font = 'italic 500 34px Georgia, serif';
   const found = CREATURES.filter((c) => discovered.has(c.id)).length;
   g.fillText(
-    `${found} of ${CREATURES.length} creatures found  ·  Endings found: ${endingsFound} of ${endingsTotal}`,
+    `${found} of ${CREATURES.length} creatures  ·  Endings: ${endingsFound} of ${endingsTotal}`,
     PAGE_W / 2,
-    112,
+    118,
   );
 
   CREATURES.forEach((c, i) => {

@@ -384,12 +384,12 @@ export class StorySystem extends createSystem({
     const done = index + 1;
     switch (beat.type) {
       case 'chapter':
-        return t >= CHAPTER_SECONDS ? done : null;
+        return this.lineFinished(story, beat.id, t, CHAPTER_SECONDS) ? done : null;
       case 'narrate':
-        return t >= (beat.seconds ?? readingSeconds(beat.text)) ? done : null;
+        return this.lineFinished(story, beat.id, t, beat.seconds ?? readingSeconds(beat.text)) ? done : null;
       case 'release':
       case 'journal':
-        return t >= readingSeconds(this.beatCaption) ? done : null;
+        return this.lineFinished(story, beat.id, t, readingSeconds(this.beatCaption)) ? done : null;
       case 'lamp':
         stage.setValue(Stage, 'lampLevel', beat.level * flicker(t));
         return t >= LAMP_SECONDS ? done : null;
@@ -471,6 +471,17 @@ export class StorySystem extends createSystem({
       default:
         return done;
     }
+  }
+
+  /**
+   * A timed line is finished once its reading time has passed and its narration
+   * (if any) has ended, capped so a stuck clip can never stall the story.
+   */
+  private lineFinished(story: Entity, beatId: string, t: number, minSeconds: number): boolean {
+    if (t < minSeconds) return false;
+    if (t >= minSeconds * 3 + 5) return true;
+    if (story.getValue(StoryState, 'voiceBeat') !== beatId) return t > minSeconds + 0.25;
+    return Boolean(story.getValue(StoryState, 'voiceDone'));
   }
 
   /** Waits for one of the shapes to come alive; shows the hint when stuck. */

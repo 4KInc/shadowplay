@@ -85,6 +85,7 @@ export interface StoredSettings {
   tolerance: string;
   hints: string;
   oneHand: boolean;
+  placeholderVoice?: boolean;
 }
 
 export async function loadSettings(): Promise<StoredSettings | null> {

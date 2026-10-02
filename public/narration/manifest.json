@@ -1,0 +1,5 @@
+{
+  "version": "shadowplay.narration.v1",
+  "note": "Narration clips keyed by story beat id, paths relative to the app base. Empty until the commissioned recordings arrive.",
+  "clips": {}
+}

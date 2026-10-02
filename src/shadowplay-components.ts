@@ -147,6 +147,12 @@ export const StoryState = createComponent('StoryState', {
   endings: { type: Types.String, default: '' },
   /** Set to a chapter beat id to jump straight to that chapter. */
   jumpTo: { type: Types.String, default: '' },
+  /** Beat whose narration line is playing (or last played). */
+  voiceBeat: { type: Types.String, default: '' },
+  /** True once the line for voiceBeat has finished (or there is none). */
+  voiceDone: { type: Types.Boolean, default: true },
+  /** Where the current line comes from: 'clip', 'placeholder' or '' (captions only). */
+  voiceSource: { type: Types.String, default: '' },
 });
 
 export const MothModes = {
@@ -245,6 +251,8 @@ export const Settings = createComponent('Settings', {
   hints: { type: Types.Enum, enum: HintModes, default: HintModes.Delayed },
   /** Two-hand shapes become optional: their one-hand alternative works everywhere. */
   oneHand: { type: Types.Boolean, default: false },
+  /** Test-only: speak captions with an on-device synthetic voice until real narration exists. */
+  placeholderVoice: { type: Types.Boolean, default: false },
   /** Set by the panel; the story system restarts from the Prologue and clears it. */
   replayRequested: { type: Types.Boolean, default: false },
 });

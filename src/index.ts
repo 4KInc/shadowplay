@@ -7,6 +7,7 @@ import { HandCasterSystem } from './hand-caster.js';
 import { JournalSystem } from './journal.js';
 import { LampControlSystem } from './lamp-control.js';
 import { MothSystem } from './moth.js';
+import { NarrationSystem } from './narration.js';
 import { HiddenPropSystem } from './props.js';
 import { PuppetSystem } from './puppet.js';
 import { ScenerySystem } from './scenery.js';
@@ -28,6 +29,7 @@ World.create(
     .registerSystem(SilhouetteSystem)
     .registerSystem(ShapeMatchSystem)
     .registerSystem(StorySystem)
+    .registerSystem(NarrationSystem)
     .registerSystem(FreeStageSystem)
     .registerSystem(PuppetSystem)
     .registerSystem(MothSystem)

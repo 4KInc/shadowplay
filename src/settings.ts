@@ -70,6 +70,7 @@ export class SettingsSystem extends createSystem({
   private panel: UIKitMLAsset | undefined;
   private buttons = new Map<string, UIKit.Container>();
   private oneHandLabel: UIKit.Text | undefined;
+  private voiceLabel: UIKit.Text | undefined;
   private status: UIKit.Text | undefined;
   private loaded = false;
   private loading = false;
@@ -89,10 +90,11 @@ export class SettingsSystem extends createSystem({
     const tolerance = settings.getValue(Settings, 'tolerance') ?? ToleranceLevels.Normal;
     const hints = settings.getValue(Settings, 'hints') ?? HintModes.Delayed;
     const oneHand = Boolean(settings.getValue(Settings, 'oneHand'));
-    const key = `${tolerance}|${hints}|${oneHand}`;
+    const voice = Boolean(settings.getValue(Settings, 'placeholderVoice'));
+    const key = `${tolerance}|${hints}|${oneHand}|${voice}`;
     if (key !== this.applied) {
-      this.apply(tolerance, hints, oneHand);
-      if (this.applied) void saveSettings({ tolerance, hints, oneHand });
+      this.apply(tolerance, hints, oneHand, voice);
+      if (this.applied) void saveSettings({ tolerance, hints, oneHand, placeholderVoice: voice });
       this.applied = key;
     }
     this.refreshChapters();
@@ -117,6 +119,7 @@ export class SettingsSystem extends createSystem({
         settings.setValue(Settings, 'tolerance', stored.tolerance as never);
         settings.setValue(Settings, 'hints', stored.hints as never);
         settings.setValue(Settings, 'oneHand', stored.oneHand);
+        settings.setValue(Settings, 'placeholderVoice', Boolean(stored.placeholderVoice));
       }
       this.loaded = true;
     });
@@ -141,6 +144,9 @@ export class SettingsSystem extends createSystem({
     for (const [id, value] of TOLERANCE_BUTTONS) on(id, () => settings.setValue(Settings, 'tolerance', value as never));
     for (const [id, value] of HINT_BUTTONS) on(id, () => settings.setValue(Settings, 'hints', value as never));
     on('one-hand-toggle', () => settings.setValue(Settings, 'oneHand', !settings.getValue(Settings, 'oneHand')));
+    on('voice-toggle', () =>
+      settings.setValue(Settings, 'placeholderVoice', !settings.getValue(Settings, 'placeholderVoice')),
+    );
     for (const [id, chapter, name] of CHAPTER_BUTTONS) {
       on(id, () => {
         const story = first(this.queries.stories.entities);
@@ -167,12 +173,14 @@ export class SettingsSystem extends createSystem({
     this.oneHandLabel = panel.getElementById<UIKit.Text>('one-hand-label') ?? undefined;
     this.status = panel.getElementById<UIKit.Text>('status-text') ?? undefined;
     if (this.oneHandLabel) this.oneHandLabel.name = 'one-hand-label';
+    this.voiceLabel = panel.getElementById<UIKit.Text>('voice-label') ?? undefined;
+    if (this.voiceLabel) this.voiceLabel.name = 'voice-label';
     if (this.status) this.status.name = 'status-text';
     this.applied = '';
     this.shownUnlocks = null;
   }
 
-  private apply(tolerance: string, hints: string, oneHand: boolean): void {
+  private apply(tolerance: string, hints: string, oneHand: boolean, voice: boolean): void {
     for (const r of this.queries.recognizers.entities) {
       r.setValue(ShapeRecognizer, 'tolerance', TOLERANCE_VALUE[tolerance] ?? 0.3);
       r.setValue(ShapeRecognizer, 'oneHand', oneHand);
@@ -183,6 +191,11 @@ export class SettingsSystem extends createSystem({
     for (const [id, value] of TOLERANCE_BUTTONS) this.buttons.get(id)?.setProperties(value === tolerance ? SELECTED : UNSELECTED);
     for (const [id, value] of HINT_BUTTONS) this.buttons.get(id)?.setProperties(value === hints ? SELECTED : UNSELECTED);
     this.buttons.get('one-hand-toggle')?.setProperties(oneHand ? SELECTED : UNSELECTED);
+    this.buttons.get('voice-toggle')?.setProperties(voice ? SELECTED : UNSELECTED);
+    this.voiceLabel?.setProperties({
+      text: `Placeholder voice: ${voice ? 'On' : 'Off'}`,
+      color: voice ? '#1a1320' : '#f6e3bd',
+    });
     this.oneHandLabel?.setProperties({
       text: `One-hand mode: ${oneHand ? 'On' : 'Off'}`,
       color: oneHand ? '#1a1320' : '#f6e3bd',

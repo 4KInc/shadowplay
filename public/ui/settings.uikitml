@@ -114,6 +114,11 @@
     <span id="one-hand-label" class="toggle-text">One-hand mode: Off</span>
   </button>
 
+  <div class="label">Narration (test only)</div>
+  <button id="voice-toggle" class="toggle">
+    <span id="voice-label" class="toggle-text">Placeholder voice: Off</span>
+  </button>
+
   <div class="label">Play a chapter</div>
   <div class="row">
     <button id="chap-prologue" class="option">Prologue</button>
