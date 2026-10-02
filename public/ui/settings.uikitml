@@ -70,6 +70,11 @@
     font-weight: 600;
   }
 
+  .section {
+    flex-direction: column;
+    gap: 1.3;
+  }
+
   .replay {
     justify-content: center;
     align-items: center;
@@ -114,10 +119,12 @@
     <span id="one-hand-label" class="toggle-text">One-hand mode: Off</span>
   </button>
 
-  <div class="label">Narration (test only)</div>
-  <button id="voice-toggle" class="toggle">
-    <span id="voice-label" class="toggle-text">Placeholder voice: Off</span>
-  </button>
+  <div id="voice-section" class="section">
+    <div class="label">Narration (test only)</div>
+    <button id="voice-toggle" class="toggle">
+      <span id="voice-label" class="toggle-text">Placeholder voice: Off</span>
+    </button>
+  </div>
 
   <div class="label">Play a chapter</div>
   <div class="row">

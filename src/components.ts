@@ -4,6 +4,7 @@ import {
   DeskLamp,
   HiddenProp,
   Moth,
+  RecognitionLab,
   Scenery,
   Settings,
   ShadowJournal,
@@ -29,4 +30,5 @@ export default defineComponents([
   DailyShape,
   Settings,
   SilhouetteMatcher,
+  RecognitionLab,
 ]);

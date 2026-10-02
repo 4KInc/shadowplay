@@ -484,6 +484,23 @@
           "outlineV": 0
         }
       }
+    },
+    {
+      "id": "recognition-lab",
+      "name": "Recognition Lab",
+      "content": {
+        "type": "group"
+      },
+      "components": {
+        "RecognitionLab": {
+          "tester": "tester-1",
+          "label": "",
+          "trialSeconds": 5,
+          "recording": false,
+          "exportRequested": false,
+          "clearRequested": false
+        }
+      }
     }
   ]
 }

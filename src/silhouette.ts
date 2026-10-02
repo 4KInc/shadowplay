@@ -216,6 +216,8 @@ export class SilhouetteSystem extends createSystem({
     const tolerance = first(this.queries.recognizers.entities)?.getValue(ShapeRecognizer, 'tolerance') ?? 0.3;
     const threshold = (matcher.getValue(SilhouetteMatcher, 'threshold') ?? 0.55) - (tolerance - 0.3) * 0.5;
     const matched = bestOverlap >= threshold ? best : '';
+    hand.silhouetteBest = best;
+    hand.silhouetteBestOverlap = bestOverlap;
     hand.silhouetteShape = matched;
     hand.silhouetteOverlap = bestOverlap;
     hand.silhouetteAt = performance.now();

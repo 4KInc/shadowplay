@@ -9,6 +9,7 @@ import { LampControlSystem } from './lamp-control.js';
 import { MothSystem } from './moth.js';
 import { NarrationSystem } from './narration.js';
 import { HiddenPropSystem } from './props.js';
+import { RecognitionLabSystem } from './recognition-lab.js';
 import { PuppetSystem } from './puppet.js';
 import { ScenerySystem } from './scenery.js';
 import { SettingsSystem } from './settings.js';
@@ -28,6 +29,7 @@ World.create(
     .registerSystem(LampControlSystem)
     .registerSystem(SilhouetteSystem)
     .registerSystem(ShapeMatchSystem)
+    .registerSystem(RecognitionLabSystem)
     .registerSystem(StorySystem)
     .registerSystem(NarrationSystem)
     .registerSystem(FreeStageSystem)

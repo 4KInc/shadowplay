@@ -98,7 +98,9 @@ export class NarrationSystem extends createSystem({
     }
 
     const settings = first(this.queries.settings.entities);
-    const voice = settings?.getValue(Settings, 'placeholderVoice') ? localVoice() : null;
+    // Test-only: never in production builds (no licence for commercial use).
+    const allowed = import.meta.env.DEV && Boolean(settings?.getValue(Settings, 'placeholderVoice'));
+    const voice = allowed ? localVoice() : null;
     if (voice) {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.voice = voice;

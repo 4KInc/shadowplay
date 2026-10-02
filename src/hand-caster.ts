@@ -43,7 +43,10 @@ interface HandCaster {
 /**
  * Builds invisible, shadow-casting capsules (spheres at joints, cylinders along
  * bones) from WebXR hand joints every frame. The real hands are visible in
- * passthrough; only their shadows are rendered.
+ * passthrough; only their shadows are rendered. The same capsules are
+ * depth-only occluders, so virtual content never draws over the real hand.
+ * While a character replaces a hand's shadow the capsules stop casting but
+ * keep occluding.
  */
 export class HandCasterSystem extends createSystem(
   {},
@@ -60,7 +63,10 @@ export class HandCasterSystem extends createSystem(
   private yAxis = new Vector3(0, 1, 0);
 
   init(): void {
-    this.material = new MeshBasicMaterial({ color: 0x120e18, colorWrite: false, depthWrite: false });
+    // Never drawn in colour, but always written to depth (and drawn first): the
+    // capsules double as occluders so the real hand, seen in passthrough,
+    // stays in front of its own shadow, the characters, Mo and the captions.
+    this.material = new MeshBasicMaterial({ color: 0x120e18, colorWrite: false, depthWrite: true });
     const sphere = new SphereGeometry(1, 10, 8);
     const cylinder = new CylinderGeometry(1, 1, 1, 10, 1, true);
     const root = new Group();
@@ -74,6 +80,7 @@ export class HandCasterSystem extends createSystem(
         mesh.castShadow = true;
         mesh.frustumCulled = false;
         mesh.count = 0;
+        mesh.renderOrder = -20;
         // Layer 0 for the lamp's shadow pass, plus a per-hand layer for silhouette matching.
         mesh.layers.enable(SILHOUETTE_LAYER[side]);
         root.add(mesh);
@@ -86,7 +93,6 @@ export class HandCasterSystem extends createSystem(
     this.cleanupFuncs.push(
       this.config.showCasters.subscribe((show) => {
         this.material.colorWrite = show;
-        this.material.depthWrite = show;
         this.material.needsUpdate = true;
       }),
     );
@@ -142,12 +148,14 @@ export class HandCasterSystem extends createSystem(
 
   private finish(caster: HandCaster, tracked: boolean): void {
     caster.sample.tracked = tracked;
-    const visible = tracked && !caster.sample.hideCasters;
-    if (!visible) {
+    if (!tracked) {
       caster.joints.count = 0;
       caster.bones.count = 0;
       return;
     }
+    const casting = !caster.sample.hideCasters;
+    caster.joints.castShadow = casting;
+    caster.bones.castShadow = casting;
     const joints = caster.sample.joints;
     const radii = caster.sample.radii;
     for (let i = 0; i < JOINT_COUNT; i++) {

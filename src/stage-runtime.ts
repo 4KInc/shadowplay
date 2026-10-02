@@ -40,6 +40,13 @@ export interface HandSample {
   silhouetteOverlap: number;
   /** performance.now() of the readback that produced the match. */
   silhouetteAt: number;
+  /** Raw opinions for the recognition lab: best template of each method, even below threshold. */
+  jointBest: string;
+  jointScore: number;
+  /** Joint method's shape after the tolerance threshold ('' if none). */
+  jointShape: string;
+  silhouetteBest: string;
+  silhouetteBestOverlap: number;
 }
 
 function makeHand(): HandSample {
@@ -52,6 +59,11 @@ function makeHand(): HandSample {
     silhouetteShape: '',
     silhouetteOverlap: 0,
     silhouetteAt: 0,
+    jointBest: '',
+    jointScore: 0,
+    jointShape: '',
+    silhouetteBest: '',
+    silhouetteBestOverlap: 0,
   };
 }
 

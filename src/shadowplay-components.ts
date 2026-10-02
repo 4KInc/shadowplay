@@ -277,3 +277,22 @@ export const SilhouetteMatcher = createComponent('SilhouetteMatcher', {
   recordShape: { type: Types.String, default: '' },
   lastRecorded: { type: Types.String, default: '' },
 });
+
+/**
+ * Recognition lab for the week-1 device gate. Set `label` (a shape id, or
+ * 'negative' for hands moving or resting in the light) and `recording`; each
+ * trial logs both recognition methods per frame for `trialSeconds`. Set
+ * `exportRequested` to get a confusion matrix and false-match rates in
+ * `report` (and the console). Trials persist so several testers can be pooled.
+ */
+export const RecognitionLab = createComponent('RecognitionLab', {
+  tester: { type: Types.String, default: 'tester-1' },
+  label: { type: Types.String, default: '' },
+  trialSeconds: { type: Types.Float32, default: 5, min: 1, max: 30 },
+  recording: { type: Types.Boolean, default: false },
+  trials: { type: Types.Int16, default: 0 },
+  status: { type: Types.String, default: '' },
+  exportRequested: { type: Types.Boolean, default: false },
+  clearRequested: { type: Types.Boolean, default: false },
+  report: { type: Types.String, default: '' },
+});

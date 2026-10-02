@@ -118,3 +118,12 @@ export async function loadUnlocks(): Promise<Unlocks> {
 export async function saveUnlocks(unlocks: Unlocks): Promise<void> {
   await run(PROGRESS, 'readwrite', (s) => s.put(unlocks, 'unlocks'));
 }
+
+/** Recognition-lab trials (device gate testing), kept so testers' data pools across sessions. */
+export async function loadLabTrials<T>(): Promise<T[]> {
+  return (await run<T[]>(PROGRESS, 'readonly', (s) => s.get('lab') as IDBRequest<T[]>)) ?? [];
+}
+
+export async function saveLabTrials<T>(trials: T[]): Promise<void> {
+  await run(PROGRESS, 'readwrite', (s) => s.put(trials, 'lab'));
+}

@@ -122,12 +122,16 @@ export class ShapeMatchSystem extends createSystem({
     out.curl = 1;
     out.score = 0;
     out.silhouette = '';
+    hand.jointShape = '';
     if (!hand.tracked) return;
     const f = hand.features;
     computeFeatures(hand.joints, f);
     classify(f, this.result);
+    hand.jointBest = this.result.id;
+    hand.jointScore = this.result.score;
     out.curl = (f[1] + f[2] + f[3] + f[4]) / 4;
     if (this.result.score >= 1 - tolerance) out.shape = this.result.id;
+    hand.jointShape = out.shape === ShapeIds.None ? '' : out.shape;
     out.score = this.result.score;
     // Method 2: any pose whose shadow matches a template counts, even when the
     // joint angles disagree (e.g. fingers arranged differently).

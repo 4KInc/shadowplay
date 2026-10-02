@@ -175,6 +175,8 @@ export class SettingsSystem extends createSystem({
     if (this.oneHandLabel) this.oneHandLabel.name = 'one-hand-label';
     this.voiceLabel = panel.getElementById<UIKit.Text>('voice-label') ?? undefined;
     if (this.voiceLabel) this.voiceLabel.name = 'voice-label';
+    // The placeholder voice is a development aid only; production builds hide it.
+    if (!import.meta.env.DEV) panel.getElementById('voice-section')?.setProperties({ display: 'none' });
     if (this.status) this.status.name = 'status-text';
     this.applied = '';
     this.shownUnlocks = null;
