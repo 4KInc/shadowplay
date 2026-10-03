@@ -56,6 +56,8 @@ export const Stage = createComponent('Stage', {
   replaceRequested: { type: Types.Boolean, default: false },
   /** Width of the chosen wall (0 for the floating screen). */
   wallWidth: { type: Types.Float32, default: 0 },
+  /** Adaptive quality: 0 full, 1 smaller shadow map, 2 also no room-dimming layer. */
+  quality: { type: Types.Int8, default: 0, min: 0, max: 2 },
 });
 
 /** The desk lamp; its bulb throws every shadow. */
@@ -300,4 +302,15 @@ export const RecognitionLab = createComponent('RecognitionLab', {
   /** Run every synthetic pose fixture for every synthetic tester (no headset needed). */
   autoRun: { type: Types.Boolean, default: false },
   syntheticReport: { type: Types.String, default: '' },
+});
+
+/**
+ * Development: drive the hands from a webcam (MediaPipe hand landmarks mapped
+ * to WebXR joints) so real people's hands can test recognition and record
+ * silhouette templates without a headset. Toggle with the W key in dev builds.
+ */
+export const WebcamHands = createComponent('WebcamHands', {
+  enabled: { type: Types.Boolean, default: false },
+  status: { type: Types.String, default: '' },
+  handsSeen: { type: Types.Int8, default: 0 },
 });

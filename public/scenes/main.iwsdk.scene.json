@@ -501,6 +501,20 @@
           "clearRequested": false
         }
       }
+    },
+    {
+      "id": "webcam-hands",
+      "name": "Webcam Hands (dev)",
+      "content": {
+        "type": "group"
+      },
+      "components": {
+        "WebcamHands": {
+          "enabled": false,
+          "status": "",
+          "handsSeen": 0
+        }
+      }
     }
   ]
 }

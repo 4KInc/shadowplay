@@ -42,7 +42,7 @@ export const TEMPLATES: readonly ShapeTemplate[] = [
   {
     id: ShapeIds.Open,
     value: [0, 0, 0, 0, 0, 0.7, 0, 1, 0.5],
-    weight: [0.4, 1, 1, 1, 1, 1, 0.6, 0.3, 0],
+    weight: [0.4, 1, 1, 1, 1, 1, 0.6, 0.8, 0],
   },
   {
     // Shadow dog: flat fingers together as the snout, thumb up as the ear.
@@ -54,13 +54,13 @@ export const TEMPLATES: readonly ShapeTemplate[] = [
     // Shadow fish: flat hand, fingers together, thumb tucked along the side.
     id: ShapeIds.Fish,
     value: [0.3, 0, 0, 0, 0, 0.4, 0, 0, 0.5],
-    weight: [0, 1, 1, 1, 0.8, 1.2, 0.5, 1.2, 0.6],
+    weight: [0, 1, 1, 1, 0.8, 1.2, 0.5, 1.8, 0.6],
   },
   {
     // Hidden swan: the fish's flat hand, bent down from the wrist (neck and beak).
     id: ShapeIds.Swan,
     value: [0.3, 0, 0, 0, 0, 0.4, 0, 0, 0],
-    weight: [0, 1, 1, 1, 0.8, 1, 0.4, 0.8, 1.4],
+    weight: [0, 1, 1, 1, 0.8, 1, 0.4, 1.8, 1.4],
   },
   {
     // Hidden snail: fist shell, index + middle pointing forward as eye stalks.

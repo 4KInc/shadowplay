@@ -14,6 +14,7 @@ import {
   Stage,
   StageActor,
   StoryState,
+  WebcamHands,
 } from './shadowplay-components.js';
 
 export default defineComponents([
@@ -31,4 +32,5 @@ export default defineComponents([
   Settings,
   SilhouetteMatcher,
   RecognitionLab,
+  WebcamHands,
 ]);

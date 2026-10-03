@@ -9,6 +9,7 @@ import { LampControlSystem } from './lamp-control.js';
 import { MothSystem } from './moth.js';
 import { NarrationSystem } from './narration.js';
 import { HiddenPropSystem } from './props.js';
+import { QualitySystem } from './quality.js';
 import { RecognitionLabSystem } from './recognition-lab.js';
 import { PuppetSystem } from './puppet.js';
 import { ScenerySystem } from './scenery.js';
@@ -41,5 +42,11 @@ World.create(
     .registerSystem(JournalSystem)
     .registerSystem(SettingsSystem)
     .registerSystem(CaptionSystem)
-    .registerSystem(AudioSystem);
+    .registerSystem(AudioSystem)
+    .registerSystem(QualitySystem);
+
+  // Development only: webcam-driven hands for testing recognition without a headset.
+  if (import.meta.env.DEV) {
+    void import('./webcam-hands.js').then(({ WebcamHandsSystem }) => world.registerSystem(WebcamHandsSystem));
+  }
 });

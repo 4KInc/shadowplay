@@ -105,6 +105,9 @@ export class StageSetupSystem extends createSystem({
         if (inXR !== this.inXR) {
           this.inXR = inXR;
           this.resetPlacement();
+          // Fixed foveation (lower resolution at the edges of the view) where the
+          // browser supports it: the dimming layer and shadow surface are fill-rate bound.
+          if (inXR) this.world.renderer.xr.setFoveation(1);
         }
       }),
     );
@@ -382,13 +385,27 @@ export class StageSetupSystem extends createSystem({
     lampObj.rotation.set(0, Math.atan2(-(c.x - p.x), -(c.z - p.z)), 0);
   }
 
+  private appliedQuality = 0;
+
+  /** Quality level 1+: a 512 px shadow map instead of 1024 (re-allocated once). */
+  private applyQuality(quality: number): void {
+    if (quality === this.appliedQuality) return;
+    this.appliedQuality = quality;
+    const size = quality >= 1 ? 512 : 1024;
+    this.spot.shadow.mapSize.set(size, size);
+    this.spot.shadow.map?.dispose();
+    (this.spot.shadow as { map: unknown }).map = null;
+  }
+
   private updateLighting(stage: Entity, lamp: Entity, delta: number): void {
     if (this.placed) this.updateAim(lamp);
     const finale = stage.getValue(Stage, 'finale') ?? 0;
     const lampOn = Boolean(stage.getValue(Stage, 'lampOn'));
     const level = lampOn ? (stage.getValue(Stage, 'lampLevel') ?? 1) : 0;
     if (this.bulbMaterial) this.bulbMaterial.emissiveIntensity = 0.15 + 2.05 * level;
-    const targetDim = this.placed ? (stage.getValue(Stage, 'dim') ?? 0.6) * (1 - 0.75 * finale) : 0;
+    const quality = stage.getValue(Stage, 'quality') ?? 0;
+    this.applyQuality(quality);
+    const targetDim = this.placed && quality < 2 ? (stage.getValue(Stage, 'dim') ?? 0.6) * (1 - 0.75 * finale) : 0;
     const step = delta / DIM_FADE_SECONDS;
     this.dimLevel += Math.max(-step, Math.min(step, targetDim - this.dimLevel));
     this.shell.material.uniforms.uDim.value = this.dimLevel;
