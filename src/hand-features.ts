@@ -23,48 +23,50 @@ export interface ShapeTemplate {
   weight: readonly number[];
 }
 
+// Spread is calibrated: fingers held together still measure ~0.4 (knuckles fan
+// slightly), a natural open hand ~0.7, deliberately splayed 1.
 //                   thumb idx mid ring pinky spread touch thumbOut up
 export const TEMPLATES: readonly ShapeTemplate[] = [
   {
     // Shadow rabbit: index + middle up as ears, thumb meets ring/middle tip.
     id: ShapeIds.Rabbit,
     value: [0.5, 0, 0, 1, 1, 0.5, 1, 0.5, 1],
-    weight: [0, 1.2, 1.2, 1, 0.7, 0, 1.2, 0, 0.6],
+    weight: [0, 1.6, 1.6, 1, 0.7, 0, 1.2, 0, 0.6],
   },
   {
     // Easier rabbit (accessibility alternative): two fingers up, thumb free.
     id: ShapeIds.Ears,
     value: [0.5, 0, 0, 1, 1, 0.5, 0, 0.5, 1],
-    weight: [0, 1.2, 1.2, 1, 0.7, 0, 1.2, 0, 0.6],
+    weight: [0, 1.6, 1.6, 1, 0.7, 0, 1.2, 0, 0.6],
   },
   {
     id: ShapeIds.Open,
-    value: [0, 0, 0, 0, 0, 1, 0, 1, 0.5],
+    value: [0, 0, 0, 0, 0, 0.7, 0, 1, 0.5],
     weight: [0.4, 1, 1, 1, 1, 1, 0.6, 0.3, 0],
   },
   {
     // Shadow dog: flat fingers together as the snout, thumb up as the ear.
     id: ShapeIds.Dog,
-    value: [0, 0, 0, 0, 0.5, 0, 0, 1, 0.5],
-    weight: [0.6, 1, 1, 1, 0, 1.2, 0.8, 1.2, 0.4],
+    value: [0, 0, 0, 0, 0.4, 0.4, 0, 1, 0.5],
+    weight: [0.6, 1, 1, 1, 0.4, 1.2, 0.8, 1.2, 1.0],
   },
   {
     // Shadow fish: flat hand, fingers together, thumb tucked along the side.
     id: ShapeIds.Fish,
-    value: [0.3, 0, 0, 0, 0, 0, 0, 0, 0.5],
+    value: [0.3, 0, 0, 0, 0, 0.4, 0, 0, 0.5],
     weight: [0, 1, 1, 1, 0.8, 1.2, 0.5, 1.2, 0.6],
   },
   {
     // Hidden swan: the fish's flat hand, bent down from the wrist (neck and beak).
     id: ShapeIds.Swan,
-    value: [0.3, 0, 0, 0, 0, 0, 0, 0, 0],
+    value: [0.3, 0, 0, 0, 0, 0.4, 0, 0, 0],
     weight: [0, 1, 1, 1, 0.8, 1, 0.4, 0.8, 1.4],
   },
   {
     // Hidden snail: fist shell, index + middle pointing forward as eye stalks.
     id: ShapeIds.Snail,
     value: [0.5, 0, 0, 1, 1, 0.5, 0.5, 0.5, 0.5],
-    weight: [0, 1.2, 1.2, 1, 0.7, 0, 0, 0, 1.4],
+    weight: [0, 1.6, 1.6, 1, 0.7, 0, 0, 0, 1.4],
   },
   {
     // Cupped hand holding something small.
@@ -88,12 +90,21 @@ const FINGERS: readonly (readonly number[])[] = [
 ];
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+const clampCos = (v: number) => (v < -1 ? -1 : v > 1 ? 1 : v);
+/** Total bend (radians) of a fully closed finger, and of the thumb's two joints. */
+const FINGER_FULL_BEND = (250 * Math.PI) / 180;
+const THUMB_FULL_BEND = (120 * Math.PI) / 180;
 
 function dist(j: Float32Array, a: number, b: number): number {
   const dx = j[a * 3] - j[b * 3];
   const dy = j[a * 3 + 1] - j[b * 3 + 1];
   const dz = j[a * 3 + 2] - j[b * 3 + 2];
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+/** Bend (radians) at joint b between bones a->b and b->c. */
+function bendAt(j: Float32Array, a: number, b: number, c: number): number {
+  return Math.acos(clampCos(cosBetween(j, a, b, b, c)));
 }
 
 /** Cosine of the angle between bones a->b and c->d. */
@@ -111,10 +122,15 @@ function cosBetween(j: Float32Array, a: number, b: number, c: number, d: number)
 export function computeFeatures(joints: Float32Array, out: Float32Array): void {
   for (let f = 0; f < 5; f++) {
     const c = FINGERS[f];
-    const chain = dist(joints, c[0], c[1]) + dist(joints, c[1], c[2]) + dist(joints, c[2], c[3]);
-    const ratio = chain > 1e-6 ? dist(joints, c[0], c[3]) / chain : 1;
-    // Straight ~0.97+, fully curled ~0.45; the thumb bends less.
-    out[f] = clamp01((0.96 - ratio) / (f === 0 ? 0.3 : 0.45));
+    // Curl = total bend along the finger (the angle between consecutive bones),
+    // which is linear in how far the finger is closed, unlike tip-to-knuckle
+    // distance. Fingers: knuckle (MCP), middle (PIP) and end (DIP) joints, the
+    // first measured against the metacarpal bone. Thumb: its MCP and IP joints.
+    let bend = 0;
+    if (f > 0) bend += bendAt(joints, c[0] - 1, c[0], c[1]);
+    bend += bendAt(joints, c[0], c[1], c[2]);
+    bend += bendAt(joints, c[1], c[2], c[3]);
+    out[f] = clamp01(bend / (f === 0 ? THUMB_FULL_BEND : FINGER_FULL_BEND));
   }
   const im = Math.acos(Math.min(1, cosBetween(joints, 6, 9, 11, 14)));
   const mr = Math.acos(Math.min(1, cosBetween(joints, 11, 14, 16, 19)));

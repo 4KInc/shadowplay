@@ -1,8 +1,9 @@
-import { createSystem, Entity } from '@iwsdk/core';
+import { createSystem, Entity, Vector3 } from '@iwsdk/core';
+import { FIXTURES, localJoints, PoseFixture, TESTERS, toWorld } from './hand-poses.js';
 import { loadLabTrials, saveLabTrials } from './journal-store.js';
 import { buildReport, LabSample, LabTrial } from './recognition-report.js';
 import { RecognitionLab, ShapeRecognizer } from './shadowplay-components.js';
-import { handRuntime } from './stage-runtime.js';
+import { handOverride, handRuntime, JOINT_COUNT, stageRuntime } from './stage-runtime.js';
 
 /**
  * Recognition lab for the week-1 device gate (development tool; inert unless
@@ -20,6 +21,15 @@ export class RecognitionLabSystem extends createSystem({
   private loading = false;
   private current: LabTrial | null = null;
   private elapsed = 0;
+  /** Synthetic run: queue of (fixture, tester), settle timer, results kept apart from real trials. */
+  private auto: { fixture: PoseFixture; tester: (typeof TESTERS)[number] }[] | null = null;
+  private autoTrials: LabTrial[] = [];
+  private autoSettle = 0;
+  private autoWasFree = false;
+  private anchor = new Vector3();
+  private wrist = new Vector3();
+  private leftJoints = new Float32Array(JOINT_COUNT * 3);
+  private rightJoints = new Float32Array(JOINT_COUNT * 3);
 
   update(delta: number): void {
     const lab = first(this.queries.labs.entities);
@@ -39,6 +49,12 @@ export class RecognitionLabSystem extends createSystem({
     if (lab.getValue(RecognitionLab, 'exportRequested')) {
       lab.setValue(RecognitionLab, 'exportRequested', false);
       this.export(lab, rec);
+    }
+
+    if (lab.getValue(RecognitionLab, 'autoRun') && !this.auto) this.startAuto(lab, rec);
+    if (this.auto) {
+      this.stepAuto(lab, rec, delta);
+      return;
     }
 
     const recording = Boolean(lab.getValue(RecognitionLab, 'recording'));
@@ -76,6 +92,80 @@ export class RecognitionLabSystem extends createSystem({
     lab.setValue(RecognitionLab, 'status', `Recording "${label}"...`);
   }
 
+  private startAuto(lab: Entity, rec: Entity): void {
+    if (!stageRuntime.ready) {
+      lab.setValue(RecognitionLab, 'autoRun', false);
+      lab.setValue(RecognitionLab, 'status', 'Synthetic run needs the stage to be placed first.');
+      return;
+    }
+    this.auto = [];
+    for (const tester of TESTERS) for (const fixture of FIXTURES) this.auto.push({ fixture, tester });
+    this.autoTrials = [];
+    this.autoWasFree = Boolean(rec.getValue(ShapeRecognizer, 'freeMode'));
+    rec.setValue(ShapeRecognizer, 'freeMode', true); // so the hidden two-hand creatures are testable
+    handOverride.active = true;
+    handOverride.source = 'fixtures';
+    this.loadNext();
+  }
+
+  /** Pose the next fixture's hands in the lamp light in front of the stage. */
+  private loadNext(): void {
+    const item = this.auto![0];
+    if (!item) return;
+    // A little way from the lamp towards the stage, so the shadow lands on the stage.
+    this.anchor.copy(stageRuntime.bulb).lerp(stageRuntime.poolCenter, 0.22).addScaledVector(stageRuntime.up, -0.06);
+    const place = (side: 'left' | 'right', out: Float32Array): Float32Array | null => {
+      const pose = side === 'right' ? item.fixture.right : item.fixture.left;
+      if (!pose) return null;
+      const at = (side === 'right' ? item.fixture.rightAt : item.fixture.leftAt) ?? [0, 0];
+      this.wrist.copy(this.anchor).addScaledVector(stageRuntime.right, at[0]).addScaledVector(stageRuntime.up, at[1]);
+      const seed = item.tester.seed + (side === 'left' ? 1000 : 0) + FIXTURES.indexOf(item.fixture) * 7;
+      const local = localJoints(pose, item.tester.scale, seed);
+      return toWorld(local, side, this.wrist, stageRuntime.right, stageRuntime.up, stageRuntime.normal, out);
+    };
+    handOverride.right = place('right', this.rightJoints);
+    handOverride.left = place('left', this.leftJoints);
+    this.autoSettle = 0;
+  }
+
+  private stepAuto(lab: Entity, rec: Entity, delta: number): void {
+    const item = this.auto![0];
+    if (!item) {
+      this.finishAuto(lab, rec);
+      return;
+    }
+    if (!this.current) {
+      // Let the matcher and the silhouette readback settle before recording.
+      this.autoSettle += delta;
+      if (this.autoSettle < 0.4) return;
+      this.elapsed = 0;
+      this.current = { tester: item.tester.name, label: item.fixture.label, startedAt: Date.now(), samples: [] };
+      lab.setValue(RecognitionLab, 'status', `Synthetic: ${item.tester.name} / ${item.fixture.label} (${this.auto!.length} left)`);
+      return;
+    }
+    this.elapsed += delta;
+    this.sample(rec);
+    if (this.elapsed >= 1) {
+      this.autoTrials.push(this.current);
+      this.current = null;
+      this.auto!.shift();
+      this.loadNext();
+    }
+  }
+
+  private finishAuto(lab: Entity, rec: Entity): void {
+    this.auto = null;
+    handOverride.active = false;
+    handOverride.left = handOverride.right = null;
+    rec.setValue(ShapeRecognizer, 'freeMode', this.autoWasFree);
+    lab.setValue(RecognitionLab, 'autoRun', false);
+    const report = buildReport(this.autoTrials, rec.getValue(ShapeRecognizer, 'holdSeconds') ?? 0.5);
+    const json = JSON.stringify({ source: 'synthetic', ...report });
+    lab.setValue(RecognitionLab, 'syntheticReport', json);
+    lab.setValue(RecognitionLab, 'status', `Synthetic run done: ${this.autoTrials.length} trials.`);
+    console.info('[shadowplay] synthetic recognition report:', json);
+  }
+
   private sample(rec: Entity): void {
     const trial = this.current!;
     for (const side of ['left', 'right'] as const) {
@@ -93,6 +183,7 @@ export class RecognitionLabSystem extends createSystem({
         silhouetteOverlap: +hand.silhouetteBestOverlap.toFixed(3),
         silhouette: hand.silhouetteShape,
         fused,
+        features: Array.from(hand.features, (v) => +v.toFixed(3)),
       };
       trial.samples.push(s);
     }

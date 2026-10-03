@@ -76,6 +76,25 @@ export const handRuntime = {
 };
 
 /**
+ * Test hand sources (synthetic pose fixtures, the webcam bridge). While
+ * `active`, the hand caster uses these world-space joints instead of WebXR
+ * hand input; a side set to null counts as untracked. Works outside XR too.
+ */
+export const handOverride: {
+  active: boolean;
+  source: string;
+  left: Float32Array | null;
+  right: Float32Array | null;
+  radii: Float32Array;
+} = {
+  active: false,
+  source: '',
+  left: null,
+  right: null,
+  radii: new Float32Array(JOINT_COUNT).fill(0.009),
+};
+
+/**
  * Project a world point from the lamp bulb onto the stage plane.
  * Returns the magnification (lamp->surface / lamp->point), or 0 when the point
  * is not between the lamp and the surface.

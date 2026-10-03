@@ -10,7 +10,7 @@ import {
   Types,
   Vector3,
 } from '@iwsdk/core';
-import { handRuntime, HandSample, JOINT_COUNT, SILHOUETTE_LAYER } from './stage-runtime.js';
+import { handOverride, handRuntime, HandSample, JOINT_COUNT, SILHOUETTE_LAYER } from './stage-runtime.js';
 
 type Pair = readonly [number, number, number]; // joint a, joint b, fixed radius (0 = from joints)
 
@@ -106,6 +106,15 @@ export class HandCasterSystem extends createSystem(
     let seenRight = false;
     let hands = 0;
     let controllers = 0;
+    if (handOverride.active) {
+      // Test source (fixtures / webcam): joints are already in world space.
+      seenLeft = this.useOverride(this.hands.left, handOverride.left);
+      seenRight = this.useOverride(this.hands.right, handOverride.right);
+      handRuntime.controllersOnly = false;
+      this.finish(this.hands.left, seenLeft);
+      this.finish(this.hands.right, seenRight);
+      return;
+    }
     if (frame && refSpace && session) {
       for (const source of session.inputSources) {
         if (source.hand) hands++;
@@ -143,6 +152,13 @@ export class HandCasterSystem extends createSystem(
       joints[i * 3 + 1] = this.a.y;
       joints[i * 3 + 2] = this.a.z;
     }
+    return true;
+  }
+
+  private useOverride(caster: HandCaster, joints: Float32Array | null): boolean {
+    if (!joints) return false;
+    caster.sample.joints.set(joints);
+    caster.sample.radii.set(handOverride.radii);
     return true;
   }
 

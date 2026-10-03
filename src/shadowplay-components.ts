@@ -297,4 +297,7 @@ export const RecognitionLab = createComponent('RecognitionLab', {
   exportRequested: { type: Types.Boolean, default: false },
   clearRequested: { type: Types.Boolean, default: false },
   report: { type: Types.String, default: '' },
+  /** Run every synthetic pose fixture for every synthetic tester (no headset needed). */
+  autoRun: { type: Types.Boolean, default: false },
+  syntheticReport: { type: Types.String, default: '' },
 });

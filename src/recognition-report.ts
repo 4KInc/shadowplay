@@ -26,6 +26,8 @@ export interface LabSample {
   silhouette: string;
   /** What the matcher used: the joint shape, else the silhouette shape. */
   fused: string;
+  /** Joint-angle feature vector (see hand-features.ts) for calibration. */
+  features?: number[];
 }
 
 export interface LabTrial {
@@ -47,6 +49,8 @@ export interface LabReport {
     { trials: number; frames: number; accuracy: Record<Method, number>; triggered: Record<Method, number> }
   >;
   confusion: Record<Method, Counts>;
+  /** Mean joint feature vector per label (in-light frames), for calibrating templates. */
+  featureMeans: Record<string, number[]>;
   negative: {
     trials: number;
     frames: number;
@@ -126,6 +130,20 @@ export function buildReport(trials: LabTrial[], holdSeconds = 0.5): LabReport {
     }
   });
 
+  const featureMeans: Record<string, number[]> = {};
+  const featureCounts: Record<string, number> = {};
+  for (const trial of trials) {
+    for (const s of trial.samples) {
+      if (!s.inLight || !s.features) continue;
+      const sum = (featureMeans[trial.label] ??= new Array(s.features.length).fill(0));
+      s.features.forEach((v, i) => (sum[i] += v));
+      featureCounts[trial.label] = (featureCounts[trial.label] ?? 0) + 1;
+    }
+  }
+  for (const [label, sum] of Object.entries(featureMeans)) {
+    featureMeans[label] = sum.map((v) => +(v / featureCounts[label]).toFixed(2));
+  }
+
   // Convert counts to rates.
   for (const entry of Object.values(perShape)) {
     for (const m of METHODS) {
@@ -143,6 +161,7 @@ export function buildReport(trials: LabTrial[], holdSeconds = 0.5): LabReport {
     holdSeconds,
     perShape,
     confusion,
+    featureMeans,
     negative,
   };
 }

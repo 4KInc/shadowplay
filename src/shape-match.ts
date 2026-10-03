@@ -21,7 +21,10 @@ const DEER_MIN_SPREAD = 0.5;
 const CROC_MIN_DY = 0.03;
 const CROC_MAX_DY = 0.2;
 const CROC_MAX_SIDEWAYS = 0.12;
-const CROC_MAX_SPREAD = 0.4;
+/** Fingers held together measure ~0.4 spread; an open hand ~0.7. */
+const CROC_MAX_SPREAD = 0.65;
+/** Jaws point sideways: finger direction roughly level (0.5 = level, 1 = up). */
+const CROC_LEVEL = 0.25;
 
 /** Free Stage: every shape that can be performed, mapped to its character. */
 const FREE_ACCEPT: Readonly<Record<string, string>> = {
@@ -68,7 +71,9 @@ export class ShapeMatchSystem extends createSystem({
       const tolerance = entity.getValue(ShapeRecognizer, 'tolerance') ?? 0.3;
       this.evaluate(handRuntime.left, tolerance, this.left);
       this.evaluate(handRuntime.right, tolerance, this.right);
-      const pair = this.detectPair();
+      // Hidden two-hand creatures (deer, crocodile) only exist in Free Stage; in
+      // the story they must not steal a requested bird or cup.
+      const pair = this.detectPair(Boolean(entity.getValue(ShapeRecognizer, 'freeMode')));
       const twoHanded = pair !== null;
       if (pair) this.left.shape = this.right.shape = pair;
       this.publish(entity);
@@ -169,7 +174,7 @@ export class ShapeMatchSystem extends createSystem({
    * deer (open, fingers up and spread), crocodile (flat hands stacked),
    * bird (open, wrists side by side), cup (both cupped, side by side).
    */
-  private detectPair(): string | null {
+  private detectPair(hidden: boolean): string | null {
     const l = handRuntime.left;
     const r = handRuntime.right;
     if (!l.tracked || !r.tracked || !this.left.inLight || !this.right.inLight) return null;
@@ -182,6 +187,7 @@ export class ShapeMatchSystem extends createSystem({
     const rf = r.features;
     const open = this.left.curl <= BIRD_MAX_CURL && this.right.curl <= BIRD_MAX_CURL;
     if (
+      hidden &&
       open &&
       gap < DEER_WRIST_GAP &&
       lf[8] >= DEER_MIN_UP &&
@@ -192,12 +198,15 @@ export class ShapeMatchSystem extends createSystem({
       return ShapeIds.Deer;
     }
     if (
+      hidden &&
       open &&
       Math.abs(dy) >= CROC_MIN_DY &&
       Math.abs(dy) <= CROC_MAX_DY &&
       sideways <= CROC_MAX_SIDEWAYS &&
       lf[5] <= CROC_MAX_SPREAD &&
-      rf[5] <= CROC_MAX_SPREAD
+      rf[5] <= CROC_MAX_SPREAD &&
+      Math.abs(lf[8] - 0.5) <= CROC_LEVEL &&
+      Math.abs(rf[8] - 0.5) <= CROC_LEVEL
     ) {
       return ShapeIds.Crocodile;
     }
