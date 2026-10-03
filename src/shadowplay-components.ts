@@ -151,6 +151,8 @@ export const StoryState = createComponent('StoryState', {
   voiceBeat: { type: Types.String, default: '' },
   /** True once the line for voiceBeat has finished (or there is none). */
   voiceDone: { type: Types.Boolean, default: true },
+  /** 'Never stuck' assist level for the waiting beat: 0 none, 1-2 looser recognition, 3 any still hand counts. */
+  assist: { type: Types.Int8, default: 0, min: 0, max: 3 },
   /** Where the current line comes from: 'clip', 'placeholder' or '' (captions only). */
   voiceSource: { type: Types.String, default: '' },
 });

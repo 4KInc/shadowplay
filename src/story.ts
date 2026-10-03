@@ -1,4 +1,4 @@
-import { createSystem, Entity, VisibilityState } from '@iwsdk/core';
+import { createSystem, Entity, Vector3, VisibilityState } from '@iwsdk/core';
 import { loadProgress, loadUnlocks, saveProgress, saveUnlocks } from './journal-store.js';
 import {
   HiddenProp,
@@ -32,6 +32,13 @@ const OUTSIDE_XR_CAPTION = 'Paused. Press Enter XR to return to the story.';
 const HANDS_CAPTION = 'Shadowplay is played with your hands. Put your controllers down and let the headset see your hands.';
 /** Grace period before the hands-first guard pauses (controllers being set down). */
 const CONTROLLER_GRACE_SECONDS = 1;
+/** 'Never stuck' assist: seconds a player beat may wait before each assist level. */
+const ASSIST_AFTER = [20, 40, 60] as const;
+/** Extra recognition tolerance at assist levels 1 and 2. */
+const ASSIST_TOLERANCE = [0, 0.1, 0.2] as const;
+/** At level 3, a hand held this still in the light for this long counts as the request. */
+const STILL_SPEED = 0.15;
+const STILL_SECONDS = 1.5;
 
 /** Lamp flicker envelope for the prologue: stutters, catches, then warms up. */
 function flicker(t: number): number {
@@ -71,6 +78,12 @@ export class StorySystem extends createSystem({
   private attract = false;
   private controllerTime = 0;
   private unlocked = new Set<string>();
+  /** Player's tolerance when the current beat began (restored after assist). */
+  private baseTolerance = -1;
+  private assistLevel = 0;
+  private stillTime = { left: 0, right: 0 };
+  private lastWrist = { left: new Vector3(), right: new Vector3() };
+  private wrist = new Vector3();
   private endings = new Set<string>();
   private loading = false;
   private resumeAt = -1;
@@ -210,6 +223,7 @@ export class StorySystem extends createSystem({
     const beat = this.script.beats[index];
     if (!beat) return;
     this.beatTime += delta;
+    this.updateAssist(beat, story, stage, delta);
     const next = this.run(beat, story, stage, delta);
     if (next !== null) {
       this.exit(beat, story);
@@ -285,6 +299,7 @@ export class StorySystem extends createSystem({
     this.beatTime = 0;
     this.holdTime = 0;
     this.growFrom = 0;
+    this.endAssist(story, stage);
     story.setValue(StoryState, 'beatIndex', index);
     story.setValue(StoryState, 'beatId', beat.id);
     if ('text' in beat) this.setCaption(story, beat.text);
@@ -402,7 +417,7 @@ export class StorySystem extends createSystem({
       case 'follow': {
         let followed = 0;
         for (const m of this.queries.moths.entities) followed = Math.max(followed, m.getValue(Moth, 'followedSeconds') ?? 0);
-        return followed >= beat.seconds ? done : null;
+        return followed >= beat.seconds || this.assistLevel >= 3 ? done : null;
       }
       case 'request':
         return this.awaitAlive(story, [beat.shape], t) !== null ? done : null;
@@ -429,9 +444,11 @@ export class StorySystem extends createSystem({
         const need = Math.max(beat.minSize ?? 0, this.growFrom * beat.factor);
         const big = alive !== undefined && size >= need;
         this.holdTime = big ? this.holdTime + delta : 0;
+        if (this.assistLevel >= 2 && alive) return done;
         return this.holdTime >= (beat.holdSeconds ?? GROW_HOLD_SECONDS) ? done : null;
       }
       case 'carry': {
+        if (this.assistLevel >= 3) return done;
         const obj = this.alivePuppet()?.object3D;
         if (!obj) return null;
         const c = stageRuntime.center;
@@ -450,6 +467,10 @@ export class StorySystem extends createSystem({
       case 'reveal': {
         let revealed = 0;
         for (const p of this.queries.props.entities) revealed = Math.max(revealed, p.getValue(HiddenProp, 'revealed') ?? 0);
+        if (this.assistLevel >= 3) {
+          for (const p of this.queries.props.entities) p.setValue(HiddenProp, 'revealed', 1);
+          return done;
+        }
         this.holdTime = revealed >= 0.8 ? this.holdTime + delta : 0;
         return this.holdTime >= REVEAL_HOLD_SECONDS ? done : null;
       }
@@ -482,6 +503,57 @@ export class StorySystem extends createSystem({
     if (t >= minSeconds * 3 + 5) return true;
     if (story.getValue(StoryState, 'voiceBeat') !== beatId) return t > minSeconds + 0.25;
     return Boolean(story.getValue(StoryState, 'voiceDone'));
+  }
+
+  /** Player beats that can stall on recognition or dexterity. */
+  private isPlayerBeat(beat: StoryBeat): boolean {
+    return ['request', 'choice', 'grow', 'carry', 'reveal', 'follow'].includes(beat.type);
+  }
+
+  /**
+   * 'Never stuck': the longer a player beat waits, the more forgiving the
+   * story becomes. Levels 1-2 loosen recognition; level 3 lets any hand held
+   * still in the light summon the requested creature (and finishes the other
+   * player beats), so unknown real-hand accuracy can never strand anyone.
+   */
+  private updateAssist(beat: StoryBeat, story: Entity, stage: Entity, delta: number): void {
+    if (!this.isPlayerBeat(beat)) return;
+    const t = this.beatTime;
+    const level = t >= ASSIST_AFTER[2] ? 3 : t >= ASSIST_AFTER[1] ? 2 : t >= ASSIST_AFTER[0] ? 1 : 0;
+    if (level !== this.assistLevel) {
+      if (this.baseTolerance < 0) this.baseTolerance = stage.getValue(ShapeRecognizer, 'tolerance') ?? 0.3;
+      this.assistLevel = level;
+      story.setValue(StoryState, 'assist', level);
+      const extra = ASSIST_TOLERANCE[Math.min(level, 2)];
+      stage.setValue(ShapeRecognizer, 'tolerance', Math.min(0.6, this.baseTolerance + extra));
+    }
+    if (level < 3 || (beat.type !== 'request' && beat.type !== 'choice')) return;
+    if (stage.getValue(ShapeRecognizer, 'matchedHand') !== 'none') return;
+    for (const side of ['left', 'right'] as const) {
+      const hand = handRuntime[side];
+      const lit = stage.getValue(ShapeRecognizer, side === 'left' ? 'leftInLight' : 'rightInLight');
+      this.wrist.fromArray(hand.joints, 0);
+      const speed = this.wrist.distanceTo(this.lastWrist[side]) / Math.max(delta, 1e-3);
+      this.lastWrist[side].copy(this.wrist);
+      this.stillTime[side] = hand.tracked && lit && speed < STILL_SPEED ? this.stillTime[side] + delta : 0;
+      if (this.stillTime[side] >= STILL_SECONDS) {
+        const shape = beat.type === 'request' ? beat.shape : beat.options[0].shape;
+        stage.setValue(ShapeRecognizer, 'matchedHand', side);
+        stage.setValue(ShapeRecognizer, 'matchedShape', shape as never);
+        stage.setValue(ShapeRecognizer, 'twoHanded', false);
+        this.stillTime[side] = 0;
+        return;
+      }
+    }
+  }
+
+  /** Restore the player's own tolerance when a beat ends. */
+  private endAssist(story: Entity, stage: Entity): void {
+    if (this.baseTolerance >= 0) stage.setValue(ShapeRecognizer, 'tolerance', this.baseTolerance);
+    this.baseTolerance = -1;
+    this.assistLevel = 0;
+    this.stillTime.left = this.stillTime.right = 0;
+    if (story.getValue(StoryState, 'assist') !== 0) story.setValue(StoryState, 'assist', 0);
   }
 
   /** Waits for one of the shapes to come alive; shows the hint when stuck. */
