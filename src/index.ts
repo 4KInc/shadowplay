@@ -48,5 +48,6 @@ World.create(
   // Development only: webcam-driven hands for testing recognition without a headset.
   if (import.meta.env.DEV) {
     void import('./webcam-hands.js').then(({ WebcamHandsSystem }) => world.registerSystem(WebcamHandsSystem));
+    void import('./demo-director.js').then(({ DemoDirectorSystem }) => world.registerSystem(DemoDirectorSystem));
   }
 });

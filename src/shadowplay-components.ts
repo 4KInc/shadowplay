@@ -314,3 +314,17 @@ export const WebcamHands = createComponent('WebcamHands', {
   status: { type: Types.String, default: '' },
   handsSeen: { type: Types.Int8, default: 0 },
 });
+
+/**
+ * Development: performs the story with synthetic hands (pose fixtures) so a
+ * run can be screen-recorded from the emulator without a headset. Toggle with
+ * the D key in dev builds.
+ */
+export const DemoDirector = createComponent('DemoDirector', {
+  playing: { type: Types.Boolean, default: false },
+  /** Which Chapter Three ending to perform. */
+  branch: { type: Types.Enum, enum: { Dog: 'dog', Bird: 'bird' }, default: 'dog' },
+  /** Show the capsule hands (dark) so viewers can see what casts the shadows. */
+  showHands: { type: Types.Boolean, default: false },
+  status: { type: Types.String, default: '' },
+});

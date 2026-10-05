@@ -515,6 +515,21 @@
           "handsSeen": 0
         }
       }
+    },
+    {
+      "id": "demo-director",
+      "name": "Demo Director (dev)",
+      "content": {
+        "type": "group"
+      },
+      "components": {
+        "DemoDirector": {
+          "playing": false,
+          "branch": "dog",
+          "showHands": false,
+          "status": ""
+        }
+      }
     }
   ]
 }

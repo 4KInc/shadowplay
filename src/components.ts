@@ -1,6 +1,7 @@
 import { defineComponents } from '@iwsdk/core';
 import {
   DailyShape,
+  DemoDirector,
   DeskLamp,
   HiddenProp,
   Moth,
@@ -33,4 +34,5 @@ export default defineComponents([
   SilhouetteMatcher,
   RecognitionLab,
   WebcamHands,
+  DemoDirector,
 ]);
