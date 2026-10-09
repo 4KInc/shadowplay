@@ -87,6 +87,7 @@ export const handOverride: {
   right: Float32Array | null;
   radii: Float32Array;
   cameraAllowed: boolean;
+  cameraTarget: 'override' | 'second';
 } = {
   active: false,
   source: '',
@@ -95,6 +96,19 @@ export const handOverride: {
   radii: new Float32Array(JOINT_COUNT).fill(0.009),
   /** False while a replay drives the hands; the camera may take over only during join-in moments. */
   cameraAllowed: true,
+  /** Where camera hands go: the performing pair, or the second pair (a Live guest while the host performs). */
+  cameraTarget: 'override',
+};
+
+/**
+ * A second pair of hands on this stage, in world space: the other person in a
+ * Live room (or, for a Live guest, their own camera hands while the host
+ * performs). They cast shadows only: they do not occlude and do not drive this
+ * stage's recognition. Null means not shown.
+ */
+export const secondHands: { left: Float32Array | null; right: Float32Array | null } = {
+  left: null,
+  right: null,
 };
 
 /**

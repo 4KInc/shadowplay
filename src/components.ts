@@ -4,6 +4,7 @@ import {
   DemoDirector,
   DeskLamp,
   HiddenProp,
+  LiveSession,
   Moth,
   PerformancePlayer,
   PerformanceRecorder,
@@ -39,4 +40,5 @@ export default defineComponents([
   DemoDirector,
   PerformanceRecorder,
   PerformancePlayer,
+  LiveSession,
 ]);

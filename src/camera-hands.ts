@@ -1,7 +1,7 @@
 import { createSystem, Entity, Vector3 } from '@iwsdk/core';
 import type { HandLandmarker } from '@mediapipe/tasks-vision';
 import { WebcamHands } from './shadowplay-components.js';
-import { handOverride, JOINT_COUNT, stageRuntime } from './stage-runtime.js';
+import { handOverride, JOINT_COUNT, secondHands, stageRuntime } from './stage-runtime.js';
 import { Landmark, landmarksToJoints } from './webcam-landmarks.js';
 
 /** Model and runtime are served from our own origin (no third-party CDN at runtime). */
@@ -58,10 +58,17 @@ export class CameraHandsSystem extends createSystem({
       this.seenAt[side] = now;
       seen++;
     });
-    handOverride.active = true;
-    handOverride.source = 'camera';
-    handOverride.left = now - this.seenAt.left < LOST_MS ? this.joints.left : null;
-    handOverride.right = now - this.seenAt.right < LOST_MS ? this.joints.right : null;
+    const left = now - this.seenAt.left < LOST_MS ? this.joints.left : null;
+    const right = now - this.seenAt.right < LOST_MS ? this.joints.right : null;
+    if (handOverride.cameraTarget === 'second') {
+      secondHands.left = left;
+      secondHands.right = right;
+    } else {
+      handOverride.active = true;
+      handOverride.source = 'camera';
+      handOverride.left = left;
+      handOverride.right = right;
+    }
     if (cam.getValue(WebcamHands, 'handsSeen') !== seen) cam.setValue(WebcamHands, 'handsSeen', seen);
   }
 
@@ -132,6 +139,8 @@ export class CameraHandsSystem extends createSystem({
     this.video = null;
     this.landmarker?.close();
     this.landmarker = null;
+    if (secondHands.left === this.joints.left) secondHands.left = null;
+    if (secondHands.right === this.joints.right) secondHands.right = null;
     if (handOverride.source === 'camera') {
       handOverride.active = false;
       handOverride.left = handOverride.right = null;

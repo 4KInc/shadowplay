@@ -366,3 +366,30 @@ export const PerformancePlayer = createComponent('PerformancePlayer', {
   duration: { type: Types.Float32, default: 0 },
   status: { type: Types.String, default: '' },
 });
+
+export const LiveRoles = { Off: 'off', Host: 'host', Guest: 'guest' } as const;
+
+/**
+ * Live bedtime story: a parent hosts from the headset, one family member joins
+ * from a phone or tablet with the family code. Set `role` to start or leave;
+ * the microphone opens only when `talk` is switched on by the person.
+ */
+export const LiveSession = createComponent('LiveSession', {
+  role: { type: Types.Enum, enum: LiveRoles, default: LiveRoles.Off },
+  /** Guest: the family code to join. */
+  joinCode: { type: Types.String, default: '' },
+  /** Host: the room's family code once the server has given one. */
+  code: { type: Types.String, default: '' },
+  connected: { type: Types.Boolean, default: false },
+  /** The other person is in the room. */
+  peerPresent: { type: Types.Boolean, default: false },
+  /** The person asked to talk (opens the mic). */
+  talk: { type: Types.Boolean, default: false },
+  /** The mic is actually open and streaming. */
+  talking: { type: Types.Boolean, default: false },
+  /** The other person's voice is arriving. */
+  hearing: { type: Types.Boolean, default: false },
+  /** How many of the other person's hands are on this stage (0-2). */
+  peerHands: { type: Types.Int8, default: 0 },
+  status: { type: Types.String, default: '' },
+});

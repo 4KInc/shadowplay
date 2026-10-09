@@ -1,0 +1,305 @@
+import { createSystem, Entity } from '@iwsdk/core';
+import { applyEvent, ApplyTargets, applyTargets } from '../performance/apply.js';
+import { FRAME_STRIDE, readFrame, writeFrame } from '../performance/format.js';
+import { storyTap, TapEvent } from '../performance/story-tap.js';
+import {
+  DeskLamp,
+  HiddenProp,
+  LiveSession,
+  Moth,
+  PerformancePlayer,
+  Scenery,
+  ShadowPuppet,
+  ShapeRecognizer,
+  Stage,
+  StageActor,
+  StoryState,
+} from '../shadowplay-components.js';
+import { handOverride, handRuntime, JOINT_COUNT, secondHands, stageRuntime } from '../stage-runtime.js';
+import { LiveConnection } from './connection.js';
+import { HANDS_HZ, HEADER_BYTES, KIND_HANDS, KIND_VOICE, packBinary, PeerMessage, ServerMessage } from './protocol.js';
+import { LiveVoice } from './voice.js';
+
+/** A hand not heard from for this long (ms) disappears. */
+const HAND_TIMEOUT_MS = 500;
+/** How quickly received hands catch up with the latest packet (1/s). */
+const SMOOTHING = 22;
+
+/** Received hands, eased between 20 Hz packets. */
+class SmoothedHands {
+  readonly left = new Float32Array(JOINT_COUNT * 3);
+  readonly right = new Float32Array(JOINT_COUNT * 3);
+  private targetL = new Float32Array(JOINT_COUNT * 3);
+  private targetR = new Float32Array(JOINT_COUNT * 3);
+  hasLeft = false;
+  hasRight = false;
+  private at = 0;
+
+  receive(frame: Int16Array): void {
+    const had = { left: this.hasLeft, right: this.hasRight };
+    const got = readFrame(frame, 1, 0, this.targetL, this.targetR);
+    // A hand that just appeared snaps into place instead of flying in.
+    if (got.left && !had.left) this.left.set(this.targetL);
+    if (got.right && !had.right) this.right.set(this.targetR);
+    this.hasLeft = got.left;
+    this.hasRight = got.right;
+    this.at = performance.now();
+  }
+
+  step(delta: number): void {
+    if (performance.now() - this.at > HAND_TIMEOUT_MS) this.hasLeft = this.hasRight = false;
+    const a = 1 - Math.exp(-delta * SMOOTHING);
+    if (this.hasLeft) ease(this.left, this.targetL, a);
+    if (this.hasRight) ease(this.right, this.targetR, a);
+  }
+
+  clear(): void {
+    this.hasLeft = this.hasRight = false;
+  }
+}
+
+function ease(out: Float32Array, target: Float32Array, a: number): void {
+  for (let i = 0; i < out.length; i++) out[i] += (target[i] - out[i]) * a;
+}
+
+/**
+ * Live bedtime stories. The host (a parent in the headset) runs the story; the
+ * guest's stage follows it beat by beat. Each side sends its hands 20 times a
+ * second, so both shadows share both walls: on the guest's stage the host's
+ * hands perform (driving the creatures) and the guest's own camera hands join
+ * as a second pair; on the host's stage the guest's hands are the second pair.
+ * Voice flows both ways once each person switches talking on.
+ */
+export class LiveSystem extends createSystem({
+  sessions: { required: [LiveSession] },
+  stories: { required: [StoryState] },
+  players: { required: [PerformancePlayer] },
+  recognizers: { required: [ShapeRecognizer] },
+  puppets: { required: [ShadowPuppet] },
+  lamps: { required: [DeskLamp] },
+  moths: { required: [Moth] },
+  scenery: { required: [Scenery] },
+  actors: { required: [StageActor] },
+  stages: { required: [Stage] },
+  props: { required: [HiddenProp] },
+}) {
+  private conn: LiveConnection | null = null;
+  private role: 'off' | 'host' | 'guest' = 'off';
+  private voice = new LiveVoice();
+  private remote = new SmoothedHands();
+  private frame = new Int16Array(FRAME_STRIDE);
+  private handsPacket = new ArrayBuffer(HEADER_BYTES + FRAME_STRIDE * 2);
+  private handsView = new Int16Array(this.handsPacket, HEADER_BYTES);
+  private sendEvery = 1 / HANDS_HZ;
+  private sinceSend = 0;
+  private pending: TapEvent[] = [];
+  private targets!: ApplyTargets;
+  private unsubscribeTap: (() => void) | null = null;
+  private micStarting = false;
+
+  init(): void {
+    this.targets = applyTargets(this.queries);
+    new Uint8Array(this.handsPacket)[0] = KIND_HANDS;
+    this.cleanupFuncs.push(() => this.leave(null, ''));
+  }
+
+  update(delta: number): void {
+    const session = first(this.queries.sessions.entities);
+    if (!session) return;
+    const want = session.getValue(LiveSession, 'role') ?? 'off';
+    if (want !== this.role) {
+      if (this.role !== 'off') this.leave(session, '', false);
+      if (want === 'host' || want === 'guest') this.start(session, want);
+    }
+    if (this.role === 'off') return;
+
+    this.updateTalk(session);
+    if (session.getValue(LiveSession, 'hearing') !== this.voice.hearing) {
+      session.setValue(LiveSession, 'hearing', this.voice.hearing);
+    }
+    if (!stageRuntime.ready) return;
+    while (this.pending.length) this.applyRemote(this.pending.shift()!);
+
+    this.remote.step(delta);
+    const peerHands = (this.remote.hasLeft ? 1 : 0) + (this.remote.hasRight ? 1 : 0);
+    if (session.getValue(LiveSession, 'peerHands') !== peerHands) session.setValue(LiveSession, 'peerHands', peerHands);
+    if (this.role === 'guest') {
+      // The host performs on this stage; their hands drive the creatures here.
+      handOverride.active = true;
+      handOverride.source = 'live';
+      handOverride.left = this.remote.hasLeft ? this.remote.left : null;
+      handOverride.right = this.remote.hasRight ? this.remote.right : null;
+    } else {
+      secondHands.left = this.remote.hasLeft ? this.remote.left : null;
+      secondHands.right = this.remote.hasRight ? this.remote.right : null;
+    }
+
+    this.sinceSend += delta;
+    if (this.sinceSend >= this.sendEvery && this.conn?.open && session.getValue(LiveSession, 'peerPresent')) {
+      this.sinceSend = 0;
+      this.sendHands();
+    }
+  }
+
+  private start(session: Entity, role: 'host' | 'guest'): void {
+    const code = session.getValue(LiveSession, 'joinCode') ?? '';
+    if (role === 'guest' && !code.trim()) {
+      session.setValue(LiveSession, 'role', 'off');
+      session.setValue(LiveSession, 'status', 'Enter the family code to join.');
+      return;
+    }
+    this.role = role;
+    session.setValue(LiveSession, 'status', role === 'host' ? 'Opening a live story...' : 'Joining...');
+    if (role === 'guest') {
+      // Follow the host's story; the guest's own camera hands become the second pair.
+      const story = first(this.queries.stories.entities);
+      story?.setValue(StoryState, 'followMode', true);
+      handOverride.cameraTarget = 'second';
+      first(this.queries.players.entities)?.setValue(PerformancePlayer, 'playing', false);
+    }
+    this.conn = new LiveConnection(role, code, {
+      onServer: (m) => this.onServer(session, m),
+      onPeer: (m) => this.onPeer(m),
+      onBinary: (kind, payload) => this.onBinary(kind, payload),
+      onClose: () => this.onClosed(session),
+    });
+  }
+
+  private onServer(session: Entity, m: ServerMessage): void {
+    switch (m.type) {
+      case 'room':
+        session.setValue(LiveSession, 'connected', true);
+        session.setValue(LiveSession, 'code', m.code);
+        session.setValue(LiveSession, 'status', `Live! Family code: ${m.code}`);
+        break;
+      case 'joined':
+        session.setValue(LiveSession, 'connected', true);
+        session.setValue(LiveSession, 'peerPresent', true);
+        session.setValue(LiveSession, 'code', m.code);
+        session.setValue(LiveSession, 'status', 'Joined! The story is live.');
+        break;
+      case 'guest-joined':
+        session.setValue(LiveSession, 'peerPresent', true);
+        session.setValue(LiveSession, 'status', 'Your family joined. Tell the story!');
+        this.conn?.send({ type: 'state', events: storyTap.current() });
+        this.unsubscribeTap ??= storyTap.subscribe((event) => this.conn?.send({ type: 'event', event }));
+        break;
+      case 'guest-left':
+        session.setValue(LiveSession, 'peerPresent', false);
+        session.setValue(LiveSession, 'status', `Your family left. Family code: ${session.getValue(LiveSession, 'code')}`);
+        this.unsubscribeTap?.();
+        this.unsubscribeTap = null;
+        this.remote.clear();
+        break;
+      case 'ended':
+        this.leave(session, m.reason === 'host-left' ? 'The story has ended. Goodnight!' : 'The live story ended.');
+        break;
+      case 'error':
+        this.leave(session, m.error);
+        break;
+    }
+  }
+
+  private onPeer(m: PeerMessage): void {
+    if (this.role !== 'guest') return; // Only the host's story drives a stage.
+    if (m.type === 'state') this.pending.push(...m.events);
+    else if (m.type === 'event') this.pending.push(m.event);
+  }
+
+  private applyRemote(e: TapEvent): void {
+    if (e.type === 'beat') {
+      first(this.queries.stories.entities)?.setValue(StoryState, 'enterBeat', Number(e.data.index));
+    } else {
+      applyEvent(e, this.targets);
+    }
+  }
+
+  private onBinary(kind: number, payload: Int16Array): void {
+    if (kind === KIND_HANDS && payload.length === FRAME_STRIDE && stageRuntime.ready) this.remote.receive(payload);
+    else if (kind === KIND_VOICE) this.voice.play(payload);
+  }
+
+  private sendHands(): void {
+    let left: Float32Array | null;
+    let right: Float32Array | null;
+    if (this.role === 'host') {
+      left = handRuntime.left.tracked ? handRuntime.left.joints : null;
+      right = handRuntime.right.tracked ? handRuntime.right.joints : null;
+    } else {
+      left = secondHands.left;
+      right = secondHands.right;
+    }
+    if (!left && !right) return;
+    this.frame.fill(0);
+    writeFrame(this.frame, 0, left, right);
+    // WebSocket.send copies, so one packet buffer is reused.
+    this.handsView.set(this.frame);
+    this.conn?.sendBinary(this.handsPacket);
+  }
+
+  private updateTalk(session: Entity): void {
+    const talk = Boolean(session.getValue(LiveSession, 'talk')) && Boolean(this.conn?.open);
+    if (talk && !this.voice.micOpen && !this.micStarting) {
+      this.micStarting = true;
+      this.voice
+        .startMic((pcm) => this.conn?.sendBinary(packBinary(KIND_VOICE, pcm)))
+        .then(() => {
+          if (!session.getValue(LiveSession, 'talk') || this.role === 'off') this.voice.stopMic();
+        })
+        .catch((error: Error) => {
+          session.setValue(LiveSession, 'talk', false);
+          session.setValue(LiveSession, 'status', `Microphone unavailable (${error.message}).`);
+        })
+        .finally(() => (this.micStarting = false));
+    } else if (!talk && this.voice.micOpen) {
+      this.voice.stopMic();
+    }
+    if (session.getValue(LiveSession, 'talking') !== this.voice.micOpen) {
+      session.setValue(LiveSession, 'talking', this.voice.micOpen);
+    }
+  }
+
+  private onClosed(session: Entity): void {
+    if (this.role === 'off') return;
+    this.leave(session, 'Lost the connection to the live story.');
+  }
+
+  /** Disconnect and put this stage back to normal. `session` null: system teardown. */
+  private leave(session: Entity | null, status: string, resetRole = true): void {
+    const wasGuest = this.role === 'guest';
+    this.conn?.close();
+    this.conn = null;
+    this.unsubscribeTap?.();
+    this.unsubscribeTap = null;
+    this.voice.dispose();
+    this.remote.clear();
+    this.pending.length = 0;
+    if (secondHands.left === this.remote.left) secondHands.left = null;
+    if (secondHands.right === this.remote.right) secondHands.right = null;
+    if (handOverride.source === 'live') {
+      handOverride.active = false;
+      handOverride.left = handOverride.right = null;
+      handOverride.source = '';
+    }
+    if (wasGuest) {
+      handOverride.cameraTarget = 'override';
+      first(this.queries.stories.entities)?.setValue(StoryState, 'followMode', false);
+    }
+    this.role = 'off';
+    if (!session) return;
+    if (resetRole) session.setValue(LiveSession, 'role', 'off');
+    session.setValue(LiveSession, 'connected', false);
+    session.setValue(LiveSession, 'peerPresent', false);
+    session.setValue(LiveSession, 'talk', false);
+    session.setValue(LiveSession, 'talking', false);
+    session.setValue(LiveSession, 'hearing', false);
+    session.setValue(LiveSession, 'peerHands', 0);
+    session.setValue(LiveSession, 'code', '');
+    if (status) session.setValue(LiveSession, 'status', status);
+  }
+}
+
+function first<T>(set: Iterable<T>): T | undefined {
+  for (const v of set) return v;
+  return undefined;
+}

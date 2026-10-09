@@ -554,6 +554,18 @@
           "position": 0,
           "duration": 0,
           "status": ""
+        },
+        "LiveSession": {
+          "role": "off",
+          "joinCode": "",
+          "code": "",
+          "connected": false,
+          "peerPresent": false,
+          "talk": false,
+          "talking": false,
+          "hearing": false,
+          "peerHands": 0,
+          "status": ""
         }
       }
     }
