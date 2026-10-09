@@ -1,5 +1,6 @@
 import { createSystem, Entity, Vector3 } from '@iwsdk/core';
-import { saveRecording } from '../journal-store.js';
+import { loadRecording, saveRecording } from '../journal-store.js';
+import { uploadStory, watchLink } from './sharing.js';
 import {
   DeskLamp,
   HiddenProp,
@@ -66,6 +67,7 @@ export class PerformanceRecorderSystem extends createSystem({
   private chunks: Blob[] = [];
   private startedAt = 0;
   private lastStage = { lampLevel: -1, finale: -1, glow: -1, t: -1000 };
+  private sharing = false;
 
   init(): void {
     this.cleanupFuncs.push(() => this.releaseMic());
@@ -78,6 +80,7 @@ export class PerformanceRecorderSystem extends createSystem({
     const want = Boolean(rec.getValue(PerformanceRecorder, 'recording'));
     if (want && !this.active) this.beginRecording(rec, story);
     if (!want && this.active) void this.finishRecording(rec, story);
+    if (rec.getValue(PerformanceRecorder, 'shareRequested') && !this.sharing) void this.share(rec);
     if (!this.active || !stageRuntime.ready) return;
 
     this.elapsed += delta;
@@ -255,6 +258,25 @@ export class PerformanceRecorderSystem extends createSystem({
       'status',
       `Saved "${performance.title}" (${(performance.durationMs / 1000).toFixed(1)} s, ${this.events.length} events${audio ? ', with voice' : ''}).`,
     );
+  }
+
+  /** Send the last recording to the family: upload it and show the family code. */
+  private async share(rec: Entity): Promise<void> {
+    this.sharing = true;
+    rec.setValue(PerformanceRecorder, 'shareRequested', false);
+    try {
+      const perf = await loadRecording<Performance>(rec.getValue(PerformanceRecorder, 'lastId') ?? '');
+      if (!perf) throw new Error('Record a story first.');
+      rec.setValue(PerformanceRecorder, 'status', 'Sending your story...');
+      const { code } = await uploadStory(perf);
+      rec.setValue(PerformanceRecorder, 'shareCode', code);
+      rec.setValue(PerformanceRecorder, 'shareLink', watchLink(code));
+      rec.setValue(PerformanceRecorder, 'status', `Sent! Family code: ${code}`);
+    } catch (error) {
+      rec.setValue(PerformanceRecorder, 'status', `Could not send: ${(error as Error).message}`);
+    } finally {
+      this.sharing = false;
+    }
   }
 
   private finishAudio(): Promise<Blob | null> {

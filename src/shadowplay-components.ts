@@ -346,6 +346,10 @@ export const PerformanceRecorder = createComponent('PerformanceRecorder', {
   /** Id of the last saved recording. */
   lastId: { type: Types.String, default: '' },
   seconds: { type: Types.Float32, default: 0 },
+  /** Set to send the last recording to the family; the server returns a family code. */
+  shareRequested: { type: Types.Boolean, default: false },
+  shareCode: { type: Types.String, default: '' },
+  shareLink: { type: Types.String, default: '' },
 });
 
 /** Replays a recorded performance on this stage (any device, in or out of XR). */

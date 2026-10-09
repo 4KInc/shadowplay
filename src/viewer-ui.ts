@@ -1,6 +1,7 @@
 import { createSystem, Entity } from '@iwsdk/core';
 import { listRecordings } from './journal-store.js';
 import type { Performance } from './performance/format.js';
+import { fetchStory } from './performance/sharing.js';
 import { PerformancePlayer, WebcamHands } from './shadowplay-components.js';
 import { viewerMode } from './viewer-mode.js';
 
@@ -35,6 +36,12 @@ const CSS = `
   background: rgba(8, 6, 12, 0.6); padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
 .sp-sheet .sp-panel { max-width: 520px; }
 .sp-sheet p { margin: 0 0 12px; }
+.sp-code { display: flex; gap: 8px; margin-top: 10px; }
+.sp-code input { flex: 1 1 auto; min-height: 48px; border-radius: 24px; border: 1px solid #6b4f2a; background: #1d1826;
+  color: #f6e3bd; font: inherit; padding: 0 16px; }
+.sp-note { color: #bfae8e; font-size: 14px; margin-top: 6px; min-height: 1.2em; }
+.sp-card.new { border-color: #e0a24a; box-shadow: 0 0 0 2px rgba(224,162,74,0.5); }
+.sp-viewer.playing .sp-code, .sp-viewer.playing .sp-note { display: none; }
 `;
 
 /**
@@ -55,6 +62,10 @@ export class ViewerUISystem extends createSystem({
   private joinBtn: HTMLButtonElement | null = null;
   private lastPlaying: boolean | null = null;
   private lastStatus = '';
+  private form: HTMLFormElement | null = null;
+  private note: HTMLDivElement | null = null;
+  /** Most recently opened shared story (highlighted in the list). */
+  private highlight = '';
 
   private style: HTMLStyleElement | null = null;
 
@@ -90,6 +101,11 @@ export class ViewerUISystem extends createSystem({
       <div class="sp-panel">
         <p class="sp-title">Bedtime stories</p>
         <div class="sp-list" aria-label="Stories"></div>
+        <form class="sp-code" autocomplete="off">
+          <input name="code" placeholder="Family code, e.g. lantern-otter-moss-417" aria-label="Family code" />
+          <button class="sp-btn" type="submit">Open</button>
+        </form>
+        <div class="sp-note" aria-live="polite"></div>
         <div class="sp-row sp-controls" hidden>
           <button class="sp-btn" data-act="pause" aria-label="Pause">Pause</button>
           <button class="sp-btn" data-act="join" aria-label="Join in with your hands">Join in</button>
@@ -110,18 +126,43 @@ export class ViewerUISystem extends createSystem({
       p?.setValue(PerformancePlayer, 'paused', !p.getValue(PerformancePlayer, 'paused'));
     });
     this.joinBtn?.addEventListener('click', () => this.toggleJoin());
+    this.form = root.querySelector('.sp-code');
+    this.note = root.querySelector('.sp-note');
+    this.form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = this.form?.querySelector('input');
+      if (input?.value.trim()) void this.openCode(input.value);
+    });
     // The list is filled here; update() only refreshes it after a story ends.
     this.lastPlaying = false;
     void this.refreshList();
+    // A shared link (?watch=CODE) brings the story straight in.
+    const code = new URLSearchParams(location.search).get('watch');
+    if (code) void this.openCode(code);
   }
 
   private performanceEntity(): Entity | undefined {
     return first(this.queries.players.entities);
   }
 
+  /** Fetch a shared story by family code and put it at the front of the list. */
+  private async openCode(code: string): Promise<void> {
+    if (this.note) this.note.textContent = 'Opening your story...';
+    try {
+      const perf = await fetchStory(code);
+      this.highlight = perf.id;
+      if (this.note) this.note.textContent = `"${perf.title}" is here. Tap it to watch.`;
+      await this.refreshList();
+    } catch (error) {
+      if (this.note) this.note.textContent = (error as Error).message;
+    }
+  }
+
   private async refreshList(): Promise<void> {
     if (!this.list) return;
-    const recordings = (await listRecordings<Performance>()).sort((a, b) => b.createdAt - a.createdAt);
+    const recordings = (await listRecordings<Performance>()).sort(
+      (a, b) => Number(b.id === this.highlight) - Number(a.id === this.highlight) || b.createdAt - a.createdAt,
+    );
     this.list.replaceChildren();
     if (recordings.length === 0) {
       const empty = document.createElement('p');
@@ -139,6 +180,7 @@ export class ViewerUISystem extends createSystem({
       card.querySelector('span')!.textContent = r.performer ? `from ${r.performer}` : '';
       card.querySelector('small')!.textContent = `${minutes} min · ${new Date(r.createdAt).toLocaleDateString()}`;
       card.setAttribute('aria-label', `Watch ${r.title}${r.performer ? ` from ${r.performer}` : ''}`);
+      if (r.id === this.highlight) card.classList.add('new');
       card.addEventListener('click', () => this.watch(r.id));
       this.list.appendChild(card);
     }

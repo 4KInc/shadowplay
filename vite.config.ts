@@ -41,7 +41,13 @@ function mediapipeVendor(): Plugin {
 
 export default defineConfig({
   plugins: [iwsdkDev(), mediapipeVendor()],
-  server: { host: '0.0.0.0', port: 8082, open: false },
+  server: {
+    host: '0.0.0.0',
+    port: 8082,
+    open: false,
+    // The sharing API runs as its own process in development (npm run server).
+    proxy: { '/api': 'http://localhost:8787' },
+  },
   build: {
     outDir: 'dist',
     sourcemap: process.env.NODE_ENV !== 'production',
