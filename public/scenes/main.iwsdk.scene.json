@@ -568,6 +568,11 @@
           "turn": "host",
           "peerHands": 0,
           "status": ""
+        },
+        "FamilyInbox": {
+          "unwatched": 0,
+          "latestFrom": "",
+          "playRequested": false
         }
       }
     }

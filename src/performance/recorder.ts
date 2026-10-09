@@ -152,6 +152,8 @@ export class PerformanceRecorderSystem extends createSystem({
       if (!perf) throw new Error('Record a story first.');
       rec.setValue(PerformanceRecorder, 'status', 'Sending your story...');
       const { code } = await uploadStory(perf);
+      // Remember the code: goodnights sent back are found through it.
+      await saveRecording({ ...perf, shareCode: code });
       rec.setValue(PerformanceRecorder, 'shareCode', code);
       rec.setValue(PerformanceRecorder, 'shareLink', watchLink(code));
       rec.setValue(PerformanceRecorder, 'status', `Sent! Family code: ${code}`);

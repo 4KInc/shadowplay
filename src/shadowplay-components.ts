@@ -397,3 +397,13 @@ export const LiveSession = createComponent('LiveSession', {
   peerHands: { type: Types.Int8, default: 0 },
   status: { type: Types.String, default: '' },
 });
+
+/** Goodnights the family sent back for stories this device shared. */
+export const FamilyInbox = createComponent('FamilyInbox', {
+  /** Goodnights received and not yet watched. */
+  unwatched: { type: Types.Int8, default: 0 },
+  /** Who sent the newest unwatched one. */
+  latestFrom: { type: Types.String, default: '' },
+  /** Set to play the oldest unwatched goodnight on the stage. */
+  playRequested: { type: Types.Boolean, default: false },
+});

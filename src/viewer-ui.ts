@@ -1,8 +1,9 @@
 import { createSystem, Entity } from '@iwsdk/core';
-import { listRecordings } from './journal-store.js';
+import { listRecordings, loadRecording } from './journal-store.js';
 import type { Performance } from './performance/format.js';
 import { fetchStory } from './performance/sharing.js';
-import { LiveSession, PerformancePlayer, WebcamHands } from './shadowplay-components.js';
+import { LiveSession, PerformancePlayer, PerformanceRecorder, ShapeRecognizer, WebcamHands } from './shadowplay-components.js';
+import { ReplySheet } from './viewer-reply.js';
 import { family, FamilyNames } from './family.js';
 import { viewerMode } from './viewer-mode.js';
 
@@ -34,7 +35,9 @@ const CSS = `
   z-index: 901; padding: 12px 22px; border-radius: 26px; background: #e0a24a; color: #1a1320; font: italic 600 22px Georgia, serif;
   box-shadow: 0 6px 24px rgba(0,0,0,0.45); }
 .sp-sheet { pointer-events: auto; position: fixed; inset: 0; z-index: 950; display: flex; align-items: flex-end; justify-content: center;
-  background: rgba(8, 6, 12, 0.6); padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+  background: rgba(8, 6, 12, 0.6); padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  font: 16px/1.35 Georgia, 'Times New Roman', serif; color: #f6e3bd; }
+.sp-sheet * { box-sizing: border-box; }
 .sp-sheet .sp-panel { max-width: 520px; }
 .sp-sheet p { margin: 0 0 12px; }
 .sp-code { display: flex; gap: 8px; margin-top: 10px; }
@@ -46,6 +49,9 @@ const CSS = `
 .sp-wait { pointer-events: none; position: fixed; left: 50%; top: calc(18px + env(safe-area-inset-top, 0px)); transform: translateX(-50%);
   z-index: 901; max-width: calc(100vw - 32px); padding: 10px 20px; border-radius: 24px; background: rgba(43, 35, 56, 0.94);
   border: 1px solid #6b4f2a; color: #f6e3bd; font: italic 18px Georgia, serif; text-align: center; }
+.sp-sheet.sp-recording { background: transparent; align-items: flex-start; pointer-events: none; }
+.sp-sheet.sp-recording .sp-panel { pointer-events: auto; width: max-content; }
+.sp-goodnight .sp-btn { margin-top: 22px; }
 .sp-goodnight { position: fixed; inset: 0; z-index: 940; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 10px; padding: 24px; text-align: center; background: radial-gradient(circle at 50% 40%, rgba(58, 39, 22, 0.92), rgba(8, 6, 12, 0.96));
   font-family: Georgia, 'Times New Roman', serif; cursor: pointer; animation: sp-fade 1.6s ease-out; }
@@ -64,6 +70,8 @@ export class ViewerUISystem extends createSystem({
   players: { required: [PerformancePlayer] },
   webcams: { required: [WebcamHands] },
   sessions: { required: [LiveSession] },
+  recorders: { required: [PerformanceRecorder] },
+  recognizers: { required: [ShapeRecognizer] },
 }) {
   private root: HTMLDivElement | null = null;
   private list: HTMLDivElement | null = null;
@@ -84,7 +92,9 @@ export class ViewerUISystem extends createSystem({
   private waitBanner: HTMLDivElement | null = null;
   private lastLiveStatus = '';
   /** What the camera is for right now: joining in to a replay, or showing hands in a live story. */
-  private cameraFor: 'replay' | 'live' = 'replay';
+  private cameraFor: 'replay' | 'live' | 'reply' = 'replay';
+  /** Recording being watched (for 'send a goodnight back'). */
+  private playingId = '';
   /** Names of the story playing now, for the goodnight card. */
   private playingNames: FamilyNames | null = null;
   /** Most recently opened shared story (highlighted in the list). */
@@ -246,7 +256,8 @@ export class ViewerUISystem extends createSystem({
 
   private async refreshList(): Promise<void> {
     if (!this.list) return;
-    const recordings = (await listRecordings<Performance>()).sort(
+    // Goodnights sent back are for the storyteller's wall, not this list.
+    const recordings = (await listRecordings<Performance>()).filter((r) => !r.replyTo).sort(
       (a, b) => Number(b.id === this.highlight) - Number(a.id === this.highlight) || b.createdAt - a.createdAt,
     );
     this.list.replaceChildren();
@@ -275,6 +286,7 @@ export class ViewerUISystem extends createSystem({
   private watch(id: string): void {
     const p = this.performanceEntity();
     if (!p) return;
+    this.playingId = id;
     p.setValue(PerformancePlayer, 'recordingId', id);
     p.setValue(PerformancePlayer, 'paused', false);
     p.setValue(PerformancePlayer, 'playing', true);
@@ -288,7 +300,7 @@ export class ViewerUISystem extends createSystem({
   private toggleCamera(purpose: 'replay' | 'live'): void {
     const on = !this.cameraOn();
     if (on && !this.hasConsent()) {
-      this.askConsent(purpose);
+      this.askConsent(() => this.setCamera(true, purpose));
       return;
     }
     this.setCamera(on, purpose);
@@ -298,7 +310,7 @@ export class ViewerUISystem extends createSystem({
     return Boolean(first(this.queries.webcams.entities)?.getValue(WebcamHands, 'enabled'));
   }
 
-  private setCamera(on: boolean, purpose: 'replay' | 'live' = this.cameraFor): void {
+  private setCamera(on: boolean, purpose: 'replay' | 'live' | 'reply' = this.cameraFor): void {
     this.cameraFor = purpose;
     if (purpose === 'replay') this.performanceEntity()?.setValue(PerformancePlayer, 'joinIn', on);
     for (const w of this.queries.webcams.entities) w.setValue(WebcamHands, 'enabled', on);
@@ -312,7 +324,7 @@ export class ViewerUISystem extends createSystem({
     }
   }
 
-  private askConsent(purpose: 'replay' | 'live'): void {
+  private askConsent(onAllowed: () => void): void {
     const sheet = document.createElement('div');
     sheet.className = 'sp-sheet';
     sheet.setAttribute('role', 'dialog');
@@ -320,8 +332,8 @@ export class ViewerUISystem extends createSystem({
     sheet.innerHTML = `
       <div class="sp-panel">
         <p class="sp-title">For grown-ups: allow the camera?</p>
-        <p>To join in, Shadowplay uses this device's camera to see your child's hands and turn them into shadows.
-        The video stays on this device. Nothing is recorded or sent.</p>
+        <p>To play along, Shadowplay uses this device's camera to see your child's hands and turn them into shadows.
+        The video never leaves this device; only the positions of the hands are used.</p>
         <div class="sp-row">
           <button class="sp-btn on" data-act="yes">Allow camera</button>
           <button class="sp-btn" data-act="no">Not now</button>
@@ -335,7 +347,7 @@ export class ViewerUISystem extends createSystem({
         // Private mode: ask again next time.
       }
       sheet.remove();
-      this.setCamera(true, purpose);
+      onAllowed();
     });
     sheet.querySelector('[data-act="no"]')?.addEventListener('click', () => sheet.remove());
   }
@@ -437,10 +449,55 @@ export class ViewerUISystem extends createSystem({
     card.innerHTML = '<b></b><span></span><small>Tap to close</small>';
     card.querySelector('b')!.textContent = names.child ? `Goodnight, ${names.child}.` : 'Goodnight.';
     card.querySelector('span')!.textContent = names.performer ? `Sweet dreams. Love, ${names.performer}` : 'Sweet dreams.';
-    const close = () => card.remove();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const close = () => {
+      if (timer) clearTimeout(timer);
+      card.remove();
+    };
     card.addEventListener('click', close);
-    setTimeout(close, 12000);
+    timer = setTimeout(close, 12000);
     document.body.appendChild(card);
+    // A story that came with a family code can be answered.
+    void loadRecording<Performance>(this.playingId).then((perf) => {
+      if (!perf?.shareCode || perf.replyTo || !card.isConnected) return;
+      const reply = document.createElement('button');
+      reply.className = 'sp-btn on';
+      reply.textContent = names.performer ? `Send a goodnight back to ${names.performer}` : 'Send a goodnight back';
+      reply.addEventListener('click', (e) => {
+        e.stopPropagation();
+        close();
+        this.openReply(perf.shareCode!, names);
+      });
+      card.querySelector('small')?.before(reply);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(close, 30000);
+    });
+  }
+
+  private openReply(code: string, names: FamilyNames): void {
+    new ReplySheet(
+      {
+        recorder: () => first(this.queries.recorders.entities),
+        camera: (on, then) => {
+          if (!on) {
+            if (this.cameraFor === 'reply') this.setCamera(false, 'reply');
+            return;
+          }
+          const go = () => {
+            this.setCamera(true, 'reply');
+            then?.();
+          };
+          if (this.hasConsent()) go();
+          else this.askConsent(go);
+        },
+        freeMode: (on) => {
+          for (const r of this.queries.recognizers.entities) r.setValue(ShapeRecognizer, 'freeMode', on);
+        },
+      },
+      code,
+      names.performer,
+      names.child,
+    );
   }
 }
 

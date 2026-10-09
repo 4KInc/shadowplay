@@ -31,6 +31,10 @@ export interface Performance {
   performer: string;
   /** Who the story is for (fills {child} in story lines on replay). */
   child?: string;
+  /** The family code this story was sent with (or fetched by). */
+  shareCode?: string;
+  /** A goodnight back from the family: the code of the story it answers. */
+  replyTo?: string;
   createdAt: number;
   durationMs: number;
   /** Story script the beats refer to. */

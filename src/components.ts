@@ -3,6 +3,7 @@ import {
   DailyShape,
   DemoDirector,
   DeskLamp,
+  FamilyInbox,
   HiddenProp,
   LiveSession,
   Moth,
@@ -41,4 +42,5 @@ export default defineComponents([
   PerformanceRecorder,
   PerformancePlayer,
   LiveSession,
+  FamilyInbox,
 ]);

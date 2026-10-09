@@ -1,6 +1,7 @@
 import { World } from '@iwsdk/core';
 import { family } from './family.js';
 import { FamilySetupSystem } from './family-ui.js';
+import { FamilyInboxSystem } from './performance/replies.js';
 import projectOptions from 'virtual:iwsdk-project';
 import { AudioSystem } from './audio.js';
 import { CameraHandsSystem } from './camera-hands.js';
@@ -58,6 +59,7 @@ World.create(
     .registerSystem(StoryTapSystem)
     .registerSystem(PerformanceRecorderSystem)
     .registerSystem(LiveSystem)
+    .registerSystem(FamilyInboxSystem)
     .registerSystem(FamilyControlsSystem)
     .registerSystem(ViewerUISystem)
     .registerSystem(FamilySetupSystem);

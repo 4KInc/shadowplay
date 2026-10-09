@@ -82,7 +82,7 @@ export class PerformancePlayerSystem extends createSystem({
     }
     if (paused) return;
     // Wait while the story loads the recording's script.
-    if (this.perf.script && storyRuntime.script !== this.perf.script) return;
+    if (this.perf.script && !this.perf.replyTo && storyRuntime.script !== this.perf.script) return;
 
     this.clock += delta;
     const tMs = this.clock * 1000;
@@ -127,7 +127,9 @@ export class PerformancePlayerSystem extends createSystem({
     const story = first(this.queries.stories.entities);
     story?.setValue(StoryState, 'followMode', true);
     // Tell the story in the recording's script (it may be another story from the library).
-    if (perf.script) story?.setValue(StoryState, 'script', perf.script);
+    // A goodnight is not a story: it plays on whatever stage is here, every creature free to wake.
+    if (perf.script && !perf.replyTo) story?.setValue(StoryState, 'script', perf.script);
+    if (perf.replyTo) for (const r of this.queries.recognizers.entities) r.setValue(ShapeRecognizer, 'freeMode', true);
     if (perf.audio) {
       this.audioUrl = URL.createObjectURL(perf.audio);
       this.audio = new Audio(this.audioUrl);
@@ -140,6 +142,7 @@ export class PerformancePlayerSystem extends createSystem({
       applyEvent(e, this.targets);
       return;
     }
+    if (this.perf?.replyTo) return;
     const index = Number(e.data.index);
     first(this.queries.stories.entities)?.setValue(StoryState, 'enterBeat', index);
     const type = this.beats[index]?.type;

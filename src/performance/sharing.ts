@@ -52,8 +52,38 @@ export async function fetchStory(code: string): Promise<Performance> {
   const body = (await res.json()) as { performance?: Wire; error?: string };
   if (!res.ok || !body.performance) throw new Error(body.error ?? 'No story with that code.');
   const perf = await fromWire(body.performance);
+  perf.shareCode = (body as { code?: string }).code ?? code.trim();
   await saveRecording(perf);
   return perf;
+}
+
+/** Send a goodnight back, attached to the story it answers. */
+export async function sendReply(code: string, perf: Performance): Promise<void> {
+  const res = await fetch(`${import.meta.env.BASE_URL}api/stories/${encodeURIComponent(code)}/replies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(await toWire({ ...perf, replyTo: code })),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `Could not send (${res.status})`);
+  }
+}
+
+/** The goodnights the family sent back for a story (the storyteller's side). */
+export async function fetchReplies(code: string): Promise<Performance[]> {
+  const res = await fetch(`${import.meta.env.BASE_URL}api/stories/${encodeURIComponent(code)}/replies`);
+  if (!res.ok) return [];
+  const body = (await res.json()) as { replies?: Wire[] };
+  const out: Performance[] = [];
+  for (const wire of body.replies ?? []) {
+    try {
+      out.push({ ...(await fromWire(wire)), replyTo: code });
+    } catch {
+      // A reply from a newer version: skip it.
+    }
+  }
+  return out;
 }
 
 /** The link a family member opens to watch (the viewer picks the code up). */

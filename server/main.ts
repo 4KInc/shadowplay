@@ -13,6 +13,8 @@ import { DiskStore, GcsStore, type StoryStore } from './storage.ts';
  *
  *   POST /api/stories        upload a performance -> { code, expiresAt }
  *   GET  /api/stories/:code  fetch a performance by family code
+ *   POST /api/stories/:code/replies   a goodnight back from the family (up to MAX_REPLIES)
+ *   GET  /api/stories/:code/replies   the replies to a story (for the storyteller)
  *   GET  /api/health
  *   WS   /live                live rooms (see live.ts)
  */
@@ -22,6 +24,9 @@ const DATA_DIR = process.env.DATA_DIR ?? join(process.cwd(), '.data/stories');
 const MAX_BYTES = Number(process.env.MAX_STORY_BYTES ?? 30 * 1024 * 1024);
 const TTL_DAYS = Number(process.env.STORY_TTL_DAYS ?? 30);
 const PERFORMANCE_VERSION = 'shadowplay.performance.v1';
+const MAX_REPLIES = 5;
+/** Replies are short: a goodnight, not a second story. */
+const MAX_REPLY_BYTES = Number(process.env.MAX_REPLY_BYTES ?? 6 * 1024 * 1024);
 
 /** STORY_BUCKET (production): a Cloud Storage bucket; otherwise local disk. */
 const BUCKET = process.env.STORY_BUCKET ?? '';
@@ -122,6 +127,52 @@ async function fetchStory(req: IncomingMessage, res: ServerResponse, raw: string
   json(res, 200, { code, expiresAt: record.expiresAt, performance: record.performance });
 }
 
+/** Replies live beside their story (same code, same expiry) as `${code}.reply-N`. */
+async function loadRecord(code: string): Promise<{ expiresAt: number; performance: unknown } | null> {
+  const text = await store.get(code);
+  if (!text) return null;
+  const record = JSON.parse(text) as { expiresAt: number; performance: unknown };
+  return Date.now() > record.expiresAt ? null : record;
+}
+
+async function replyToStory(req: IncomingMessage, res: ServerResponse, raw: string): Promise<void> {
+  if (!allowed('upload', clientIp(req))) return json(res, 429, { error: 'Too many uploads. Try again later.' });
+  const code = normaliseCode(decodeURIComponent(raw));
+  const record = isCode(code) ? await loadRecord(code) : null;
+  if (!record) return json(res, 404, { error: 'No story with that code.' });
+  let slot = -1;
+  for (let i = 0; i < MAX_REPLIES; i++) {
+    if (!(await store.get(`${code}.reply-${i}`))) {
+      slot = i;
+      break;
+    }
+  }
+  if (slot < 0) return json(res, 409, { error: 'This story already has all its goodnights.' });
+  const body = await readBody(req, MAX_REPLY_BYTES);
+  if (body === null) return json(res, 413, { error: 'That goodnight is too long.' });
+  let perf: unknown;
+  try {
+    perf = JSON.parse(body);
+  } catch {
+    return json(res, 400, { error: 'Not a goodnight.' });
+  }
+  if (!validPerformance(perf)) return json(res, 400, { error: 'Not a Shadowplay goodnight.' });
+  await store.put(`${code}.reply-${slot}`, JSON.stringify({ storedAt: Date.now(), expiresAt: record.expiresAt, performance: perf }));
+  json(res, 201, { ok: true });
+}
+
+async function listReplies(req: IncomingMessage, res: ServerResponse, raw: string): Promise<void> {
+  if (!allowed('lookup', clientIp(req))) return json(res, 429, { error: 'Too many tries. Wait a minute.' });
+  const code = normaliseCode(decodeURIComponent(raw));
+  if (!isCode(code) || !(await loadRecord(code))) return json(res, 404, { error: 'No story with that code.' });
+  const replies: unknown[] = [];
+  for (let i = 0; i < MAX_REPLIES; i++) {
+    const text = await store.get(`${code}.reply-${i}`);
+    if (text) replies.push((JSON.parse(text) as { performance: unknown }).performance);
+  }
+  json(res, 200, { code, replies });
+}
+
 // ---------------------------------------------------------------- static app
 
 const TYPES: Record<string, string> = {
@@ -172,6 +223,9 @@ const server = createServer((req, res) => {
     if (path === '/api/stories' && req.method === 'POST') return uploadStory(req, res);
     const m = /^\/api\/stories\/([^/]+)$/.exec(path);
     if (m && req.method === 'GET') return fetchStory(req, res, m[1]);
+    const r = /^\/api\/stories\/([^/]+)\/replies$/.exec(path);
+    if (r && req.method === 'POST') return replyToStory(req, res, r[1]);
+    if (r && req.method === 'GET') return listReplies(req, res, r[1]);
     if (path.startsWith('/api/')) return json(res, 404, { error: 'Not found' });
     if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'Method not allowed' });
     return serveStatic(req, res, path);

@@ -1,5 +1,5 @@
 import { createSystem, Entity, UIKit, UIKitMLAsset } from '@iwsdk/core';
-import { LiveSession, PerformanceRecorder } from '../shadowplay-components.js';
+import { FamilyInbox, LiveSession, PerformanceRecorder } from '../shadowplay-components.js';
 import { playClick } from '../sfx.js';
 
 const PANEL_NODE = 'settings-panel';
@@ -24,6 +24,7 @@ interface Control {
 export class FamilyControlsSystem extends createSystem({
   recorders: { required: [PerformanceRecorder] },
   sessions: { required: [LiveSession] },
+  inboxes: { required: [FamilyInbox] },
 }) {
   private controls = new Map<string, Control>();
   private status: UIKit.Text | undefined;
@@ -32,6 +33,7 @@ export class FamilyControlsSystem extends createSystem({
   private lastLive = '';
   private lastRec = '';
   private message = 'Record a bedtime story, or go live with your family.';
+  private lastUnwatched = 0;
 
   update(): void {
     const rec = first(this.queries.recorders.entities);
@@ -68,6 +70,10 @@ export class FamilyControlsSystem extends createSystem({
         rec.setValue(PerformanceRecorder, 'shareRequested', true);
       }
     });
+    on('inbox-button', 'inbox-label', () => {
+      if (rec.getValue(PerformanceRecorder, 'recording') || live.getValue(LiveSession, 'role') !== 'off') return;
+      for (const inbox of this.queries.inboxes.entities) inbox.setValue(FamilyInbox, 'playRequested', true);
+    });
     on('live-button', 'live-label', () => {
       if (rec.getValue(PerformanceRecorder, 'recording')) return;
       live.setValue(LiveSession, 'role', live.getValue(LiveSession, 'role') === 'off' ? 'host' : 'off');
@@ -93,19 +99,26 @@ export class FamilyControlsSystem extends createSystem({
     const turn = live.getValue(LiveSession, 'turn') ?? 'host';
     const liveStatus = live.getValue(LiveSession, 'status') ?? '';
     const recStatus = rec.getValue(PerformanceRecorder, 'status') ?? '';
-    const key = `${recording}|${seconds}|${hasStory}|${role}|${talk}|${duet}|${turn}|${liveStatus}|${recStatus}`;
+    const inbox = this.queries.inboxes.entities.values().next().value;
+    const unwatched = inbox?.getValue(FamilyInbox, 'unwatched') ?? 0;
+    const from = inbox?.getValue(FamilyInbox, 'latestFrom') ?? '';
+    const key = `${recording}|${seconds}|${hasStory}|${role}|${talk}|${duet}|${turn}|${unwatched}|${liveStatus}|${recStatus}`;
     if (key === this.shown) return;
     this.shown = key;
 
     const isLive = role !== 'off';
     this.set('record-button', recording ? `Stop recording ${clock(seconds)}` : 'Record a story', recording ? 'on' : isLive ? 'dim' : 'off');
     this.set('send-button', 'Send to family', hasStory && !recording ? 'off' : 'dim');
+    this.set('inbox-button', unwatched ? `Goodnights (${unwatched})` : 'Goodnights', unwatched && !recording && !isLive ? 'on' : 'dim');
     this.set('live-button', isLive ? 'End live story' : 'Go live', isLive ? 'on' : recording ? 'dim' : 'off');
     this.set('talk-button', `Talk: ${talk ? 'On' : 'Off'}`, talk ? 'on' : isLive ? 'off' : 'dim');
     this.set('duet-button', turn === 'guest' ? 'Their turn' : `Take turns: ${duet ? 'On' : 'Off'}`, duet ? 'on' : 'off');
     // Whichever news is newest.
-    if (liveStatus !== this.lastLive && liveStatus) this.message = liveStatus;
+    if (unwatched > this.lastUnwatched) {
+      this.message = `${from || 'Your family'} sent you a goodnight! Pinch Goodnights to watch.`;
+    } else if (liveStatus !== this.lastLive && liveStatus) this.message = liveStatus;
     else if (recStatus !== this.lastRec && recStatus) this.message = recStatus;
+    this.lastUnwatched = unwatched;
     this.lastLive = liveStatus;
     this.lastRec = recStatus;
     this.status?.setProperties({ text: this.message });
