@@ -47,7 +47,9 @@ export class NarrationSystem extends createSystem({
       this.pauseLine();
       return;
     }
-    if (status !== StoryStatuses.Playing || story.getValue(StoryState, 'freeStage')) {
+    // During a replayed performance the performer's own voice is the narration.
+    const replaying = Boolean(story.getValue(StoryState, 'followMode'));
+    if (status !== StoryStatuses.Playing || story.getValue(StoryState, 'freeStage') || replaying) {
       if (this.audio || this.speaking) this.stopLine();
       return;
     }

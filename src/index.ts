@@ -8,6 +8,8 @@ import { JournalSystem } from './journal.js';
 import { LampControlSystem } from './lamp-control.js';
 import { MothSystem } from './moth.js';
 import { NarrationSystem } from './narration.js';
+import { PerformancePlayerSystem } from './performance/player.js';
+import { PerformanceRecorderSystem } from './performance/recorder.js';
 import { HiddenPropSystem } from './props.js';
 import { QualitySystem } from './quality.js';
 import { RecognitionLabSystem } from './recognition-lab.js';
@@ -31,6 +33,7 @@ World.create(
     .registerSystem(SilhouetteSystem)
     .registerSystem(ShapeMatchSystem)
     .registerSystem(RecognitionLabSystem)
+    .registerSystem(PerformancePlayerSystem)
     .registerSystem(StorySystem)
     .registerSystem(NarrationSystem)
     .registerSystem(FreeStageSystem)
@@ -43,7 +46,8 @@ World.create(
     .registerSystem(SettingsSystem)
     .registerSystem(CaptionSystem)
     .registerSystem(AudioSystem)
-    .registerSystem(QualitySystem);
+    .registerSystem(QualitySystem)
+    .registerSystem(PerformanceRecorderSystem);
 
   // Development only: webcam-driven hands for testing recognition without a headset.
   if (import.meta.env.DEV) {

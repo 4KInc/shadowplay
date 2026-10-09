@@ -153,6 +153,10 @@ export const StoryState = createComponent('StoryState', {
   voiceBeat: { type: Types.String, default: '' },
   /** True once the line for voiceBeat has finished (or there is none). */
   voiceDone: { type: Types.Boolean, default: true },
+  /** Replaying a performance: beats are entered by the player, not decided by the story. */
+  followMode: { type: Types.Boolean, default: false },
+  /** Set by the performance player to enter a beat (index) in follow mode; -1 when idle. */
+  enterBeat: { type: Types.Int16, default: -1 },
   /** 'Never stuck' assist level for the waiting beat: 0 none, 1-2 looser recognition, 3 any still hand counts. */
   assist: { type: Types.Int8, default: 0, min: 0, max: 3 },
   /** Where the current line comes from: 'clip', 'placeholder' or '' (captions only). */
@@ -326,5 +330,29 @@ export const DemoDirector = createComponent('DemoDirector', {
   branch: { type: Types.Enum, enum: { Dog: 'dog', Bird: 'bird' }, default: 'dog' },
   /** Show the capsule hands (dark) so viewers can see what casts the shadows. */
   showHands: { type: Types.Boolean, default: false },
+  status: { type: Types.String, default: '' },
+});
+
+/** Records a performance (hands, story beats, voice) on this stage. */
+export const PerformanceRecorder = createComponent('PerformanceRecorder', {
+  recording: { type: Types.Boolean, default: false },
+  title: { type: Types.String, default: 'A bedtime story' },
+  performer: { type: Types.String, default: '' },
+  /** Record the performer's voice (asks for the microphone). */
+  withVoice: { type: Types.Boolean, default: true },
+  status: { type: Types.String, default: '' },
+  /** Id of the last saved recording. */
+  lastId: { type: Types.String, default: '' },
+  seconds: { type: Types.Float32, default: 0 },
+});
+
+/** Replays a recorded performance on this stage (any device, in or out of XR). */
+export const PerformancePlayer = createComponent('PerformancePlayer', {
+  recordingId: { type: Types.String, default: '' },
+  playing: { type: Types.Boolean, default: false },
+  paused: { type: Types.Boolean, default: false },
+  /** Seconds into the performance. */
+  position: { type: Types.Float32, default: 0 },
+  duration: { type: Types.Float32, default: 0 },
   status: { type: Types.String, default: '' },
 });

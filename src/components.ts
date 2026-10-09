@@ -5,6 +5,8 @@ import {
   DeskLamp,
   HiddenProp,
   Moth,
+  PerformancePlayer,
+  PerformanceRecorder,
   RecognitionLab,
   Scenery,
   Settings,
@@ -35,4 +37,6 @@ export default defineComponents([
   RecognitionLab,
   WebcamHands,
   DemoDirector,
+  PerformanceRecorder,
+  PerformancePlayer,
 ]);

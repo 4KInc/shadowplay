@@ -84,6 +84,8 @@ export class StorySystem extends createSystem({
   private stillTime = { left: 0, right: 0 };
   private lastWrist = { left: new Vector3(), right: new Vector3() };
   private wrist = new Vector3();
+  /** Viewer's own beat when a replay began (restored to its chapter afterwards). */
+  private beforeFollow = -2;
   private endings = new Set<string>();
   private loading = false;
   private resumeAt = -1;
@@ -98,6 +100,14 @@ export class StorySystem extends createSystem({
         this.inXR = state !== VisibilityState.NonImmersive;
       }),
     );
+  }
+
+  /** Index of the chapter beat at or before `index` (0 if none). */
+  private chapterStart(index: number): number {
+    for (let i = Math.min(index, this.script!.beats.length - 1); i > 0; i--) {
+      if (this.script!.beats[i].type === 'chapter') return i;
+    }
+    return 0;
   }
 
   /** Remember a reached chapter and/or a seen ending (persisted). */
@@ -184,6 +194,32 @@ export class StorySystem extends createSystem({
     if (status === StoryStatuses.Ended) return;
     if (!stageRuntime.ready) {
       setIfChanged(story, 'status', StoryStatuses.Waiting);
+      return;
+    }
+
+    // Replaying a performance: the player enters each recorded beat at its time;
+    // the story makes no decisions of its own (and it works outside XR too).
+    const following = Boolean(story.getValue(StoryState, 'followMode'));
+    if (following && this.beforeFollow === -2) {
+      this.beforeFollow = story.getValue(StoryState, 'beatIndex') ?? -1;
+      this.endAssist(story, stage);
+    } else if (!following && this.beforeFollow !== -2) {
+      // Replay over: back to the start of the chapter the viewer was in.
+      const back = this.chapterStart(this.beforeFollow);
+      this.beforeFollow = -2;
+      this.restart(story, stage);
+      if (back > 0) this.resumeAt = back;
+      return;
+    }
+    if (following) {
+      const requested = story.getValue(StoryState, 'enterBeat') ?? -1;
+      if (requested >= 0) {
+        story.setValue(StoryState, 'enterBeat', -1);
+        if (this.attract) this.leaveAttract(stage);
+        this.enter(story, stage, requested);
+      }
+      setIfChanged(story, 'status', StoryStatuses.Playing);
+      this.beatTime += delta;
       return;
     }
 
@@ -306,6 +342,8 @@ export class StorySystem extends createSystem({
     switch (beat.type) {
       case 'chapter':
         story.setValue(StoryState, 'chapter', beat.chapter);
+        // A replayed performance must not touch the viewer's own progress.
+        if (story.getValue(StoryState, 'followMode')) break;
         this.unlock(story, beat.id, null);
         void saveProgress({
           beatIndex: index,
@@ -384,7 +422,9 @@ export class StorySystem extends createSystem({
           m.setValue(Moth, 'glow', 1);
           if (m.getValue(Moth, 'mode') === 'hidden') m.setValue(Moth, 'mode', 'hovering');
         }
-        void saveProgress({ beatIndex: index, chapter: 'Free Stage', branch: story.getValue(StoryState, 'branch') ?? '', savedAt: Date.now() });
+        if (!story.getValue(StoryState, 'followMode')) {
+          void saveProgress({ beatIndex: index, chapter: 'Free Stage', branch: story.getValue(StoryState, 'branch') ?? '', savedAt: Date.now() });
+        }
         break;
       default:
         break;

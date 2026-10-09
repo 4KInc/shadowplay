@@ -4,9 +4,10 @@
  * window or blocked storage just means nothing is remembered).
  */
 const DB_NAME = 'shadowplay';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const CREATURES = 'creatures';
 const PROGRESS = 'progress';
+const RECORDINGS = 'recordings';
 
 export interface CreatureEntry {
   id: string;
@@ -32,6 +33,8 @@ function openDb(): Promise<IDBDatabase | null> {
       const db = request.result;
       if (!db.objectStoreNames.contains(CREATURES)) db.createObjectStore(CREATURES, { keyPath: 'id' });
       if (!db.objectStoreNames.contains(PROGRESS)) db.createObjectStore(PROGRESS);
+      // v2: recorded performances (bedtime stories), with their voice as a Blob.
+      if (!db.objectStoreNames.contains(RECORDINGS)) db.createObjectStore(RECORDINGS, { keyPath: 'id' });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => resolve(null);
@@ -126,4 +129,21 @@ export async function loadLabTrials<T>(): Promise<T[]> {
 
 export async function saveLabTrials<T>(trials: T[]): Promise<void> {
   await run(PROGRESS, 'readwrite', (s) => s.put(trials, 'lab'));
+}
+
+/** Recorded performances (kept locally; sharing comes through the server). */
+export async function saveRecording<T extends { id: string }>(recording: T): Promise<void> {
+  await run(RECORDINGS, 'readwrite', (s) => s.put(recording));
+}
+
+export async function loadRecording<T>(id: string): Promise<T | null> {
+  return run<T>(RECORDINGS, 'readonly', (s) => s.get(id) as IDBRequest<T>);
+}
+
+export async function listRecordings<T>(): Promise<T[]> {
+  return (await run<T[]>(RECORDINGS, 'readonly', (s) => s.getAll() as IDBRequest<T[]>)) ?? [];
+}
+
+export async function deleteRecording(id: string): Promise<void> {
+  await run(RECORDINGS, 'readwrite', (s) => s.delete(id));
 }

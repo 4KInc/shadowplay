@@ -530,6 +530,32 @@
           "status": ""
         }
       }
+    },
+    {
+      "id": "performance",
+      "name": "Performance",
+      "content": {
+        "type": "group"
+      },
+      "components": {
+        "PerformanceRecorder": {
+          "recording": false,
+          "title": "A bedtime story",
+          "performer": "",
+          "withVoice": true,
+          "status": "",
+          "lastId": "",
+          "seconds": 0
+        },
+        "PerformancePlayer": {
+          "recordingId": "",
+          "playing": false,
+          "paused": false,
+          "position": 0,
+          "duration": 0,
+          "status": ""
+        }
+      }
     }
   ]
 }
