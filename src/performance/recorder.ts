@@ -29,6 +29,9 @@ import {
 const MAX_SECONDS = 15 * 60;
 /** Lamp moves smaller than this (m) are not recorded. */
 const LAMP_EPSILON = 0.005;
+/** Staging values (lamp level, finale, glow): record changes larger than this, at most 20 times a second. */
+const STAGE_EPSILON = 0.02;
+const STAGE_INTERVAL_MS = 50;
 
 /**
  * Records a performance on this stage: both hands at 30 Hz in stage-relative
@@ -62,6 +65,7 @@ export class PerformanceRecorderSystem extends createSystem({
   private mic: MediaStream | null = null;
   private chunks: Blob[] = [];
   private startedAt = 0;
+  private lastStage = { lampLevel: -1, finale: -1, glow: -1, t: -1000 };
 
   init(): void {
     this.cleanupFuncs.push(() => this.releaseMic());
@@ -98,6 +102,7 @@ export class PerformanceRecorderSystem extends createSystem({
     this.startedAt = Date.now();
     // The stage as it is now (a recording may start mid-story), then the beat in progress.
     this.events.push({ t: 0, type: 'snapshot', data: this.snapshot() });
+    this.lastStage = { lampLevel: -1, finale: -1, glow: -1, t: -1000 };
     this.lastBeat = -1;
     this.captureEvents(story, 0);
     const lamp = first(this.queries.lamps.entities)?.object3D;
@@ -193,11 +198,36 @@ export class PerformanceRecorderSystem extends createSystem({
         this.events.push({ t, type: 'release', data: { shape } });
       }
     }
+    this.captureStage(t);
     const lamp = first(this.queries.lamps.entities)?.object3D;
     if (lamp && lamp.position.distanceTo(this.lastLamp) > LAMP_EPSILON) {
       this.lastLamp.copy(lamp.position);
       this.events.push({ t, type: 'lamp', data: pointToStage(this.lampPos.copy(lamp.position)) });
     }
+  }
+
+  /** The lamp's flicker, the finale's swell and Mo's glow are animated by the story itself. */
+  private captureStage(t: number): void {
+    if (t - this.lastStage.t < STAGE_INTERVAL_MS) return;
+    const stage = first(this.queries.stages.entities);
+    const moth = first(this.queries.moths.entities);
+    const lampLevel = stage?.getValue(Stage, 'lampLevel') ?? 1;
+    const finale = stage?.getValue(Stage, 'finale') ?? 0;
+    const glow = moth?.getValue(Moth, 'glow') ?? 0;
+    const s = this.lastStage;
+    if (
+      Math.abs(lampLevel - s.lampLevel) < STAGE_EPSILON &&
+      Math.abs(finale - s.finale) < STAGE_EPSILON &&
+      Math.abs(glow - s.glow) < STAGE_EPSILON
+    ) {
+      return;
+    }
+    this.lastStage = { lampLevel, finale, glow, t };
+    this.events.push({
+      t,
+      type: 'stage',
+      data: { lampLevel: +lampLevel.toFixed(3), finale: +finale.toFixed(3), glow: +glow.toFixed(3) },
+    });
   }
 
   private async finishRecording(rec: Entity, story: Entity): Promise<void> {

@@ -1,5 +1,6 @@
 import { createSystem, Entity, Vector3 } from '@iwsdk/core';
 import { loadRecording } from '../journal-store.js';
+import { loadStoryScript, StoryBeat } from '../story-script.js';
 import {
   DeskLamp,
   HiddenProp,
@@ -50,6 +51,9 @@ export class PerformancePlayerSystem extends createSystem({
   private right = new Float32Array(JOINT_COUNT * 3);
   private lampPos = new Vector3();
   private wasPaused = false;
+  private beats: StoryBeat[] = [];
+  /** Live join-in segment: the story beat index at which the recording takes over again. */
+  private rejoinAt = -1;
 
   init(): void {
     this.cleanupFuncs.push(() => this.teardown());
@@ -62,6 +66,11 @@ export class PerformancePlayerSystem extends createSystem({
     if (playing && !this.perf && !this.loading) void this.load(player);
     if (!playing && this.perf) this.finish(player, 'Stopped.');
     if (!this.perf || !this.frames || !stageRuntime.ready) return;
+
+    if (this.rejoinAt >= 0) {
+      this.updateJoinIn(player);
+      return;
+    }
 
     const paused = Boolean(player.getValue(PerformancePlayer, 'paused'));
     if (paused !== this.wasPaused) {
@@ -101,6 +110,10 @@ export class PerformancePlayerSystem extends createSystem({
     this.perf = perf;
     this.frames = decodeHands(perf.hands);
     this.events = [...perf.events].sort((a, b) => a.t - b.t);
+    this.beats = perf.script ? (await loadStoryScript(perf.script).catch(() => null))?.beats ?? [] : [];
+    this.rejoinAt = -1;
+    // The recorded hands drive the stage; the camera only takes over for join-in moments.
+    handOverride.cameraAllowed = false;
     this.next = 0;
     this.clock = 0;
     this.wasPaused = false;
@@ -122,9 +135,16 @@ export class PerformancePlayerSystem extends createSystem({
       case 'snapshot':
         this.applySnapshot(e.data);
         break;
-      case 'beat':
-        story?.setValue(StoryState, 'enterBeat', Number(e.data.index));
+      case 'beat': {
+        const index = Number(e.data.index);
+        story?.setValue(StoryState, 'enterBeat', index);
+        const type = this.beats[index]?.type;
+        const player = first(this.queries.players.entities);
+        if (player?.getValue(PerformancePlayer, 'joinIn') && (type === 'request' || type === 'choice')) {
+          this.startJoinIn(player, index);
+        }
         break;
+      }
       case 'wake': {
         // Make the creature wake on cue even if recognition would differ here.
         const puppet = this.puppetFor(String(e.data.shape));
@@ -145,12 +165,67 @@ export class PerformancePlayerSystem extends createSystem({
         }
         break;
       }
+      case 'stage':
+        for (const s of this.queries.stages.entities) {
+          s.setValue(Stage, 'lampLevel', Number(e.data.lampLevel));
+          s.setValue(Stage, 'finale', Number(e.data.finale));
+        }
+        for (const m of this.queries.moths.entities) m.setValue(Moth, 'glow', Number(e.data.glow));
+        break;
       case 'lamp': {
         const lamp = first(this.queries.lamps.entities)?.object3D;
         if (lamp) lamp.position.copy(pointFromStage(Number(e.data.x), Number(e.data.y), Number(e.data.z), this.lampPos));
         break;
       }
     }
+  }
+
+  /**
+   * Join-in moment: the recording reaches a shape request. Pause the recorded
+   * hands and voice and let the story run live with the viewer's own hands
+   * (camera) until it reaches the next release beat, where the recording's
+   * creature bowed out; then the recording carries on from there.
+   */
+  private startJoinIn(player: Entity, requestIndex: number): void {
+    let rejoin = -1;
+    for (let i = requestIndex + 1; i < this.beats.length; i++) {
+      if (this.beats[i].type === 'release') {
+        rejoin = i;
+        break;
+      }
+    }
+    if (rejoin < 0) return;
+    this.rejoinAt = rejoin;
+    this.audio?.pause();
+    handOverride.cameraAllowed = true;
+    if (handOverride.source === 'playback') handOverride.left = handOverride.right = null;
+    first(this.queries.stories.entities)?.setValue(StoryState, 'joinIn', true);
+    player.setValue(PerformancePlayer, 'inJoinIn', true);
+    player.setValue(PerformancePlayer, 'status', 'Your turn! Make the shape with your hands.');
+  }
+
+  private updateJoinIn(player: Entity): void {
+    const story = first(this.queries.stories.entities);
+    const index = story?.getValue(StoryState, 'beatIndex') ?? -1;
+    if (index < this.rejoinAt) return;
+    // The viewer's scene is done: pick the recording up at the matching beat.
+    const at = this.events.findIndex((e) => e.type === 'beat' && Number(e.data.index) >= this.rejoinAt);
+    this.rejoinAt = -1;
+    story?.setValue(StoryState, 'joinIn', false);
+    handOverride.cameraAllowed = false;
+    player.setValue(PerformancePlayer, 'inJoinIn', false);
+    if (at < 0) {
+      this.finish(player, 'Finished.');
+      return;
+    }
+    // Skip re-entering the beat the live story has already entered.
+    this.clock = this.events[at].t / 1000;
+    this.next = at + 1;
+    if (this.audio) {
+      this.audio.currentTime = this.clock;
+      void this.audio.play().catch(() => undefined);
+    }
+    player.setValue(PerformancePlayer, 'status', 'Back to the story...');
   }
 
   private applySnapshot(d: PerformanceEvent['data']): void {
@@ -195,8 +270,11 @@ export class PerformancePlayerSystem extends createSystem({
   private finish(player: Entity, status: string): void {
     this.teardown();
     player.setValue(PerformancePlayer, 'playing', false);
+    player.setValue(PerformancePlayer, 'inJoinIn', false);
     player.setValue(PerformancePlayer, 'status', status);
-    first(this.queries.stories.entities)?.setValue(StoryState, 'followMode', false);
+    const story = first(this.queries.stories.entities);
+    story?.setValue(StoryState, 'joinIn', false);
+    story?.setValue(StoryState, 'followMode', false);
   }
 
   private teardown(): void {
@@ -206,6 +284,8 @@ export class PerformancePlayerSystem extends createSystem({
     this.audioUrl = '';
     this.perf = null;
     this.frames = null;
+    this.rejoinAt = -1;
+    handOverride.cameraAllowed = true;
     if (handOverride.source === 'playback') {
       handOverride.active = false;
       handOverride.left = handOverride.right = null;

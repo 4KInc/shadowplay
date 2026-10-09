@@ -17,6 +17,7 @@ import {
 } from './shadowplay-components.js';
 import { loadStoryScript, readingSeconds, StoryBeat, StoryScript } from './story-script.js';
 import { handRuntime, stageRuntime } from './stage-runtime.js';
+import { viewerMode } from './viewer-mode.js';
 
 const CHAPTER_SECONDS = 3.2;
 const LAMP_SECONDS = 1.8;
@@ -29,6 +30,8 @@ const JOURNAL_CAPTION = 'Your Shadow Journal. Pinch the book to close it.';
 const TITLE_CAPTION =
   'Shadowplay. A lamp on your desk, a story on your wall. Put on your Meta Quest and press Enter XR to begin.';
 const OUTSIDE_XR_CAPTION = 'Paused. Press Enter XR to return to the story.';
+/** Family viewer (phone / tablet): no headset needed. */
+const VIEWER_CAPTION = 'A bedtime story is waiting. Pick one below to watch.';
 const HANDS_CAPTION = 'Shadowplay is played with your hands. Put your controllers down and let the headset see your hands.';
 /** Grace period before the hands-first guard pauses (controllers being set down). */
 const CONTROLLER_GRACE_SECONDS = 1;
@@ -129,7 +132,7 @@ export class StorySystem extends createSystem({
   private showAttract(story: Entity, stage: Entity): void {
     const started = (story.getValue(StoryState, 'beatIndex') ?? -1) >= 0;
     setIfChanged(story, 'status', StoryStatuses.Waiting);
-    setIfChanged(story, 'caption', started ? OUTSIDE_XR_CAPTION : TITLE_CAPTION);
+    setIfChanged(story, 'caption', viewerMode.on ? VIEWER_CAPTION : started ? OUTSIDE_XR_CAPTION : TITLE_CAPTION);
     if (started || this.attract) return;
     this.attract = true;
     stage.setValue(Stage, 'lampLevel', 1);
@@ -220,6 +223,19 @@ export class StorySystem extends createSystem({
       }
       setIfChanged(story, 'status', StoryStatuses.Playing);
       this.beatTime += delta;
+      // Join-in moment: the story runs live with the viewer's hands (no saving).
+      if (story.getValue(StoryState, 'joinIn')) {
+        const index = story.getValue(StoryState, 'beatIndex') ?? -1;
+        const beat = this.script.beats[index];
+        if (beat) {
+          this.updateAssist(beat, story, stage, delta);
+          const next = this.run(beat, story, stage, delta);
+          if (next !== null) {
+            this.exit(beat, story);
+            if (next < this.script.beats.length) this.enter(story, stage, next);
+          }
+        }
+      }
       return;
     }
 
@@ -466,7 +482,7 @@ export class StorySystem extends createSystem({
         if (chosen === null) return null;
         const option = beat.options.find((o) => o.shape === chosen)!;
         story.setValue(StoryState, 'branch', option.goto);
-        this.unlock(story, null, option.goto);
+        if (!story.getValue(StoryState, 'followMode')) this.unlock(story, null, option.goto);
         // Keep only the chosen shape requested, so a slipped hand re-forms it.
         this.setTargets(stage, option.shape, option.alt ?? ShapeIds.None, ShapeIds.None, ShapeIds.None);
         for (const o of beat.options) {

@@ -1,6 +1,7 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { AudioSystem } from './audio.js';
+import { CameraHandsSystem } from './camera-hands.js';
 import { CaptionSystem } from './captions.js';
 import { FreeStageSystem } from './free-stage.js';
 import { HandCasterSystem } from './hand-caster.js';
@@ -20,6 +21,7 @@ import { SilhouetteSystem } from './silhouette.js';
 import { ShapeMatchSystem } from './shape-match.js';
 import { StageSetupSystem } from './stage-setup.js';
 import { StorySystem } from './story.js';
+import { ViewerUISystem } from './viewer-ui.js';
 import { StageActorSystem } from './wolf.js';
 
 World.create(
@@ -28,6 +30,7 @@ World.create(
 ).then((world) => {
   world
     .registerSystem(StageSetupSystem)
+    .registerSystem(CameraHandsSystem)
     .registerSystem(HandCasterSystem)
     .registerSystem(LampControlSystem)
     .registerSystem(SilhouetteSystem)
@@ -47,7 +50,8 @@ World.create(
     .registerSystem(CaptionSystem)
     .registerSystem(AudioSystem)
     .registerSystem(QualitySystem)
-    .registerSystem(PerformanceRecorderSystem);
+    .registerSystem(PerformanceRecorderSystem)
+    .registerSystem(ViewerUISystem);
 
   // Development only: webcam-driven hands for testing recognition without a headset.
   if (import.meta.env.DEV) {

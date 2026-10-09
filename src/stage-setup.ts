@@ -100,6 +100,14 @@ export class StageSetupSystem extends createSystem({
 
     this.cleanupFuncs.push(
       () => this.watchedRef?.removeEventListener('reset', this.onReset),
+      (() => {
+        // Phones rotate and browsers resize: re-fit the screen outside XR.
+        const onResize = () => {
+          if (!this.inXR) this.resetPlacement();
+        };
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+      })(),
       this.world.visibilityState.subscribe((state) => {
         const inXR = state !== VisibilityState.NonImmersive;
         if (inXR !== this.inXR) {
@@ -287,10 +295,10 @@ export class StageSetupSystem extends createSystem({
     this.tmpB.copy(this.head).addScaledVector(this.forward, SCREEN_DISTANCE);
     this.tmpB.y = this.head.y + 0.05;
     if (!this.inXR) {
-      // Desktop browser (the hosted link): centre the screen in the actual view,
-      // pitch included, so the title card and captions are framed.
+      // Browser (desktop link, phone or tablet viewer): centre the screen in the
+      // actual view, pitch included, and back off until it fits the viewport.
       this.world.camera.getWorldDirection(this.tmpA);
-      this.tmpB.copy(this.head).addScaledVector(this.tmpA, SCREEN_DISTANCE);
+      this.tmpB.copy(this.head).addScaledVector(this.tmpA, this.fitDistance(SCREEN_DISTANCE * WIDTH_PER_METER));
     }
     const width = SCREEN_DISTANCE * WIDTH_PER_METER;
     this.applyStage(stage, lamp, this.tmpB, this.normal, width, SCREEN_DISTANCE, StageModes.Screen, false);
@@ -383,6 +391,16 @@ export class StageSetupSystem extends createSystem({
     const p = lampObj.position;
     const c = stageRuntime.poolCenter;
     lampObj.rotation.set(0, Math.atan2(-(c.x - p.x), -(c.z - p.z)), 0);
+  }
+
+  /** Distance at which a paper screen of this stage width (plus caption) fits the view. */
+  private fitDistance(width: number): number {
+    const cam = this.world.camera;
+    const vHalf = ((cam.fov ?? 50) * Math.PI) / 360;
+    const hHalf = Math.atan(Math.tan(vHalf) * (cam.aspect || 1));
+    const paperW = width * 1.25 * 1.1;
+    const paperH = width * 0.62 * 1.35 * 1.35; // room for the caption under the stage
+    return Math.max(1.4, paperW / 2 / Math.tan(hHalf), paperH / 2 / Math.tan(vHalf));
   }
 
   private appliedQuality = 0;

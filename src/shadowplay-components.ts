@@ -155,6 +155,8 @@ export const StoryState = createComponent('StoryState', {
   voiceDone: { type: Types.Boolean, default: true },
   /** Replaying a performance: beats are entered by the player, not decided by the story. */
   followMode: { type: Types.Boolean, default: false },
+  /** Join-in moment inside a replay: the story runs live (the viewer's own hands) without saving progress. */
+  joinIn: { type: Types.Boolean, default: false },
   /** Set by the performance player to enter a beat (index) in follow mode; -1 when idle. */
   enterBeat: { type: Types.Int16, default: -1 },
   /** 'Never stuck' assist level for the waiting beat: 0 none, 1-2 looser recognition, 3 any still hand counts. */
@@ -351,6 +353,10 @@ export const PerformancePlayer = createComponent('PerformancePlayer', {
   recordingId: { type: Types.String, default: '' },
   playing: { type: Types.Boolean, default: false },
   paused: { type: Types.Boolean, default: false },
+  /** Let the viewer join in: at each shape request the replay waits for their own hands. */
+  joinIn: { type: Types.Boolean, default: false },
+  /** True while a join-in moment is waiting for (or being performed by) the viewer. */
+  inJoinIn: { type: Types.Boolean, default: false },
   /** Seconds into the performance. */
   position: { type: Types.Float32, default: 0 },
   duration: { type: Types.Float32, default: 0 },

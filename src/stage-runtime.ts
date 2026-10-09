@@ -86,12 +86,15 @@ export const handOverride: {
   left: Float32Array | null;
   right: Float32Array | null;
   radii: Float32Array;
+  cameraAllowed: boolean;
 } = {
   active: false,
   source: '',
   left: null,
   right: null,
   radii: new Float32Array(JOINT_COUNT).fill(0.009),
+  /** False while a replay drives the hands; the camera may take over only during join-in moments. */
+  cameraAllowed: true,
 };
 
 /**

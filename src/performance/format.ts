@@ -14,7 +14,8 @@ export const FRAME_STRIDE = 1 + JOINT_COUNT * 3 * 2;
 const LEFT = 1;
 const RIGHT = 2;
 
-export type PerformanceEventType = 'snapshot' | 'beat' | 'wake' | 'release' | 'lamp';
+/** 'stage' carries animated staging values (lamp level, finale, Mo's glow) that the story animates itself. */
+export type PerformanceEventType = 'snapshot' | 'beat' | 'wake' | 'release' | 'lamp' | 'stage';
 
 export interface PerformanceEvent {
   /** Milliseconds from the start of the performance. */
