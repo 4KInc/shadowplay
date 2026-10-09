@@ -49,6 +49,13 @@ const CHAPTER_BUTTONS: readonly [string, string, string][] = [
   ['chap-ch4', 'ch4', 'Chapter Four'],
   ['chap-ch5', 'ch5', 'Chapter Five'],
 ];
+/** Stories in the library: button id, script. */
+const STORY_BUTTONS: readonly [string, string][] = [
+  ['story-the-moth', 'story/the-moth.story.json'],
+  ['story-across-the-sea', 'story/across-the-sea.story.json'],
+];
+const MOTH_SCRIPT = STORY_BUTTONS[0][1];
+
 const LOCKED = { backgroundColor: '#1d1826', borderColor: '#2e2639', color: '#6b5f7a' };
 
 const SELECTED = { backgroundColor: '#e0a24a', borderColor: '#f2c47a', color: '#1a1320' };
@@ -75,6 +82,8 @@ export class SettingsSystem extends createSystem({
   private loaded = false;
   private loading = false;
   private applied = '';
+  /** Script highlighted on the story buttons. */
+  private shownScript = '';
   /** Last unlock list shown on the chapter buttons. */
   private shownUnlocks: string | null = null;
   private quat = new Quaternion();
@@ -97,8 +106,18 @@ export class SettingsSystem extends createSystem({
       if (this.applied) void saveSettings({ tolerance, hints, oneHand, placeholderVoice: voice });
       this.applied = key;
     }
+    this.refreshStories();
     this.refreshChapters();
     this.place(settings);
+  }
+
+  /** Highlight tonight's story; chapters belong to The Moth only. */
+  private refreshStories(): void {
+    const script = first(this.queries.stories.entities)?.getValue(StoryState, 'script') ?? '';
+    if (script === this.shownScript || !this.panel) return;
+    this.shownScript = script;
+    for (const [id, path] of STORY_BUTTONS) this.buttons.get(id)?.setProperties(path === script ? SELECTED : UNSELECTED);
+    this.panel.getElementById('chapter-section')?.setProperties({ display: script === MOTH_SCRIPT ? 'flex' : 'none' });
   }
 
   /** Dim chapters the player has not reached yet. */
@@ -160,6 +179,15 @@ export class SettingsSystem extends createSystem({
         this.status?.setProperties({ text: `Starting ${name}...` });
       });
     }
+    for (const [id, path] of STORY_BUTTONS) {
+      on(id, () => {
+        const story = first(this.queries.stories.entities);
+        if (!story || story.getValue(StoryState, 'followMode')) return;
+        for (const j of this.queries.journals.entities) j.setValue(ShadowJournal, 'open', false);
+        story.setValue(StoryState, 'script', path);
+        this.status?.setProperties({ text: 'Starting tonight\'s story...' });
+      });
+    }
     on('replace-stage-button', () => {
       // Close the journal so the stage can be found again, then re-place it.
       for (const j of this.queries.journals.entities) j.setValue(ShadowJournal, 'open', false);
@@ -180,6 +208,7 @@ export class SettingsSystem extends createSystem({
     if (this.status) this.status.name = 'status-text';
     this.applied = '';
     this.shownUnlocks = null;
+    this.shownScript = '';
   }
 
   private apply(tolerance: string, hints: string, oneHand: boolean, voice: boolean): void {

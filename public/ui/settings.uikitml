@@ -139,6 +139,12 @@
   </div>
   <div id="family-status" class="family-status">Record a bedtime story, or go live with your family.</div>
 
+  <div class="label">Tonight's story</div>
+  <div class="row">
+    <button id="story-the-moth" class="option">The Moth</button>
+    <button id="story-across-the-sea" class="option">Across the Sea</button>
+  </div>
+
   <div class="label">Shape recognition</div>
   <div class="row">
     <button id="tol-strict" class="option">Strict</button>
@@ -166,6 +172,7 @@
     </button>
   </div>
 
+  <div id="chapter-section" class="section">
   <div class="label">Play a chapter</div>
   <div class="row">
     <button id="chap-prologue" class="option">Prologue</button>
@@ -174,6 +181,7 @@
     <button id="chap-ch3" class="option">3</button>
     <button id="chap-ch4" class="option">4</button>
     <button id="chap-ch5" class="option">5</button>
+  </div>
   </div>
 
   <div class="label">Stage</div>

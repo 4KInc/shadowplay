@@ -16,7 +16,7 @@ import {
   StageActor,
   StoryState,
 } from '../shadowplay-components.js';
-import { loadStoryScript, StoryBeat } from '../story-script.js';
+import { loadStoryScript, StoryBeat, storyRuntime } from '../story-script.js';
 import { handOverride, handRuntime, JOINT_COUNT, secondHands, stageRuntime, xrSecond } from '../stage-runtime.js';
 import { LiveConnection } from './connection.js';
 import { HANDS_HZ, HEADER_BYTES, KIND_HANDS, KIND_VOICE, packBinary, PeerMessage, ServerMessage } from './protocol.js';
@@ -104,6 +104,9 @@ export class LiveSystem extends createSystem({
   private beats: StoryBeat[] = [];
   private requests = 0;
   private guestIdle = 0;
+  private hostScript = '';
+  /** Host: the script last announced to the guest. */
+  private sentScript = '';
 
   init(): void {
     this.targets = applyTargets(this.queries);
@@ -126,7 +129,9 @@ export class LiveSystem extends createSystem({
       session.setValue(LiveSession, 'hearing', this.voice.hearing);
     }
     if (!stageRuntime.ready) return;
-    while (this.pending.length) this.applyRemote(this.pending.shift()!);
+    // Host events wait until this stage is telling the host's story.
+    const scriptReady = !this.hostScript || storyRuntime.script === this.hostScript;
+    while (scriptReady && this.pending.length) this.applyRemote(this.pending.shift()!);
 
     this.remote.step(delta);
     const peerHands = (this.remote.hasLeft ? 1 : 0) + (this.remote.hasRight ? 1 : 0);
@@ -150,6 +155,11 @@ export class LiveSystem extends createSystem({
         this.setTurn(session, 'host');
         session.setValue(LiveSession, 'status', 'Your turn again.');
       }
+    }
+
+    // Host switched stories: tell the guest before the new story's events arrive.
+    if (this.role === 'host' && storyRuntime.script && storyRuntime.script !== this.sentScript && session.getValue(LiveSession, 'peerPresent')) {
+      this.sendHello();
     }
 
     this.sinceSend += delta;
@@ -205,11 +215,12 @@ export class LiveSystem extends createSystem({
       case 'guest-joined':
         session.setValue(LiveSession, 'peerPresent', true);
         session.setValue(LiveSession, 'status', 'Your family joined. Tell the story!');
-        this.conn?.send({ type: 'hello', performer: family.own.performer, child: family.own.child });
+        this.sendHello();
         this.conn?.send({ type: 'state', events: storyTap.current() });
         this.requests = 0;
         this.setTurn(session, 'host');
         this.unsubscribeTap ??= storyTap.subscribe((event) => {
+          if (storyRuntime.script !== this.sentScript) this.sendHello();
           this.conn?.send({ type: 'event', event });
           if (event.type === 'beat') this.onHostBeat(session, Number(event.data.index));
         });
@@ -233,13 +244,22 @@ export class LiveSystem extends createSystem({
 
   private onPeer(m: PeerMessage): void {
     if (this.role !== 'guest') return; // Only the host's story drives a stage.
-    if (m.type === 'hello') family.borrow({ performer: m.performer, child: m.child });
+    if (m.type === 'hello') {
+      family.borrow({ performer: m.performer, child: m.child });
+      this.hostScript = m.script;
+      if (m.script) first(this.queries.stories.entities)?.setValue(StoryState, 'script', m.script);
+    }
     else if (m.type === 'state') this.pending.push(...m.events);
     else if (m.type === 'event') this.pending.push(m.event);
     else if (m.type === 'turn') {
       const session = first(this.queries.sessions.entities);
       if (session) this.setTurn(session, m.who);
     }
+  }
+
+  private sendHello(): void {
+    this.sentScript = storyRuntime.script;
+    this.conn?.send({ type: 'hello', performer: family.own.performer, child: family.own.child, script: storyRuntime.script });
   }
 
   /** Host, duet on: every other shape request is the guest's, until that creature bows out. */
@@ -356,6 +376,7 @@ export class LiveSystem extends createSystem({
     this.voice.dispose();
     this.remote.clear();
     this.pending.length = 0;
+    this.hostScript = '';
     if (secondHands.left === this.remote.left) secondHands.left = null;
     if (secondHands.right === this.remote.right) secondHands.right = null;
     this.releaseOverride();

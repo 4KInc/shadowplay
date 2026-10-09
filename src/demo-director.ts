@@ -50,6 +50,7 @@ export class DemoDirectorSystem extends createSystem({
   puppets: { required: [ShadowPuppet] },
 }) {
   private beats = new Map<string, StoryBeat>();
+  private loadedScript = '';
   private loading = false;
   private time = 0;
   private held: PoseFixture | null = null;
@@ -89,7 +90,8 @@ export class DemoDirectorSystem extends createSystem({
     const story = first(this.queries.stories.entities);
     if (!director || !story) return;
     const playing = Boolean(director.getValue(DemoDirector, 'playing'));
-    if (playing && this.beats.size === 0 && !this.loading) this.load(story);
+    const script = story.getValue(StoryState, 'script') ?? '';
+    if (playing && script !== this.loadedScript && !this.loading) this.load(script);
     if (playing !== this.wasPlaying) this.toggle(director, playing);
     if (!playing || this.beats.size === 0 || !stageRuntime.ready) return;
     this.time += delta;
@@ -103,11 +105,15 @@ export class DemoDirectorSystem extends createSystem({
     director.setValue(DemoDirector, 'status', `${beatId}: ${this.target.fixture?.label ?? 'hands resting'}`);
   }
 
-  private load(story: Entity): void {
+  /** Beats by id from every story loaded so far (ids are unique across the library). */
+  private load(path: string): void {
     this.loading = true;
-    loadStoryScript(story.getValue(StoryState, 'script') ?? '').then((script) => {
-      for (const b of script.beats) this.beats.set(b.id, b);
-    });
+    loadStoryScript(path)
+      .then((script) => {
+        for (const b of script.beats) this.beats.set(b.id, b);
+        this.loadedScript = path;
+      })
+      .finally(() => (this.loading = false));
   }
 
   private toggle(director: Entity, playing: boolean): void {

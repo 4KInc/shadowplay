@@ -1,7 +1,7 @@
 import { createSystem, Entity } from '@iwsdk/core';
 import { family } from '../family.js';
 import { loadRecording } from '../journal-store.js';
-import { loadStoryScript, StoryBeat } from '../story-script.js';
+import { loadStoryScript, StoryBeat, storyRuntime } from '../story-script.js';
 import {
   DeskLamp,
   HiddenProp,
@@ -81,6 +81,8 @@ export class PerformancePlayerSystem extends createSystem({
       else void this.audio?.play().catch(() => undefined);
     }
     if (paused) return;
+    // Wait while the story loads the recording's script.
+    if (this.perf.script && storyRuntime.script !== this.perf.script) return;
 
     this.clock += delta;
     const tMs = this.clock * 1000;
@@ -124,6 +126,8 @@ export class PerformancePlayerSystem extends createSystem({
     player.setValue(PerformancePlayer, 'status', `Playing "${perf.title}"${perf.performer ? ` from ${perf.performer}` : ''}.`);
     const story = first(this.queries.stories.entities);
     story?.setValue(StoryState, 'followMode', true);
+    // Tell the story in the recording's script (it may be another story from the library).
+    if (perf.script) story?.setValue(StoryState, 'script', perf.script);
     if (perf.audio) {
       this.audioUrl = URL.createObjectURL(perf.audio);
       this.audio = new Audio(this.audioUrl);

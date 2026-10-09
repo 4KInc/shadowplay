@@ -21,6 +21,8 @@ export interface StoryProgress {
   chapter: string;
   branch: string;
   savedAt: number;
+  /** Story script the progress belongs to (missing: The Moth, saved before the library). */
+  script?: string;
 }
 
 let dbPromise: Promise<IDBDatabase | null> | null = null;

@@ -16,7 +16,7 @@ import {
   StoryState,
   StoryStatuses,
 } from './shadowplay-components.js';
-import { loadStoryScript, readingSeconds, StoryBeat, StoryScript } from './story-script.js';
+import { loadStoryScript, readingSeconds, StoryBeat, StoryScript, storyRuntime } from './story-script.js';
 import { handRuntime, stageRuntime } from './stage-runtime.js';
 import { viewerMode } from './viewer-mode.js';
 
@@ -36,6 +36,8 @@ const VIEWER_CAPTION = 'A bedtime story is waiting. Pick one below to watch.';
 const HANDS_CAPTION = 'Shadowplay is played with your hands. Put your controllers down and let the headset see your hands.';
 /** Grace period before the hands-first guard pauses (controllers being set down). */
 const CONTROLLER_GRACE_SECONDS = 1;
+/** The first story; progress saved before the library existed belongs to it. */
+const DEFAULT_SCRIPT = 'story/the-moth.story.json';
 /** 'Never stuck' assist: seconds a player beat may wait before each assist level. */
 const ASSIST_AFTER = [20, 40, 60] as const;
 /** Extra recognition tolerance at assist levels 1 and 2. */
@@ -92,6 +94,9 @@ export class StorySystem extends createSystem({
   private beforeFollow = -2;
   private endings = new Set<string>();
   private loading = false;
+  private switching = false;
+  /** Path of the loaded script. */
+  private scriptPath = '';
   private resumeAt = -1;
   private lastAliveShape: string = ShapeIds.None;
   /** Puppet size when the current grow beat began. */
@@ -151,17 +156,45 @@ export class StorySystem extends createSystem({
     for (const m of this.queries.moths.entities) m.setValue(Moth, 'mode', 'hidden');
   }
 
+  /** Another story from the library: load it and start it from the beginning. */
+  private switchScript(story: Entity, stage: Entity, path: string): void {
+    this.switching = true;
+    storyRuntime.script = '';
+    loadStoryScript(path)
+      .then((script) => {
+        this.script = script;
+        this.scriptPath = path;
+        storyRuntime.script = path;
+        const following = Boolean(story.getValue(StoryState, 'followMode'));
+        if (following) {
+          // A replay or Live story drives the beats; nothing to restore afterwards in the old script.
+          this.beforeFollow = -1;
+          story.setValue(StoryState, 'beatIndex', -1);
+        } else {
+          this.restart(story, stage);
+          this.resumeAt = -1;
+        }
+      })
+      .catch((error: unknown) => {
+        console.error('[shadowplay] story load failed', error);
+        story.setValue(StoryState, 'script', this.scriptPath);
+      })
+      .finally(() => (this.switching = false));
+  }
+
   /** Story entities may exist before this system registers, so load lazily. */
   private load(story: Entity): void {
     this.loading = true;
     const resume = Boolean(story.getValue(StoryState, 'resume'));
-    Promise.all([
-      loadStoryScript(story.getValue(StoryState, 'script') ?? ''),
-      resume ? loadProgress() : null,
-      loadUnlocks(),
-    ])
-      .then(([script, progress, unlocks]) => {
+    Promise.all([resume ? loadProgress() : null, loadUnlocks()])
+      .then(async ([progress, unlocks]) => {
+        // Resume whichever story from the library was being told last.
+        const path = (progress && (progress.script ?? DEFAULT_SCRIPT)) || (story.getValue(StoryState, 'script') ?? '');
+        const script = await loadStoryScript(path);
         this.script = script;
+        this.scriptPath = path;
+        storyRuntime.script = path;
+        story.setValue(StoryState, 'script', path);
         for (const c of unlocks.chapters) this.unlocked.add(c);
         for (const e of unlocks.endings) this.endings.add(e);
         this.publishUnlocks(story);
@@ -179,6 +212,11 @@ export class StorySystem extends createSystem({
     const stage = first(this.queries.stages.entities);
     if (story && !this.script && !this.loading) this.load(story);
     if (!story || !stage || !this.script) return;
+    const wanted = story.getValue(StoryState, 'script') ?? '';
+    if (wanted !== this.scriptPath) {
+      if (!this.switching) this.switchScript(story, stage, wanted);
+      return;
+    }
     const settings = first(this.queries.settings.entities);
     if (settings?.getValue(Settings, 'replayRequested')) {
       settings.setValue(Settings, 'replayRequested', false);
@@ -317,7 +355,7 @@ export class StorySystem extends createSystem({
     for (const a of this.queries.actors.entities) a.setValue(StageActor, 'state', 'hidden');
     for (const p of this.queries.props.entities) p.setValue(HiddenProp, 'active', false);
     for (const j of this.queries.journals.entities) j.setValue(ShadowJournal, 'open', false);
-    void saveProgress({ beatIndex: 0, chapter: 'Prologue', branch: '', savedAt: Date.now() });
+    void saveProgress({ beatIndex: 0, chapter: 'Prologue', branch: '', savedAt: Date.now(), script: this.scriptPath });
   }
 
   private indexOf(id: string): number {
@@ -368,6 +406,7 @@ export class StorySystem extends createSystem({
           chapter: beat.chapter,
           branch: story.getValue(StoryState, 'branch') ?? '',
           savedAt: Date.now(),
+          script: this.scriptPath,
         });
         break;
       case 'moth':
@@ -441,7 +480,7 @@ export class StorySystem extends createSystem({
           if (m.getValue(Moth, 'mode') === 'hidden') m.setValue(Moth, 'mode', 'hovering');
         }
         if (!story.getValue(StoryState, 'followMode')) {
-          void saveProgress({ beatIndex: index, chapter: 'Free Stage', branch: story.getValue(StoryState, 'branch') ?? '', savedAt: Date.now() });
+          void saveProgress({ beatIndex: index, chapter: 'Free Stage', branch: story.getValue(StoryState, 'branch') ?? '', savedAt: Date.now(), script: this.scriptPath });
         }
         break;
       default:
