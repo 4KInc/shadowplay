@@ -13,6 +13,7 @@ import { PerformancePlayerSystem } from './performance/player.js';
 import { PerformanceRecorderSystem } from './performance/recorder.js';
 import { StoryTapSystem } from './performance/story-tap.js';
 import { LiveSystem } from './live/live-system.js';
+import { FamilyControlsSystem } from './live/family-controls.js';
 import { HiddenPropSystem } from './props.js';
 import { QualitySystem } from './quality.js';
 import { RecognitionLabSystem } from './recognition-lab.js';
@@ -55,6 +56,7 @@ World.create(
     .registerSystem(StoryTapSystem)
     .registerSystem(PerformanceRecorderSystem)
     .registerSystem(LiveSystem)
+    .registerSystem(FamilyControlsSystem)
     .registerSystem(ViewerUISystem);
 
   // Development only: webcam-driven hands for testing recognition without a headset.

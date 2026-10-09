@@ -2,7 +2,7 @@ import { createSystem, Entity } from '@iwsdk/core';
 import { listRecordings } from './journal-store.js';
 import type { Performance } from './performance/format.js';
 import { fetchStory } from './performance/sharing.js';
-import { PerformancePlayer, WebcamHands } from './shadowplay-components.js';
+import { LiveSession, PerformancePlayer, WebcamHands } from './shadowplay-components.js';
 import { viewerMode } from './viewer-mode.js';
 
 const CONSENT_KEY = 'shadowplay.cameraConsent';
@@ -52,6 +52,7 @@ const CSS = `
 export class ViewerUISystem extends createSystem({
   players: { required: [PerformancePlayer] },
   webcams: { required: [WebcamHands] },
+  sessions: { required: [LiveSession] },
 }) {
   private root: HTMLDivElement | null = null;
   private list: HTMLDivElement | null = null;
@@ -64,6 +65,14 @@ export class ViewerUISystem extends createSystem({
   private lastStatus = '';
   private form: HTMLFormElement | null = null;
   private note: HTMLDivElement | null = null;
+  private liveControls: HTMLDivElement | null = null;
+  private liveStatus: HTMLDivElement | null = null;
+  private talkBtn: HTMLButtonElement | null = null;
+  private handsBtn: HTMLButtonElement | null = null;
+  private lastLive: boolean | null = null;
+  private lastLiveStatus = '';
+  /** What the camera is for right now: joining in to a replay, or showing hands in a live story. */
+  private cameraFor: 'replay' | 'live' = 'replay';
   /** Most recently opened shared story (highlighted in the list). */
   private highlight = '';
 
@@ -104,6 +113,7 @@ export class ViewerUISystem extends createSystem({
         <form class="sp-code" autocomplete="off">
           <input name="code" placeholder="Family code, e.g. lantern-otter-moss-417" aria-label="Family code" />
           <button class="sp-btn" type="submit">Open</button>
+          <button class="sp-btn" type="button" data-act="live">Join live</button>
         </form>
         <div class="sp-note" aria-live="polite"></div>
         <div class="sp-row sp-controls" hidden>
@@ -111,6 +121,12 @@ export class ViewerUISystem extends createSystem({
           <button class="sp-btn" data-act="join" aria-label="Join in with your hands">Join in</button>
           <button class="sp-btn" data-act="stop" aria-label="Stop">Stop</button>
           <div class="sp-status" aria-live="polite"></div>
+        </div>
+        <div class="sp-row sp-live" hidden>
+          <button class="sp-btn" data-act="talk" aria-label="Talk">Talk</button>
+          <button class="sp-btn" data-act="hands" aria-label="Show my hands">My hands</button>
+          <button class="sp-btn" data-act="leave" aria-label="Leave the live story">Leave</button>
+          <div class="sp-status sp-live-status" aria-live="polite"></div>
         </div>
       </div>`;
     document.body.appendChild(root);
@@ -126,6 +142,21 @@ export class ViewerUISystem extends createSystem({
       p?.setValue(PerformancePlayer, 'paused', !p.getValue(PerformancePlayer, 'paused'));
     });
     this.joinBtn?.addEventListener('click', () => this.toggleJoin());
+    this.liveControls = root.querySelector('.sp-live');
+    this.liveStatus = root.querySelector('.sp-live-status');
+    this.talkBtn = root.querySelector('[data-act="talk"]');
+    this.handsBtn = root.querySelector('[data-act="hands"]');
+    this.talkBtn?.addEventListener('click', () => {
+      const live = this.liveEntity();
+      live?.setValue(LiveSession, 'talk', !live.getValue(LiveSession, 'talk'));
+    });
+    this.handsBtn?.addEventListener('click', () => this.toggleCamera('live'));
+    root.querySelector('[data-act="leave"]')?.addEventListener('click', () => this.liveEntity()?.setValue(LiveSession, 'role', 'off'));
+    root.querySelector('[data-act="live"]')?.addEventListener('click', () => {
+      const input = this.form?.querySelector('input');
+      if (input?.value.trim()) this.joinLive(input.value);
+      else if (this.note) this.note.textContent = 'Type the family code first.';
+    });
     this.form = root.querySelector('.sp-code');
     this.note = root.querySelector('.sp-note');
     this.form?.addEventListener('submit', (e) => {
@@ -137,8 +168,47 @@ export class ViewerUISystem extends createSystem({
     this.lastPlaying = false;
     void this.refreshList();
     // A shared link (?watch=CODE) brings the story straight in.
-    const code = new URLSearchParams(location.search).get('watch');
+    const params = new URLSearchParams(location.search);
+    const code = params.get('watch');
     if (code) void this.openCode(code);
+    // A live link (?live=CODE): one tap to join (which also lets the browser play the voice).
+    const liveCode = params.get('live');
+    if (liveCode) this.offerLive(liveCode);
+  }
+
+  private liveEntity(): Entity | undefined {
+    return first(this.queries.sessions.entities);
+  }
+
+  private joinLive(code: string): void {
+    const live = this.liveEntity();
+    if (!live) return;
+    this.performanceEntity()?.setValue(PerformancePlayer, 'playing', false);
+    live.setValue(LiveSession, 'joinCode', code.trim());
+    live.setValue(LiveSession, 'role', 'guest');
+    if (this.note) this.note.textContent = '';
+  }
+
+  private offerLive(code: string): void {
+    const sheet = document.createElement('div');
+    sheet.className = 'sp-sheet';
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-label', 'Join the live story');
+    sheet.innerHTML = `
+      <div class="sp-panel">
+        <p class="sp-title">A bedtime story is starting</p>
+        <p>Someone who loves you is about to tell a shadow story, live.</p>
+        <div class="sp-row">
+          <button class="sp-btn on" data-act="join-live">Join the story</button>
+          <button class="sp-btn" data-act="no">Not now</button>
+        </div>
+      </div>`;
+    document.body.appendChild(sheet);
+    sheet.querySelector('[data-act="join-live"]')?.addEventListener('click', () => {
+      sheet.remove();
+      this.joinLive(code);
+    });
+    sheet.querySelector('[data-act="no"]')?.addEventListener('click', () => sheet.remove());
   }
 
   private performanceEntity(): Entity | undefined {
@@ -196,18 +266,25 @@ export class ViewerUISystem extends createSystem({
 
   /** Join in: needs the camera, which a grown-up must allow once on this device. */
   private toggleJoin(): void {
-    const p = this.performanceEntity();
-    if (!p) return;
-    const on = !p.getValue(PerformancePlayer, 'joinIn');
-    if (on && !this.hasConsent()) {
-      this.askConsent();
-      return;
-    }
-    this.setJoin(on);
+    this.toggleCamera('replay');
   }
 
-  private setJoin(on: boolean): void {
-    this.performanceEntity()?.setValue(PerformancePlayer, 'joinIn', on);
+  private toggleCamera(purpose: 'replay' | 'live'): void {
+    const on = !this.cameraOn();
+    if (on && !this.hasConsent()) {
+      this.askConsent(purpose);
+      return;
+    }
+    this.setCamera(on, purpose);
+  }
+
+  private cameraOn(): boolean {
+    return Boolean(first(this.queries.webcams.entities)?.getValue(WebcamHands, 'enabled'));
+  }
+
+  private setCamera(on: boolean, purpose: 'replay' | 'live' = this.cameraFor): void {
+    this.cameraFor = purpose;
+    if (purpose === 'replay') this.performanceEntity()?.setValue(PerformancePlayer, 'joinIn', on);
     for (const w of this.queries.webcams.entities) w.setValue(WebcamHands, 'enabled', on);
   }
 
@@ -219,7 +296,7 @@ export class ViewerUISystem extends createSystem({
     }
   }
 
-  private askConsent(): void {
+  private askConsent(purpose: 'replay' | 'live'): void {
     const sheet = document.createElement('div');
     sheet.className = 'sp-sheet';
     sheet.setAttribute('role', 'dialog');
@@ -242,7 +319,7 @@ export class ViewerUISystem extends createSystem({
         // Private mode: ask again next time.
       }
       sheet.remove();
-      this.setJoin(true);
+      this.setCamera(true, purpose);
     });
     sheet.querySelector('[data-act="no"]')?.addEventListener('click', () => sheet.remove());
   }
@@ -258,13 +335,14 @@ export class ViewerUISystem extends createSystem({
       this.lastPlaying = playing;
       if (this.list) this.list.hidden = playing;
       if (this.controls) this.controls.hidden = !playing;
-      this.root.classList.toggle('playing', playing);
+      this.root.classList.toggle('playing', playing || Boolean(this.lastLive));
       if (!playing) {
         // Story over: the camera goes off.
-        if (p.getValue(PerformancePlayer, 'joinIn')) this.setJoin(false);
+        if (p.getValue(PerformancePlayer, 'joinIn')) this.setCamera(false, 'replay');
         void this.refreshList();
       }
     }
+    this.updateLive();
     // Touch the DOM only when something changed.
     const pauseLabel = p.getValue(PerformancePlayer, 'paused') ? 'Play' : 'Pause';
     if (this.pauseBtn && this.pauseBtn.textContent !== pauseLabel) this.pauseBtn.textContent = pauseLabel;
@@ -285,6 +363,35 @@ export class ViewerUISystem extends createSystem({
       this.turn.remove();
       this.turn = null;
     }
+  }
+
+  /** The live-story row: shown while this device is a guest in a live story. */
+  private updateLive(): void {
+    const live = this.liveEntity();
+    if (!live || !this.root) return;
+    const on = live.getValue(LiveSession, 'role') === 'guest';
+    if (on !== this.lastLive) {
+      this.lastLive = on;
+      if (this.liveControls) this.liveControls.hidden = !on;
+      if (this.list) this.list.hidden = on || Boolean(this.lastPlaying);
+      this.root.classList.toggle('playing', on || Boolean(this.lastPlaying));
+      // Live story over: the camera goes off.
+      if (!on && this.cameraFor === 'live' && this.cameraOn()) this.setCamera(false, 'live');
+    }
+    const status = live.getValue(LiveSession, 'status') ?? '';
+    if (status !== this.lastLiveStatus) {
+      this.lastLiveStatus = status;
+      if (this.liveStatus) this.liveStatus.textContent = status;
+      if (!on && status && this.note) this.note.textContent = status;
+    }
+    if (!on) return;
+    const talking = Boolean(live.getValue(LiveSession, 'talk'));
+    if (this.talkBtn && this.talkBtn.classList.contains('on') !== talking) {
+      this.talkBtn.classList.toggle('on', talking);
+      this.talkBtn.textContent = talking ? 'Talking' : 'Talk';
+    }
+    const hands = this.cameraOn();
+    if (this.handsBtn && this.handsBtn.classList.contains('on') !== hands) this.handsBtn.classList.toggle('on', hands);
   }
 }
 

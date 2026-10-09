@@ -90,6 +90,24 @@
     cursor: pointer;
   }
 
+  .family {
+    flex-grow: 1;
+    justify-content: center;
+    align-items: center;
+    height: 4.2;
+    border-radius: 1.2;
+    background-color: #2b2338;
+    border-width: 0.15;
+    border-color: #4a3d5c;
+    cursor: pointer;
+  }
+
+  .family-status {
+    font-size: 1.35;
+    color: #f2c47a;
+    text-align: center;
+  }
+
   .status {
     font-size: 1.25;
     color: #bfae8e;
@@ -98,6 +116,25 @@
 </style>
 <div class="root">
   <div class="title">Settings</div>
+
+  <div class="label">For your family</div>
+  <div class="row">
+    <button id="record-button" class="family">
+      <span id="record-label" class="toggle-text">Record a story</span>
+    </button>
+    <button id="send-button" class="family">
+      <span id="send-label" class="toggle-text">Send to family</span>
+    </button>
+  </div>
+  <div class="row">
+    <button id="live-button" class="family">
+      <span id="live-label" class="toggle-text">Go live</span>
+    </button>
+    <button id="talk-button" class="family">
+      <span id="talk-label" class="toggle-text">Talk: Off</span>
+    </button>
+  </div>
+  <div id="family-status" class="family-status">Record a bedtime story, or go live with your family.</div>
 
   <div class="label">Shape recognition</div>
   <div class="row">
