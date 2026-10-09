@@ -16,7 +16,7 @@
     {
       "id": "hush",
       "type": "narrate",
-      "text": "Shh. The show is about to begin."
+      "text": "Shh, {child|little one}. The show is about to begin."
     },
     {
       "id": "mo-arrives",
@@ -39,7 +39,7 @@
     {
       "id": "trust",
       "type": "narrate",
-      "text": "There. She trusts you now."
+      "text": "There. She trusts you now, {child|little one}."
     },
     {
       "id": "lighthouse",
@@ -578,7 +578,7 @@
     {
       "id": "thank-you",
       "type": "narrate",
-      "text": "Thank you, puppeteer. Every shadow needs a little light, and every light needs someone to hold it."
+      "text": "Thank you, {child|puppeteer}. Every shadow needs a little light, and every light needs someone to hold it."
     },
     {
       "id": "the-end",

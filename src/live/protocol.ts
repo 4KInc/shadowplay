@@ -16,7 +16,7 @@ export const VOICE_RATE = 16000;
 export const HANDS_HZ = 20;
 
 export type PeerMessage =
-  | { type: 'hello'; name: string; script: string }
+  | { type: 'hello'; performer: string; child: string }
   /** Host -> guest: everything to start mid-story (snapshot, beat, lamp, staging, awake creatures). */
   | { type: 'state'; events: TapEvent[] }
   | { type: 'event'; event: TapEvent }

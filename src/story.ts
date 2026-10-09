@@ -1,4 +1,5 @@
 import { createSystem, Entity, Vector3, VisibilityState } from '@iwsdk/core';
+import { personalise } from './family.js';
 import { loadProgress, loadUnlocks, saveProgress, saveUnlocks } from './journal-store.js';
 import {
   HiddenProp,
@@ -324,6 +325,7 @@ export class StorySystem extends createSystem({
   }
 
   private setCaption(story: Entity, text: string): void {
+    text = personalise(text);
     this.beatCaption = text;
     story.setValue(StoryState, 'caption', text);
   }

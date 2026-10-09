@@ -29,6 +29,8 @@ export interface Performance {
   id: string;
   title: string;
   performer: string;
+  /** Who the story is for (fills {child} in story lines on replay). */
+  child?: string;
   createdAt: number;
   durationMs: number;
   /** Story script the beats refer to. */

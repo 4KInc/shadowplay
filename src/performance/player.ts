@@ -1,4 +1,5 @@
 import { createSystem, Entity } from '@iwsdk/core';
+import { family } from '../family.js';
 import { loadRecording } from '../journal-store.js';
 import { loadStoryScript, StoryBeat } from '../story-script.js';
 import {
@@ -119,6 +120,7 @@ export class PerformancePlayerSystem extends createSystem({
     this.clock = 0;
     this.wasPaused = false;
     player.setValue(PerformancePlayer, 'duration', +(perf.durationMs / 1000).toFixed(1));
+    family.borrow({ child: perf.child ?? '', performer: perf.performer });
     player.setValue(PerformancePlayer, 'status', `Playing "${perf.title}"${perf.performer ? ` from ${perf.performer}` : ''}.`);
     const story = first(this.queries.stories.entities);
     story?.setValue(StoryState, 'followMode', true);
@@ -202,6 +204,7 @@ export class PerformancePlayerSystem extends createSystem({
   }
 
   private teardown(): void {
+    if (this.perf) family.borrow(null);
     this.audio?.pause();
     this.audio = null;
     if (this.audioUrl) URL.revokeObjectURL(this.audioUrl);

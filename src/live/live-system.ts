@@ -1,4 +1,5 @@
 import { createSystem, Entity } from '@iwsdk/core';
+import { family } from '../family.js';
 import { applyEvent, ApplyTargets, applyTargets } from '../performance/apply.js';
 import { FRAME_STRIDE, readFrame, writeFrame } from '../performance/format.js';
 import { storyTap, TapEvent } from '../performance/story-tap.js';
@@ -204,6 +205,7 @@ export class LiveSystem extends createSystem({
       case 'guest-joined':
         session.setValue(LiveSession, 'peerPresent', true);
         session.setValue(LiveSession, 'status', 'Your family joined. Tell the story!');
+        this.conn?.send({ type: 'hello', performer: family.own.performer, child: family.own.child });
         this.conn?.send({ type: 'state', events: storyTap.current() });
         this.requests = 0;
         this.setTurn(session, 'host');
@@ -231,7 +233,8 @@ export class LiveSystem extends createSystem({
 
   private onPeer(m: PeerMessage): void {
     if (this.role !== 'guest') return; // Only the host's story drives a stage.
-    if (m.type === 'state') this.pending.push(...m.events);
+    if (m.type === 'hello') family.borrow({ performer: m.performer, child: m.child });
+    else if (m.type === 'state') this.pending.push(...m.events);
     else if (m.type === 'event') this.pending.push(m.event);
     else if (m.type === 'turn') {
       const session = first(this.queries.sessions.entities);
@@ -359,6 +362,7 @@ export class LiveSystem extends createSystem({
     handOverride.xrToSecond = false;
     this.turn = 'host';
     if (wasGuest) {
+      family.borrow(null);
       handOverride.cameraTarget = 'override';
       first(this.queries.stories.entities)?.setValue(StoryState, 'followMode', false);
     }

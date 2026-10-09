@@ -1,4 +1,6 @@
 import { World } from '@iwsdk/core';
+import { family } from './family.js';
+import { FamilySetupSystem } from './family-ui.js';
 import projectOptions from 'virtual:iwsdk-project';
 import { AudioSystem } from './audio.js';
 import { CameraHandsSystem } from './camera-hands.js';
@@ -57,7 +59,9 @@ World.create(
     .registerSystem(PerformanceRecorderSystem)
     .registerSystem(LiveSystem)
     .registerSystem(FamilyControlsSystem)
-    .registerSystem(ViewerUISystem);
+    .registerSystem(ViewerUISystem)
+    .registerSystem(FamilySetupSystem);
+  void family.load();
 
   // Development only: webcam-driven hands for testing recognition without a headset.
   if (import.meta.env.DEV) {

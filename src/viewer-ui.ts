@@ -3,6 +3,7 @@ import { listRecordings } from './journal-store.js';
 import type { Performance } from './performance/format.js';
 import { fetchStory } from './performance/sharing.js';
 import { LiveSession, PerformancePlayer, WebcamHands } from './shadowplay-components.js';
+import { family, FamilyNames } from './family.js';
 import { viewerMode } from './viewer-mode.js';
 
 const CONSENT_KEY = 'shadowplay.cameraConsent';
@@ -42,6 +43,13 @@ const CSS = `
 .sp-note { color: #bfae8e; font-size: 14px; margin-top: 6px; min-height: 1.2em; }
 .sp-card.new { border-color: #e0a24a; box-shadow: 0 0 0 2px rgba(224,162,74,0.5); }
 .sp-viewer.playing .sp-code, .sp-viewer.playing .sp-note { display: none; }
+.sp-goodnight { position: fixed; inset: 0; z-index: 940; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 24px; text-align: center; background: radial-gradient(circle at 50% 40%, rgba(58, 39, 22, 0.92), rgba(8, 6, 12, 0.96));
+  font-family: Georgia, 'Times New Roman', serif; cursor: pointer; animation: sp-fade 1.6s ease-out; }
+.sp-goodnight b { font-size: clamp(30px, 8vw, 56px); font-style: italic; font-weight: 600; color: #f2c47a; }
+.sp-goodnight span { font-size: clamp(18px, 4.5vw, 26px); color: #f6e3bd; }
+.sp-goodnight small { margin-top: 18px; color: #8f7f66; font-size: 14px; }
+@keyframes sp-fade { from { opacity: 0; } to { opacity: 1; } }
 `;
 
 /**
@@ -73,6 +81,8 @@ export class ViewerUISystem extends createSystem({
   private lastLiveStatus = '';
   /** What the camera is for right now: joining in to a replay, or showing hands in a live story. */
   private cameraFor: 'replay' | 'live' = 'replay';
+  /** Names of the story playing now, for the goodnight card. */
+  private playingNames: FamilyNames | null = null;
   /** Most recently opened shared story (highlighted in the list). */
   private highlight = '';
 
@@ -337,11 +347,14 @@ export class ViewerUISystem extends createSystem({
       if (this.controls) this.controls.hidden = !playing;
       this.root.classList.toggle('playing', playing || Boolean(this.lastLive));
       if (!playing) {
+        if (p.getValue(PerformancePlayer, 'status') === 'Finished.' && this.playingNames) this.goodnight(this.playingNames);
+        this.playingNames = null;
         // Story over: the camera goes off.
         if (p.getValue(PerformancePlayer, 'joinIn')) this.setCamera(false, 'replay');
         void this.refreshList();
       }
     }
+    if (playing && family.current !== family.own) this.playingNames ??= { ...family.current };
     this.updateLive();
     // Touch the DOM only when something changed.
     const pauseLabel = p.getValue(PerformancePlayer, 'paused') ? 'Play' : 'Pause';
@@ -396,6 +409,20 @@ export class ViewerUISystem extends createSystem({
     }
     const hands = this.cameraOn();
     if (this.handsBtn && this.handsBtn.classList.contains('on') !== hands) this.handsBtn.classList.toggle('on', hands);
+  }
+
+  /** The end of a story someone recorded for you: their goodnight, by name. */
+  private goodnight(names: FamilyNames): void {
+    const card = document.createElement('div');
+    card.className = 'sp-goodnight';
+    card.setAttribute('role', 'dialog');
+    card.innerHTML = '<b></b><span></span><small>Tap to close</small>';
+    card.querySelector('b')!.textContent = names.child ? `Goodnight, ${names.child}.` : 'Goodnight.';
+    card.querySelector('span')!.textContent = names.performer ? `Sweet dreams. Love, ${names.performer}` : 'Sweet dreams.';
+    const close = () => card.remove();
+    card.addEventListener('click', close);
+    setTimeout(close, 12000);
+    document.body.appendChild(card);
   }
 }
 

@@ -91,6 +91,14 @@ export interface StoredSettings {
   placeholderVoice?: boolean;
 }
 
+export async function loadFamily(): Promise<{ child: string; performer: string } | null> {
+  return run<{ child: string; performer: string }>(PROGRESS, 'readonly', (s) => s.get('family') as IDBRequest<{ child: string; performer: string }>);
+}
+
+export async function saveFamily(names: { child: string; performer: string }): Promise<void> {
+  await run(PROGRESS, 'readwrite', (s) => s.put(names, 'family'));
+}
+
 export async function loadSettings(): Promise<StoredSettings | null> {
   return run<StoredSettings>(PROGRESS, 'readonly', (s) => s.get('settings') as IDBRequest<StoredSettings>);
 }

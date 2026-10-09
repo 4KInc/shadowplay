@@ -1,4 +1,5 @@
 import { createSystem, Entity } from '@iwsdk/core';
+import { family } from '../family.js';
 import { loadRecording, saveRecording } from '../journal-store.js';
 import { uploadStory, watchLink } from './sharing.js';
 import { PerformanceRecorder, StoryState } from '../shadowplay-components.js';
@@ -120,8 +121,9 @@ export class PerformanceRecorderSystem extends createSystem({
     const performance: Performance = {
       version: PERFORMANCE_VERSION,
       id: `perf-${this.startedAt.toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-      title: rec.getValue(PerformanceRecorder, 'title') || 'A bedtime story',
-      performer: rec.getValue(PerformanceRecorder, 'performer') ?? '',
+      title: storyTitle(rec.getValue(PerformanceRecorder, 'title') ?? ''),
+      performer: rec.getValue(PerformanceRecorder, 'performer') || family.own.performer,
+      child: family.own.child,
       createdAt: this.startedAt,
       durationMs: Math.round(this.elapsed * 1000),
       script: story.getValue(StoryState, 'script') ?? '',
@@ -177,6 +179,12 @@ export class PerformanceRecorderSystem extends createSystem({
       media.stop();
     });
   }
+}
+
+/** The untouched default title becomes 'A story for Mia' once the family names are set. */
+function storyTitle(title: string): string {
+  if (title && title !== 'A bedtime story') return title;
+  return family.own.child ? `A story for ${family.own.child}` : 'A bedtime story';
 }
 
 function first<T>(set: Iterable<T>): T | undefined {
