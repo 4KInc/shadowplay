@@ -15,7 +15,8 @@ import {
   StageActor,
   StoryState,
 } from '../shadowplay-components.js';
-import { handOverride, handRuntime, JOINT_COUNT, secondHands, stageRuntime } from '../stage-runtime.js';
+import { loadStoryScript, StoryBeat } from '../story-script.js';
+import { handOverride, handRuntime, JOINT_COUNT, secondHands, stageRuntime, xrSecond } from '../stage-runtime.js';
 import { LiveConnection } from './connection.js';
 import { HANDS_HZ, HEADER_BYTES, KIND_HANDS, KIND_VOICE, packBinary, PeerMessage, ServerMessage } from './protocol.js';
 import { LiveVoice } from './voice.js';
@@ -24,6 +25,8 @@ import { LiveVoice } from './voice.js';
 const HAND_TIMEOUT_MS = 500;
 /** How quickly received hands catch up with the latest packet (1/s). */
 const SMOOTHING = 22;
+/** A guest's turn passes back to the host after this long (s) without the guest's hands. */
+const GUEST_IDLE_SECONDS = 12;
 
 /** Received hands, eased between 20 Hz packets. */
 class SmoothedHands {
@@ -96,6 +99,10 @@ export class LiveSystem extends createSystem({
   private targets!: ApplyTargets;
   private unsubscribeTap: (() => void) | null = null;
   private micStarting = false;
+  private turn: 'host' | 'guest' = 'host';
+  private beats: StoryBeat[] = [];
+  private requests = 0;
+  private guestIdle = 0;
 
   init(): void {
     this.targets = applyTargets(this.queries);
@@ -123,15 +130,25 @@ export class LiveSystem extends createSystem({
     this.remote.step(delta);
     const peerHands = (this.remote.hasLeft ? 1 : 0) + (this.remote.hasRight ? 1 : 0);
     if (session.getValue(LiveSession, 'peerHands') !== peerHands) session.setValue(LiveSession, 'peerHands', peerHands);
-    if (this.role === 'guest') {
-      // The host performs on this stage; their hands drive the creatures here.
+    // Whoever's turn it is performs (their hands drive recognition and the
+    // creatures); the other person's hands cast as the second pair.
+    const remoteLeads = (this.role === 'guest') === (this.turn === 'host');
+    if (remoteLeads) {
       handOverride.active = true;
       handOverride.source = 'live';
       handOverride.left = this.remote.hasLeft ? this.remote.left : null;
       handOverride.right = this.remote.hasRight ? this.remote.right : null;
     } else {
+      if (this.role === 'host' && handOverride.source === 'live') this.releaseOverride();
       secondHands.left = this.remote.hasLeft ? this.remote.left : null;
       secondHands.right = this.remote.hasRight ? this.remote.right : null;
+    }
+    if (this.role === 'host' && this.turn === 'guest') {
+      this.guestIdle = peerHands > 0 ? 0 : this.guestIdle + delta;
+      if (this.guestIdle > GUEST_IDLE_SECONDS) {
+        this.setTurn(session, 'host');
+        session.setValue(LiveSession, 'status', 'Your turn again.');
+      }
     }
 
     this.sinceSend += delta;
@@ -156,6 +173,12 @@ export class LiveSystem extends createSystem({
       story?.setValue(StoryState, 'followMode', true);
       handOverride.cameraTarget = 'second';
       first(this.queries.players.entities)?.setValue(PerformancePlayer, 'playing', false);
+    }
+    if (role === 'host') {
+      const script = first(this.queries.stories.entities)?.getValue(StoryState, 'script') ?? '';
+      void loadStoryScript(script)
+        .then((s) => (this.beats = s.beats))
+        .catch(() => (this.beats = []));
     }
     this.conn = new LiveConnection(role, code, {
       onServer: (m) => this.onServer(session, m),
@@ -182,7 +205,12 @@ export class LiveSystem extends createSystem({
         session.setValue(LiveSession, 'peerPresent', true);
         session.setValue(LiveSession, 'status', 'Your family joined. Tell the story!');
         this.conn?.send({ type: 'state', events: storyTap.current() });
-        this.unsubscribeTap ??= storyTap.subscribe((event) => this.conn?.send({ type: 'event', event }));
+        this.requests = 0;
+        this.setTurn(session, 'host');
+        this.unsubscribeTap ??= storyTap.subscribe((event) => {
+          this.conn?.send({ type: 'event', event });
+          if (event.type === 'beat') this.onHostBeat(session, Number(event.data.index));
+        });
         break;
       case 'guest-left':
         session.setValue(LiveSession, 'peerPresent', false);
@@ -190,6 +218,7 @@ export class LiveSystem extends createSystem({
         this.unsubscribeTap?.();
         this.unsubscribeTap = null;
         this.remote.clear();
+        this.setTurn(session, 'host');
         break;
       case 'ended':
         this.leave(session, m.reason === 'host-left' ? 'The story has ended. Goodnight!' : 'The live story ended.');
@@ -204,6 +233,51 @@ export class LiveSystem extends createSystem({
     if (this.role !== 'guest') return; // Only the host's story drives a stage.
     if (m.type === 'state') this.pending.push(...m.events);
     else if (m.type === 'event') this.pending.push(m.event);
+    else if (m.type === 'turn') {
+      const session = first(this.queries.sessions.entities);
+      if (session) this.setTurn(session, m.who);
+    }
+  }
+
+  /** Host, duet on: every other shape request is the guest's, until that creature bows out. */
+  private onHostBeat(session: Entity, index: number): void {
+    const type = this.beats[index]?.type;
+    if (type === 'release' && this.turn === 'guest') {
+      this.setTurn(session, 'host');
+      session.setValue(LiveSession, 'status', 'Well done, both of you! Your turn next.');
+      return;
+    }
+    if (type !== 'request' || !session.getValue(LiveSession, 'duet') || this.turn !== 'host') return;
+    this.requests++;
+    if (this.requests % 2 === 1) {
+      this.setTurn(session, 'guest');
+      session.setValue(LiveSession, 'status', "Your family's turn: they make the shape.");
+    }
+  }
+
+  private setTurn(session: Entity, who: 'host' | 'guest'): void {
+    const changed = who !== this.turn;
+    this.turn = who;
+    this.guestIdle = 0;
+    if (session.getValue(LiveSession, 'turn') !== who) session.setValue(LiveSession, 'turn', who);
+    if (this.role === 'host') {
+      handOverride.xrToSecond = who === 'guest';
+      this.conn?.send({ type: 'turn', who });
+    } else if (this.role === 'guest') {
+      // The guest's camera hands perform on their turn, and join as the second pair otherwise.
+      handOverride.cameraTarget = who === 'guest' ? 'override' : 'second';
+      if (secondHands.left === this.remote.left) secondHands.left = null;
+      if (secondHands.right === this.remote.right) secondHands.right = null;
+      if (who === 'guest' && handOverride.source === 'live') this.releaseOverride();
+    }
+    if (changed && who === 'host' && this.role === 'host') this.releaseOverride();
+  }
+
+  private releaseOverride(): void {
+    if (handOverride.source !== 'live') return;
+    handOverride.active = false;
+    handOverride.left = handOverride.right = null;
+    handOverride.source = '';
   }
 
   private applyRemote(e: TapEvent): void {
@@ -222,12 +296,17 @@ export class LiveSystem extends createSystem({
   private sendHands(): void {
     let left: Float32Array | null;
     let right: Float32Array | null;
-    if (this.role === 'host') {
+    const leading = (this.role === 'host') === (this.turn === 'host');
+    if (leading) {
       left = handRuntime.left.tracked ? handRuntime.left.joints : null;
       right = handRuntime.right.tracked ? handRuntime.right.joints : null;
+    } else if (this.role === 'host') {
+      left = xrSecond.left;
+      right = xrSecond.right;
     } else {
-      left = secondHands.left;
-      right = secondHands.right;
+      // Guest during the host's turn: their camera hands, if shown.
+      left = secondHands.left === this.remote.left ? null : secondHands.left;
+      right = secondHands.right === this.remote.right ? null : secondHands.right;
     }
     if (!left && !right) return;
     this.frame.fill(0);
@@ -276,11 +355,9 @@ export class LiveSystem extends createSystem({
     this.pending.length = 0;
     if (secondHands.left === this.remote.left) secondHands.left = null;
     if (secondHands.right === this.remote.right) secondHands.right = null;
-    if (handOverride.source === 'live') {
-      handOverride.active = false;
-      handOverride.left = handOverride.right = null;
-      handOverride.source = '';
-    }
+    this.releaseOverride();
+    handOverride.xrToSecond = false;
+    this.turn = 'host';
     if (wasGuest) {
       handOverride.cameraTarget = 'override';
       first(this.queries.stories.entities)?.setValue(StoryState, 'followMode', false);
@@ -294,6 +371,7 @@ export class LiveSystem extends createSystem({
     session.setValue(LiveSession, 'talking', false);
     session.setValue(LiveSession, 'hearing', false);
     session.setValue(LiveSession, 'peerHands', 0);
+    session.setValue(LiveSession, 'turn', 'host');
     session.setValue(LiveSession, 'code', '');
     if (status) session.setValue(LiveSession, 'status', status);
   }

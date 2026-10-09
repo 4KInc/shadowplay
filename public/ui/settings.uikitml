@@ -133,6 +133,9 @@
     <button id="talk-button" class="family">
       <span id="talk-label" class="toggle-text">Talk: Off</span>
     </button>
+    <button id="duet-button" class="family">
+      <span id="duet-label" class="toggle-text">Take turns: Off</span>
+    </button>
   </div>
   <div id="family-status" class="family-status">Record a bedtime story, or go live with your family.</div>
 

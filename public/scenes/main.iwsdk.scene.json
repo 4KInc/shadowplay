@@ -564,6 +564,8 @@
           "talk": false,
           "talking": false,
           "hearing": false,
+          "duet": false,
+          "turn": "host",
           "peerHands": 0,
           "status": ""
         }

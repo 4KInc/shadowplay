@@ -19,7 +19,9 @@ export type PeerMessage =
   | { type: 'hello'; name: string; script: string }
   /** Host -> guest: everything to start mid-story (snapshot, beat, lamp, staging, awake creatures). */
   | { type: 'state'; events: TapEvent[] }
-  | { type: 'event'; event: TapEvent };
+  | { type: 'event'; event: TapEvent }
+  /** Host -> guest: whose hands make the shapes now. */
+  | { type: 'turn'; who: 'host' | 'guest' };
 
 export type ServerMessage =
   | { type: 'room'; code: string }

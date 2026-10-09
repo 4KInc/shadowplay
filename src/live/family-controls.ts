@@ -72,6 +72,7 @@ export class FamilyControlsSystem extends createSystem({
       if (rec.getValue(PerformanceRecorder, 'recording')) return;
       live.setValue(LiveSession, 'role', live.getValue(LiveSession, 'role') === 'off' ? 'host' : 'off');
     });
+    on('duet-button', 'duet-label', () => live.setValue(LiveSession, 'duet', !live.getValue(LiveSession, 'duet')));
     on('talk-button', 'talk-label', () => {
       if (live.getValue(LiveSession, 'role') === 'off') return;
       live.setValue(LiveSession, 'talk', !live.getValue(LiveSession, 'talk'));
@@ -88,9 +89,11 @@ export class FamilyControlsSystem extends createSystem({
     const hasStory = Boolean(rec.getValue(PerformanceRecorder, 'lastId'));
     const role = live.getValue(LiveSession, 'role') ?? 'off';
     const talk = Boolean(live.getValue(LiveSession, 'talk'));
+    const duet = Boolean(live.getValue(LiveSession, 'duet'));
+    const turn = live.getValue(LiveSession, 'turn') ?? 'host';
     const liveStatus = live.getValue(LiveSession, 'status') ?? '';
     const recStatus = rec.getValue(PerformanceRecorder, 'status') ?? '';
-    const key = `${recording}|${seconds}|${hasStory}|${role}|${talk}|${liveStatus}|${recStatus}`;
+    const key = `${recording}|${seconds}|${hasStory}|${role}|${talk}|${duet}|${turn}|${liveStatus}|${recStatus}`;
     if (key === this.shown) return;
     this.shown = key;
 
@@ -99,6 +102,7 @@ export class FamilyControlsSystem extends createSystem({
     this.set('send-button', 'Send to family', hasStory && !recording ? 'off' : 'dim');
     this.set('live-button', isLive ? 'End live story' : 'Go live', isLive ? 'on' : recording ? 'dim' : 'off');
     this.set('talk-button', `Talk: ${talk ? 'On' : 'Off'}`, talk ? 'on' : isLive ? 'off' : 'dim');
+    this.set('duet-button', turn === 'guest' ? 'Their turn' : `Take turns: ${duet ? 'On' : 'Off'}`, duet ? 'on' : 'off');
     // Whichever news is newest.
     if (liveStatus !== this.lastLive && liveStatus) this.message = liveStatus;
     else if (recStatus !== this.lastRec && recStatus) this.message = recStatus;

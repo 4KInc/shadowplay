@@ -353,16 +353,20 @@ export class ViewerUISystem extends createSystem({
       this.lastStatus = status;
       this.status.textContent = status;
     }
-    const yourTurn = Boolean(p.getValue(PerformancePlayer, 'inJoinIn'));
+    // Your turn: a join-in moment in a replay, or the guest's turn in a live duet.
+    const live = this.liveEntity();
+    const liveTurn = live?.getValue(LiveSession, 'role') === 'guest' && live.getValue(LiveSession, 'turn') === 'guest';
+    const yourTurn = Boolean(p.getValue(PerformancePlayer, 'inJoinIn')) || liveTurn;
+    const turnText = liveTurn && !this.cameraOn() ? 'Your turn! Tap My hands to play.' : 'Your turn! Make the shape with your hands.';
     if (yourTurn && !this.turn) {
       this.turn = document.createElement('div');
       this.turn.className = 'sp-turn';
-      this.turn.textContent = 'Your turn! Make the shape with your hands.';
       document.body.appendChild(this.turn);
     } else if (!yourTurn && this.turn) {
       this.turn.remove();
       this.turn = null;
     }
+    if (this.turn && this.turn.textContent !== turnText) this.turn.textContent = turnText;
   }
 
   /** The live-story row: shown while this device is a guest in a live story. */

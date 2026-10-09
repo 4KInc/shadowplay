@@ -71,6 +71,7 @@ export class LiveConnection {
       case 'hello':
       case 'state':
       case 'event':
+      case 'turn':
         this.handlers.onPeer(msg as PeerMessage);
         break;
     }

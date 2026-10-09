@@ -88,6 +88,7 @@ export const handOverride: {
   radii: Float32Array;
   cameraAllowed: boolean;
   cameraTarget: 'override' | 'second';
+  xrToSecond: boolean;
 } = {
   active: false,
   source: '',
@@ -98,6 +99,8 @@ export const handOverride: {
   cameraAllowed: true,
   /** Where camera hands go: the performing pair, or the second pair (a Live guest while the host performs). */
   cameraTarget: 'override',
+  /** While the override performs (a Live guest's turn), this headset's own hands still cast, as the second pair. */
+  xrToSecond: false,
 };
 
 /**
@@ -107,6 +110,12 @@ export const handOverride: {
  * stage's recognition. Null means not shown.
  */
 export const secondHands: { left: Float32Array | null; right: Float32Array | null } = {
+  left: null,
+  right: null,
+};
+
+/** This headset's own hands while they cast as the second pair (handOverride.xrToSecond); written by the caster. */
+export const xrSecond: { left: Float32Array | null; right: Float32Array | null } = {
   left: null,
   right: null,
 };

@@ -389,6 +389,10 @@ export const LiveSession = createComponent('LiveSession', {
   talking: { type: Types.Boolean, default: false },
   /** The other person's voice is arriving. */
   hearing: { type: Types.Boolean, default: false },
+  /** Host: take turns with the guest at shape requests (a duet). */
+  duet: { type: Types.Boolean, default: false },
+  /** Whose hands make the shapes right now. */
+  turn: { type: Types.Enum, enum: { Host: 'host', Guest: 'guest' }, default: 'host' },
   /** How many of the other person's hands are on this stage (0-2). */
   peerHands: { type: Types.Int8, default: 0 },
   status: { type: Types.String, default: '' },
