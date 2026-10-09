@@ -46,7 +46,10 @@ export default defineConfig({
     port: 8082,
     open: false,
     // The sharing API runs as its own process in development (npm run server).
-    proxy: { '/api': 'http://localhost:8787' },
+    proxy: {
+      '/api': 'http://localhost:8787',
+      '/live': { target: 'ws://localhost:8787', ws: true },
+    },
   },
   build: {
     outDir: 'dist',

@@ -1,4 +1,4 @@
-import { createSystem, Entity, Vector3 } from '@iwsdk/core';
+import { createSystem, Entity } from '@iwsdk/core';
 import { loadRecording } from '../journal-store.js';
 import { loadStoryScript, StoryBeat } from '../story-script.js';
 import {
@@ -6,7 +6,6 @@ import {
   HiddenProp,
   Moth,
   PerformancePlayer,
-  PuppetStates,
   Scenery,
   ShadowPuppet,
   ShapeRecognizer,
@@ -15,7 +14,8 @@ import {
   StoryState,
 } from '../shadowplay-components.js';
 import { handOverride, JOINT_COUNT, stageRuntime } from '../stage-runtime.js';
-import { decodeHands, Performance, PerformanceEvent, pointFromStage, readFrame } from './format.js';
+import { applyEvent, ApplyTargets, applyTargets } from './apply.js';
+import { decodeHands, Performance, PerformanceEvent, readFrame } from './format.js';
 
 /** Re-sync the voice when it drifts this far (s) from the performance clock. */
 const AUDIO_DRIFT = 0.25;
@@ -49,13 +49,14 @@ export class PerformancePlayerSystem extends createSystem({
   private audioUrl = '';
   private left = new Float32Array(JOINT_COUNT * 3);
   private right = new Float32Array(JOINT_COUNT * 3);
-  private lampPos = new Vector3();
+  private targets!: ApplyTargets;
   private wasPaused = false;
   private beats: StoryBeat[] = [];
   /** Live join-in segment: the story beat index at which the recording takes over again. */
   private rejoinAt = -1;
 
   init(): void {
+    this.targets = applyTargets(this.queries);
     this.cleanupFuncs.push(() => this.teardown());
   }
 
@@ -129,54 +130,16 @@ export class PerformancePlayerSystem extends createSystem({
   }
 
   private apply(e: PerformanceEvent): void {
-    const story = first(this.queries.stories.entities);
-    const rec = first(this.queries.recognizers.entities);
-    switch (e.type) {
-      case 'snapshot':
-        this.applySnapshot(e.data);
-        break;
-      case 'beat': {
-        const index = Number(e.data.index);
-        story?.setValue(StoryState, 'enterBeat', index);
-        const type = this.beats[index]?.type;
-        const player = first(this.queries.players.entities);
-        if (player?.getValue(PerformancePlayer, 'joinIn') && (type === 'request' || type === 'choice')) {
-          this.startJoinIn(player, index);
-        }
-        break;
-      }
-      case 'wake': {
-        // Make the creature wake on cue even if recognition would differ here.
-        const puppet = this.puppetFor(String(e.data.shape));
-        if (rec && puppet && puppet.getValue(ShadowPuppet, 'state') !== PuppetStates.Alive) {
-          if (puppet.getValue(ShadowPuppet, 'state') === PuppetStates.Hidden) {
-            puppet.setValue(ShadowPuppet, 'state', PuppetStates.Outline);
-          }
-          rec.setValue(ShapeRecognizer, 'matchedHand', String(e.data.hand) as never);
-          rec.setValue(ShapeRecognizer, 'matchedShape', String(e.data.shape) as never);
-          rec.setValue(ShapeRecognizer, 'twoHanded', Boolean(e.data.twoHanded));
-        }
-        break;
-      }
-      case 'release': {
-        const puppet = this.puppetFor(String(e.data.shape));
-        if (puppet?.getValue(ShadowPuppet, 'state') === PuppetStates.Alive) {
-          puppet.setValue(ShadowPuppet, 'state', PuppetStates.Releasing);
-        }
-        break;
-      }
-      case 'stage':
-        for (const s of this.queries.stages.entities) {
-          s.setValue(Stage, 'lampLevel', Number(e.data.lampLevel));
-          s.setValue(Stage, 'finale', Number(e.data.finale));
-        }
-        for (const m of this.queries.moths.entities) m.setValue(Moth, 'glow', Number(e.data.glow));
-        break;
-      case 'lamp': {
-        const lamp = first(this.queries.lamps.entities)?.object3D;
-        if (lamp) lamp.position.copy(pointFromStage(Number(e.data.x), Number(e.data.y), Number(e.data.z), this.lampPos));
-        break;
-      }
+    if (e.type !== 'beat') {
+      applyEvent(e, this.targets);
+      return;
+    }
+    const index = Number(e.data.index);
+    first(this.queries.stories.entities)?.setValue(StoryState, 'enterBeat', index);
+    const type = this.beats[index]?.type;
+    const player = first(this.queries.players.entities);
+    if (player?.getValue(PerformancePlayer, 'joinIn') && (type === 'request' || type === 'choice')) {
+      this.startJoinIn(player, index);
     }
   }
 
@@ -226,45 +189,6 @@ export class PerformancePlayerSystem extends createSystem({
       void this.audio.play().catch(() => undefined);
     }
     player.setValue(PerformancePlayer, 'status', 'Back to the story...');
-  }
-
-  private applySnapshot(d: PerformanceEvent['data']): void {
-    // Clear the viewer's own creatures and requests: the replay starts on a clean stage.
-    for (const p of this.queries.puppets.entities) p.setValue(ShadowPuppet, 'state', PuppetStates.Hidden);
-    for (const r of this.queries.recognizers.entities) {
-      r.setValue(ShapeRecognizer, 'target', 'none');
-      r.setValue(ShapeRecognizer, 'target2', 'none');
-      r.setValue(ShapeRecognizer, 'matchedHand', 'none');
-      r.setValue(ShapeRecognizer, 'matchedShape', 'none');
-      r.setValue(ShapeRecognizer, 'heldFor', 0);
-    }
-    for (const s of this.queries.scenery.entities) s.setValue(Scenery, 'set', String(d.scenery) as never);
-    for (const m of this.queries.moths.entities) {
-      m.setValue(Moth, 'restU', Number(d.mothRestU));
-      m.setValue(Moth, 'restV', Number(d.mothRestV));
-      m.setValue(Moth, 'glow', Number(d.mothGlow));
-      m.setValue(Moth, 'mode', String(d.mothMode) as never);
-    }
-    for (const a of this.queries.actors.entities) {
-      a.setValue(StageActor, 'u', Number(d.actorU));
-      a.setValue(StageActor, 'v', Number(d.actorV));
-      a.setValue(StageActor, 'state', String(d.actorState) as never);
-    }
-    for (const s of this.queries.stages.entities) {
-      s.setValue(Stage, 'lampLevel', Number(d.lampLevel));
-      s.setValue(Stage, 'finale', Number(d.finale));
-    }
-    for (const p of this.queries.props.entities) {
-      p.setValue(HiddenProp, 'u', Number(d.propU));
-      p.setValue(HiddenProp, 'active', Boolean(d.propActive));
-    }
-  }
-
-  private puppetFor(shape: string): Entity | undefined {
-    for (const p of this.queries.puppets.entities) {
-      if (p.getValue(ShadowPuppet, 'shape') === shape) return p;
-    }
-    return undefined;
   }
 
   private finish(player: Entity, status: string): void {

@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { isCode, newCode, normaliseCode } from './codes.ts';
+import { attachLive, liveRoomCount } from './live.ts';
 import { DiskStore, type StoryStore } from './storage.ts';
 
 /**
@@ -13,6 +14,7 @@ import { DiskStore, type StoryStore } from './storage.ts';
  *   POST /api/stories        upload a performance -> { code, expiresAt }
  *   GET  /api/stories/:code  fetch a performance by family code
  *   GET  /api/health
+ *   WS   /live                live rooms (see live.ts)
  */
 const PORT = Number(process.env.PORT ?? 8787);
 const STATIC_DIR = process.env.STATIC_DIR ?? join(process.cwd(), 'dist');
@@ -162,7 +164,7 @@ const server = createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://local');
   const path = url.pathname;
   const route = async () => {
-    if (path === '/api/health') return json(res, 200, { ok: true });
+    if (path === '/api/health') return json(res, 200, { ok: true, liveRooms: liveRoomCount() });
     if (path === '/api/stories' && req.method === 'POST') return uploadStory(req, res);
     const m = /^\/api\/stories\/([^/]+)$/.exec(path);
     if (m && req.method === 'GET') return fetchStory(req, res, m[1]);
@@ -184,4 +186,5 @@ async function sweep(): Promise<void> {
 setInterval(() => void sweep(), 3600_000).unref();
 void sweep();
 
+attachLive(server);
 server.listen(PORT, () => console.log(`[server] Shadowplay on :${PORT} (stories in ${DATA_DIR})`));

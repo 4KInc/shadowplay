@@ -1,19 +1,7 @@
-import { createSystem, Entity, Vector3 } from '@iwsdk/core';
+import { createSystem, Entity } from '@iwsdk/core';
 import { loadRecording, saveRecording } from '../journal-store.js';
 import { uploadStory, watchLink } from './sharing.js';
-import {
-  DeskLamp,
-  HiddenProp,
-  Moth,
-  PerformanceRecorder,
-  PuppetStates,
-  ShadowPuppet,
-  Scenery,
-  ShapeRecognizer,
-  Stage,
-  StageActor,
-  StoryState,
-} from '../shadowplay-components.js';
+import { PerformanceRecorder, StoryState } from '../shadowplay-components.js';
 import { handRuntime, stageRuntime } from '../stage-runtime.js';
 import {
   encodeHands,
@@ -22,35 +10,21 @@ import {
   Performance,
   PERFORMANCE_VERSION,
   PerformanceEvent,
-  pointToStage,
   writeFrame,
 } from './format.js';
+import { storyTap } from './story-tap.js';
 
 /** Longest performance (seconds): a bedtime story, not a film. */
 const MAX_SECONDS = 15 * 60;
-/** Lamp moves smaller than this (m) are not recorded. */
-const LAMP_EPSILON = 0.005;
-/** Staging values (lamp level, finale, glow): record changes larger than this, at most 20 times a second. */
-const STAGE_EPSILON = 0.02;
-const STAGE_INTERVAL_MS = 50;
-
 /**
  * Records a performance on this stage: both hands at 30 Hz in stage-relative
- * coordinates, story beats as they are entered, creatures waking and
- * releasing, lamp moves, and (optionally) the performer's voice. Saved to
+ * coordinates, the story tap's events (beats, creatures waking and
+ * releasing, lamp moves, staging), and (optionally) the performer's voice. Saved to
  * IndexedDB on stop; the player replays it on any stage.
  */
 export class PerformanceRecorderSystem extends createSystem({
   recorders: { required: [PerformanceRecorder] },
   stories: { required: [StoryState] },
-  recognizers: { required: [ShapeRecognizer] },
-  puppets: { required: [ShadowPuppet] },
-  lamps: { required: [DeskLamp] },
-  moths: { required: [Moth] },
-  scenery: { required: [Scenery] },
-  actors: { required: [StageActor] },
-  stages: { required: [Stage] },
-  props: { required: [HiddenProp] },
 }) {
   private active = false;
   private elapsed = 0;
@@ -58,19 +32,19 @@ export class PerformanceRecorderSystem extends createSystem({
   private frames = new Int16Array(0);
   private frameCount = 0;
   private events: PerformanceEvent[] = [];
-  private lastBeat = -1;
-  private puppetStates = new Map<Entity, string>();
-  private lastLamp = new Vector3();
-  private lampPos = new Vector3();
   private media: MediaRecorder | null = null;
   private mic: MediaStream | null = null;
   private chunks: Blob[] = [];
   private startedAt = 0;
-  private lastStage = { lampLevel: -1, finale: -1, glow: -1, t: -1000 };
   private sharing = false;
 
   init(): void {
-    this.cleanupFuncs.push(() => this.releaseMic());
+    this.cleanupFuncs.push(
+      () => this.releaseMic(),
+      storyTap.subscribe((e) => {
+        if (this.active) this.events.push({ t: Math.round(this.elapsed * 1000), ...e });
+      }),
+    );
   }
 
   update(delta: number): void {
@@ -78,66 +52,32 @@ export class PerformanceRecorderSystem extends createSystem({
     const story = first(this.queries.stories.entities);
     if (!rec || !story) return;
     const want = Boolean(rec.getValue(PerformanceRecorder, 'recording'));
-    if (want && !this.active) this.beginRecording(rec, story);
+    if (want && !this.active) this.beginRecording(rec);
     if (!want && this.active) void this.finishRecording(rec, story);
     if (rec.getValue(PerformanceRecorder, 'shareRequested') && !this.sharing) void this.share(rec);
     if (!this.active || !stageRuntime.ready) return;
 
     this.elapsed += delta;
-    const t = Math.round(this.elapsed * 1000);
     if (this.elapsed >= this.nextFrameAt) {
       this.nextFrameAt += 1 / FRAME_HZ;
       this.captureFrame();
     }
-    this.captureEvents(story, t);
     rec.setValue(PerformanceRecorder, 'seconds', +this.elapsed.toFixed(1));
     if (this.elapsed >= MAX_SECONDS) rec.setValue(PerformanceRecorder, 'recording', false);
   }
 
-  private beginRecording(rec: Entity, story: Entity): void {
+  private beginRecording(rec: Entity): void {
     this.active = true;
     this.elapsed = 0;
     this.nextFrameAt = 0;
     this.frameCount = 0;
     this.frames = new Int16Array(FRAME_HZ * 60 * FRAME_STRIDE);
     this.events = [];
-    this.puppetStates.clear();
     this.startedAt = Date.now();
     // The stage as it is now (a recording may start mid-story), then the beat in progress.
-    this.events.push({ t: 0, type: 'snapshot', data: this.snapshot() });
-    this.lastStage = { lampLevel: -1, finale: -1, glow: -1, t: -1000 };
-    this.lastBeat = -1;
-    this.captureEvents(story, 0);
-    const lamp = first(this.queries.lamps.entities)?.object3D;
-    if (lamp) {
-      this.lastLamp.copy(lamp.position);
-      this.events.push({ t: 0, type: 'lamp', data: pointToStage(lamp.position) });
-    }
+    for (const e of storyTap.current()) this.events.push({ t: 0, ...e });
     rec.setValue(PerformanceRecorder, 'status', 'Recording...');
     if (rec.getValue(PerformanceRecorder, 'withVoice')) void this.startMic(rec);
-  }
-
-  /** Story-driven stage state that the beats in the recording may not re-establish. */
-  private snapshot(): Record<string, string | number | boolean> {
-    const moth = first(this.queries.moths.entities);
-    const scenery = first(this.queries.scenery.entities);
-    const actor = first(this.queries.actors.entities);
-    const stage = first(this.queries.stages.entities);
-    const prop = first(this.queries.props.entities);
-    return {
-      scenery: scenery?.getValue(Scenery, 'set') ?? 'none',
-      mothMode: moth?.getValue(Moth, 'mode') ?? 'hidden',
-      mothRestU: moth?.getValue(Moth, 'restU') ?? 0,
-      mothRestV: moth?.getValue(Moth, 'restV') ?? 0,
-      mothGlow: moth?.getValue(Moth, 'glow') ?? 0,
-      actorState: actor?.getValue(StageActor, 'state') ?? 'hidden',
-      actorU: actor?.getValue(StageActor, 'u') ?? 0.3,
-      actorV: actor?.getValue(StageActor, 'v') ?? -0.26,
-      lampLevel: stage?.getValue(Stage, 'lampLevel') ?? 1,
-      finale: stage?.getValue(Stage, 'finale') ?? 0,
-      propActive: Boolean(prop?.getValue(HiddenProp, 'active')),
-      propU: prop?.getValue(HiddenProp, 'u') ?? -0.34,
-    };
   }
 
   private async startMic(rec: Entity): Promise<void> {
@@ -172,65 +112,6 @@ export class PerformanceRecorderSystem extends createSystem({
     const l = handRuntime.left.tracked ? handRuntime.left.joints : null;
     const r = handRuntime.right.tracked ? handRuntime.right.joints : null;
     writeFrame(this.frames, this.frameCount++, l, r);
-  }
-
-  private captureEvents(story: Entity, t: number): void {
-    const beat = story.getValue(StoryState, 'beatIndex') ?? -1;
-    if (beat !== this.lastBeat && beat >= 0) {
-      this.lastBeat = beat;
-      this.events.push({ t, type: 'beat', data: { index: beat, id: story.getValue(StoryState, 'beatId') ?? '' } });
-    }
-    const rec = first(this.queries.recognizers.entities);
-    for (const p of this.queries.puppets.entities) {
-      const state = p.getValue(ShadowPuppet, 'state') ?? '';
-      const before = this.puppetStates.get(p);
-      if (state === before) continue;
-      this.puppetStates.set(p, state);
-      const shape = p.getValue(ShadowPuppet, 'shape') ?? '';
-      if (state === PuppetStates.Alive) {
-        this.events.push({
-          t,
-          type: 'wake',
-          data: {
-            shape,
-            hand: p.getValue(ShadowPuppet, 'hand') ?? 'right',
-            twoHanded: Boolean(rec?.getValue(ShapeRecognizer, 'twoHanded')),
-          },
-        });
-      } else if (before === PuppetStates.Alive) {
-        this.events.push({ t, type: 'release', data: { shape } });
-      }
-    }
-    this.captureStage(t);
-    const lamp = first(this.queries.lamps.entities)?.object3D;
-    if (lamp && lamp.position.distanceTo(this.lastLamp) > LAMP_EPSILON) {
-      this.lastLamp.copy(lamp.position);
-      this.events.push({ t, type: 'lamp', data: pointToStage(this.lampPos.copy(lamp.position)) });
-    }
-  }
-
-  /** The lamp's flicker, the finale's swell and Mo's glow are animated by the story itself. */
-  private captureStage(t: number): void {
-    if (t - this.lastStage.t < STAGE_INTERVAL_MS) return;
-    const stage = first(this.queries.stages.entities);
-    const moth = first(this.queries.moths.entities);
-    const lampLevel = stage?.getValue(Stage, 'lampLevel') ?? 1;
-    const finale = stage?.getValue(Stage, 'finale') ?? 0;
-    const glow = moth?.getValue(Moth, 'glow') ?? 0;
-    const s = this.lastStage;
-    if (
-      Math.abs(lampLevel - s.lampLevel) < STAGE_EPSILON &&
-      Math.abs(finale - s.finale) < STAGE_EPSILON &&
-      Math.abs(glow - s.glow) < STAGE_EPSILON
-    ) {
-      return;
-    }
-    this.lastStage = { lampLevel, finale, glow, t };
-    this.events.push({
-      t,
-      type: 'stage',
-      data: { lampLevel: +lampLevel.toFixed(3), finale: +finale.toFixed(3), glow: +glow.toFixed(3) },
-    });
   }
 
   private async finishRecording(rec: Entity, story: Entity): Promise<void> {

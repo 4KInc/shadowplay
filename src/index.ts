@@ -11,6 +11,7 @@ import { MothSystem } from './moth.js';
 import { NarrationSystem } from './narration.js';
 import { PerformancePlayerSystem } from './performance/player.js';
 import { PerformanceRecorderSystem } from './performance/recorder.js';
+import { StoryTapSystem } from './performance/story-tap.js';
 import { HiddenPropSystem } from './props.js';
 import { QualitySystem } from './quality.js';
 import { RecognitionLabSystem } from './recognition-lab.js';
@@ -50,6 +51,7 @@ World.create(
     .registerSystem(CaptionSystem)
     .registerSystem(AudioSystem)
     .registerSystem(QualitySystem)
+    .registerSystem(StoryTapSystem)
     .registerSystem(PerformanceRecorderSystem)
     .registerSystem(ViewerUISystem);
 
