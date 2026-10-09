@@ -4,7 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { extname, join, normalize } from 'node:path';
 import { isCode, newCode, normaliseCode } from './codes.ts';
 import { attachLive, liveRoomCount } from './live.ts';
-import { DiskStore, type StoryStore } from './storage.ts';
+import { DiskStore, GcsStore, type StoryStore } from './storage.ts';
 
 /**
  * Shadowplay server: serves the app and a tiny private sharing API for
@@ -23,7 +23,11 @@ const MAX_BYTES = Number(process.env.MAX_STORY_BYTES ?? 30 * 1024 * 1024);
 const TTL_DAYS = Number(process.env.STORY_TTL_DAYS ?? 30);
 const PERFORMANCE_VERSION = 'shadowplay.performance.v1';
 
-const store: StoryStore = new DiskStore(DATA_DIR);
+/** STORY_BUCKET (production): a Cloud Storage bucket; otherwise local disk. */
+const BUCKET = process.env.STORY_BUCKET ?? '';
+const store: StoryStore = BUCKET
+  ? new GcsStore(BUCKET, process.env.STORAGE_API ?? undefined, process.env.STORAGE_TOKEN_URL ?? undefined)
+  : new DiskStore(DATA_DIR);
 
 // ---------------------------------------------------------------- rate limiting
 
@@ -187,4 +191,4 @@ setInterval(() => void sweep(), 3600_000).unref();
 void sweep();
 
 attachLive(server);
-server.listen(PORT, () => console.log(`[server] Shadowplay on :${PORT} (stories in ${DATA_DIR})`));
+server.listen(PORT, () => console.log(`[server] Shadowplay on :${PORT} (stories in ${BUCKET ? `gs://${BUCKET}` : DATA_DIR})`));

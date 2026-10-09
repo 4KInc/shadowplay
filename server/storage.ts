@@ -54,3 +54,75 @@ export class DiskStore implements StoryStore {
     return old;
   }
 }
+
+/**
+ * Google Cloud Storage bucket, through the JSON API with the runtime's own
+ * service account (Cloud Run metadata server): no SDK needed. Expiry is the
+ * bucket's lifecycle rule (delete objects older than the TTL), so olderThan
+ * returns nothing; the TTL is still checked on every read.
+ */
+export class GcsStore implements StoryStore {
+  private token = '';
+  private tokenExpires = 0;
+  private bucket: string;
+  private api: string;
+  private tokenUrl: string;
+
+  /** `tokenUrl` '' sends no credentials (a local test double). */
+  constructor(
+    bucket: string,
+    api = 'https://storage.googleapis.com',
+    tokenUrl = 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
+  ) {
+    this.bucket = bucket;
+    this.api = api;
+    this.tokenUrl = tokenUrl;
+  }
+
+  private async auth(): Promise<Record<string, string>> {
+    if (!this.tokenUrl) return {};
+    if (Date.now() > this.tokenExpires - 60_000) {
+      const res = await fetch(this.tokenUrl, { headers: { 'Metadata-Flavor': 'Google' } });
+      if (!res.ok) throw new Error(`metadata token ${res.status}`);
+      const body = (await res.json()) as { access_token: string; expires_in: number };
+      this.token = body.access_token;
+      this.tokenExpires = Date.now() + body.expires_in * 1000;
+    }
+    return { Authorization: `Bearer ${this.token}` };
+  }
+
+  private object(code: string): string {
+    return encodeURIComponent(`stories/${code}.json`);
+  }
+
+  async put(code: string, json: string): Promise<void> {
+    const url = `${this.api}/upload/storage/v1/b/${this.bucket}/o?uploadType=media&name=${this.object(code)}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { ...(await this.auth()), 'Content-Type': 'application/json' },
+      body: json,
+    });
+    if (!res.ok) throw new Error(`storage put ${res.status}`);
+  }
+
+  async get(code: string): Promise<string | null> {
+    const res = await fetch(`${this.api}/storage/v1/b/${this.bucket}/o/${this.object(code)}?alt=media`, {
+      headers: await this.auth(),
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`storage get ${res.status}`);
+    return res.text();
+  }
+
+  async remove(code: string): Promise<void> {
+    const res = await fetch(`${this.api}/storage/v1/b/${this.bucket}/o/${this.object(code)}`, {
+      method: 'DELETE',
+      headers: await this.auth(),
+    });
+    if (!res.ok && res.status !== 404) throw new Error(`storage delete ${res.status}`);
+  }
+
+  async olderThan(): Promise<string[]> {
+    return [];
+  }
+}
