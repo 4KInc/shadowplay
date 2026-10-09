@@ -26,6 +26,8 @@ import { LiveVoice } from './voice.js';
 const HAND_TIMEOUT_MS = 500;
 /** How quickly received hands catch up with the latest packet (1/s). */
 const SMOOTHING = 22;
+/** Reconnect attempts after a dropped connection: delays (s), then give up. */
+const RECONNECT_DELAYS = [1, 2, 3, 5, 8, 8, 8, 8];
 /** A guest's turn passes back to the host after this long (s) without the guest's hands. */
 const GUEST_IDLE_SECONDS = 12;
 
@@ -105,6 +107,13 @@ export class LiveSystem extends createSystem({
   private requests = 0;
   private guestIdle = 0;
   private hostScript = '';
+  /** The room's code (host: from the server; guest: what they typed) and the host's resume token. */
+  private roomCode = '';
+  private token = '';
+  private retry = 0;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The server has accepted us at least once (so a drop is worth reconnecting). */
+  private wasConnected = false;
   /** Host: the script last announced to the guest. */
   private sentScript = '';
 
@@ -191,7 +200,16 @@ export class LiveSystem extends createSystem({
         .then((s) => (this.beats = s.beats))
         .catch(() => (this.beats = []));
     }
-    this.conn = new LiveConnection(role, code, {
+    this.roomCode = role === 'guest' ? code.trim() : '';
+    this.token = '';
+    this.retry = 0;
+    this.wasConnected = false;
+    this.connect(session);
+  }
+
+  private connect(session: Entity): void {
+    if (this.role === 'off') return;
+    this.conn = new LiveConnection(this.role, this.roomCode, this.token, {
       onServer: (m) => this.onServer(session, m),
       onPeer: (m) => this.onPeer(m),
       onBinary: (kind, payload) => this.onBinary(kind, payload),
@@ -202,15 +220,35 @@ export class LiveSystem extends createSystem({
   private onServer(session: Entity, m: ServerMessage): void {
     switch (m.type) {
       case 'room':
+        this.connectedOk();
+        this.roomCode = m.code;
+        this.token = m.token;
         session.setValue(LiveSession, 'connected', true);
         session.setValue(LiveSession, 'code', m.code);
-        session.setValue(LiveSession, 'status', `Live! Family code: ${m.code}`);
+        if (m.resumed && m.guest) {
+          // Back after a drop with the family still here: bring their stage up to date.
+          this.onServer(session, { type: 'guest-joined' });
+          session.setValue(LiveSession, 'status', 'Reconnected. The story goes on.');
+        } else {
+          if (m.resumed) this.guestLeft(session);
+          session.setValue(LiveSession, 'status', `Live! Family code: ${m.code}`);
+        }
         break;
       case 'joined':
+        this.connectedOk();
         session.setValue(LiveSession, 'connected', true);
-        session.setValue(LiveSession, 'peerPresent', true);
+        session.setValue(LiveSession, 'peerPresent', !m.hostAway);
         session.setValue(LiveSession, 'code', m.code);
-        session.setValue(LiveSession, 'status', 'Joined! The story is live.');
+        session.setValue(LiveSession, 'status', m.hostAway ? 'Waiting for the storyteller to reconnect...' : 'Joined! The story is live.');
+        break;
+      case 'host-away':
+        session.setValue(LiveSession, 'peerPresent', false);
+        session.setValue(LiveSession, 'status', 'The storyteller\'s connection dropped. Waiting for them...');
+        this.remote.clear();
+        break;
+      case 'host-back':
+        session.setValue(LiveSession, 'peerPresent', true);
+        session.setValue(LiveSession, 'status', 'They\'re back! The story goes on.');
         break;
       case 'guest-joined':
         session.setValue(LiveSession, 'peerPresent', true);
@@ -226,17 +264,15 @@ export class LiveSystem extends createSystem({
         });
         break;
       case 'guest-left':
-        session.setValue(LiveSession, 'peerPresent', false);
+        this.guestLeft(session);
         session.setValue(LiveSession, 'status', `Your family left. Family code: ${session.getValue(LiveSession, 'code')}`);
-        this.unsubscribeTap?.();
-        this.unsubscribeTap = null;
-        this.remote.clear();
-        this.setTurn(session, 'host');
         break;
       case 'ended':
         this.leave(session, m.reason === 'host-left' ? 'The story has ended. Goodnight!' : 'The live story ended.');
         break;
       case 'error':
+        // Rejoining while the server still holds our old connection: the close that follows retries.
+        if (m.retry && this.wasConnected) break;
         this.leave(session, m.error);
         break;
     }
@@ -361,14 +397,46 @@ export class LiveSystem extends createSystem({
     }
   }
 
+  private guestLeft(session: Entity): void {
+    session.setValue(LiveSession, 'peerPresent', false);
+    this.unsubscribeTap?.();
+    this.unsubscribeTap = null;
+    this.remote.clear();
+    this.setTurn(session, 'host');
+  }
+
+  private connectedOk(): void {
+    this.wasConnected = true;
+    this.retry = 0;
+  }
+
+  /** A dropped connection: try again for a while before giving up (the room waits for the host). */
   private onClosed(session: Entity): void {
     if (this.role === 'off') return;
-    this.leave(session, 'Lost the connection to the live story.');
+    this.conn = null;
+    const delay = RECONNECT_DELAYS[this.retry];
+    if (!this.wasConnected || delay === undefined || (this.role === 'host' && !this.token)) {
+      this.leave(session, 'Lost the connection to the live story.');
+      return;
+    }
+    this.retry++;
+    session.setValue(LiveSession, 'connected', false);
+    session.setValue(LiveSession, 'peerPresent', false);
+    session.setValue(LiveSession, 'status', 'Connection lost. Reconnecting...');
+    this.remote.clear();
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      this.connect(session);
+    }, delay * 1000);
   }
 
   /** Disconnect and put this stage back to normal. `session` null: system teardown. */
   private leave(session: Entity | null, status: string, resetRole = true): void {
     const wasGuest = this.role === 'guest';
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    this.token = '';
+    this.roomCode = '';
     this.conn?.close();
     this.conn = null;
     this.unsubscribeTap?.();

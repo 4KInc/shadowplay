@@ -12,9 +12,14 @@ export class LiveConnection {
   private ws: WebSocket;
   private closed = false;
 
-  constructor(role: 'host' | 'guest', code: string, private handlers: LiveHandlers) {
+  private handlers: LiveHandlers;
+
+  /** Host: no code opens a new room; a code and token resume one. Guest: the code to join. */
+  constructor(role: 'host' | 'guest', code: string, token: string, handlers: LiveHandlers) {
+    this.handlers = handlers;
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const query = role === 'host' ? 'role=host' : `role=guest&code=${encodeURIComponent(code)}`;
+    const resume = code && token ? `&code=${encodeURIComponent(code)}&token=${encodeURIComponent(token)}` : '';
+    const query = role === 'host' ? `role=host${resume}` : `role=guest&code=${encodeURIComponent(code)}`;
     this.ws = new WebSocket(`${proto}//${location.host}/live?${query}`);
     this.ws.binaryType = 'arraybuffer';
     this.ws.onmessage = (e) => this.receive(e.data);
@@ -64,6 +69,8 @@ export class LiveConnection {
       case 'joined':
       case 'guest-joined':
       case 'guest-left':
+      case 'host-away':
+      case 'host-back':
       case 'ended':
       case 'error':
         this.handlers.onServer(msg as ServerMessage);

@@ -43,6 +43,9 @@ const CSS = `
 .sp-note { color: #bfae8e; font-size: 14px; margin-top: 6px; min-height: 1.2em; }
 .sp-card.new { border-color: #e0a24a; box-shadow: 0 0 0 2px rgba(224,162,74,0.5); }
 .sp-viewer.playing .sp-code, .sp-viewer.playing .sp-note { display: none; }
+.sp-wait { pointer-events: none; position: fixed; left: 50%; top: calc(18px + env(safe-area-inset-top, 0px)); transform: translateX(-50%);
+  z-index: 901; max-width: calc(100vw - 32px); padding: 10px 20px; border-radius: 24px; background: rgba(43, 35, 56, 0.94);
+  border: 1px solid #6b4f2a; color: #f6e3bd; font: italic 18px Georgia, serif; text-align: center; }
 .sp-goodnight { position: fixed; inset: 0; z-index: 940; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 10px; padding: 24px; text-align: center; background: radial-gradient(circle at 50% 40%, rgba(58, 39, 22, 0.92), rgba(8, 6, 12, 0.96));
   font-family: Georgia, 'Times New Roman', serif; cursor: pointer; animation: sp-fade 1.6s ease-out; }
@@ -78,6 +81,7 @@ export class ViewerUISystem extends createSystem({
   private talkBtn: HTMLButtonElement | null = null;
   private handsBtn: HTMLButtonElement | null = null;
   private lastLive: boolean | null = null;
+  private waitBanner: HTMLDivElement | null = null;
   private lastLiveStatus = '';
   /** What the camera is for right now: joining in to a replay, or showing hands in a live story. */
   private cameraFor: 'replay' | 'live' = 'replay';
@@ -107,6 +111,8 @@ export class ViewerUISystem extends createSystem({
     this.root = null;
     this.turn?.remove();
     this.turn = null;
+    this.waitBanner?.remove();
+    this.waitBanner = null;
     this.lastPlaying = null;
   }
 
@@ -401,6 +407,18 @@ export class ViewerUISystem extends createSystem({
       if (this.liveStatus) this.liveStatus.textContent = status;
       if (!on && status && this.note) this.note.textContent = status;
     }
+    // Connection trouble or a storyteller who stepped away: say so where a child will see it.
+    const waiting = on && !live.getValue(LiveSession, 'peerPresent');
+    if (waiting && !this.waitBanner) {
+      this.waitBanner = document.createElement('div');
+      this.waitBanner.className = 'sp-wait';
+      this.waitBanner.setAttribute('role', 'status');
+      document.body.appendChild(this.waitBanner);
+    } else if (!waiting && this.waitBanner) {
+      this.waitBanner.remove();
+      this.waitBanner = null;
+    }
+    if (this.waitBanner && this.waitBanner.textContent !== status) this.waitBanner.textContent = status;
     if (!on) return;
     const talking = Boolean(live.getValue(LiveSession, 'talk'));
     if (this.talkBtn && this.talkBtn.classList.contains('on') !== talking) {

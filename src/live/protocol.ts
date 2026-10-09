@@ -24,12 +24,16 @@ export type PeerMessage =
   | { type: 'turn'; who: 'host' | 'guest' };
 
 export type ServerMessage =
-  | { type: 'room'; code: string }
-  | { type: 'joined'; code: string }
+  /** Host: the room is open (or, `resumed`, open again after a dropped connection). */
+  | { type: 'room'; code: string; token: string; resumed?: boolean; guest?: boolean }
+  | { type: 'joined'; code: string; hostAway?: boolean }
+  /** Guest: the host's connection dropped; the room waits a little for them. */
+  | { type: 'host-away' }
+  | { type: 'host-back' }
   | { type: 'guest-joined' }
   | { type: 'guest-left' }
   | { type: 'ended'; reason: string }
-  | { type: 'error'; error: string };
+  | { type: 'error'; error: string; retry?: boolean };
 
 export function packBinary(kind: number, payload: Int16Array): ArrayBuffer {
   const out = new ArrayBuffer(HEADER_BYTES + payload.byteLength);
