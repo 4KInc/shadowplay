@@ -1,7 +1,17 @@
 # Deploying Shadowplay
 
-Nothing here has been run. Hosting needs an approved Google Cloud project; until
-then everything runs locally (`npm run dev` + `npm run server`).
+**Live:** https://shadowplay-1031148889398.us-central1.run.app (deployed 11 Oct 2026)
+
+| | |
+| --- | --- |
+| Project / region | `quick-catcher-470218-b0` / `us-central1` |
+| Service | Cloud Run `shadowplay` (max 1 instance, scales to zero, 3600 s timeout, session affinity) |
+| Service account | `shadowplay-run@quick-catcher-470218-b0.iam.gserviceaccount.com` (objectAdmin on the bucket only) |
+| Stories | `gs://quick-catcher-470218-b0-shadowplay-stories` (private, deleted after 30 days) |
+| Family viewer | `<url>/?viewer` |
+
+To redeploy after changes, run the `gcloud run deploy` command below with
+`--service-account shadowplay-run@...` added.
 
 One container serves everything:
 
@@ -62,7 +72,11 @@ own address, so they work on the deployed URL without configuration.
   MediaPipe wasm (`application/wasm`), uploads and lookups, and Live rooms.
 - The Cloud Storage store was exercised against a local fake of the Storage
   JSON API (`STORAGE_API` / `STORAGE_TOKEN_URL` override the endpoints).
-- The Docker image has not been built here (Docker was not running).
+- The image builds in Cloud Build from the Dockerfile.
+- Deployed smoke test: health, app, bundle, story files, hand model, wasm,
+  upload, fetch, replies, wrong-code 404, live room, guest join and relay over
+  `wss://` all pass; stories land in the bucket. A headless browser loads the
+  desk and phone pages with no console errors.
 
 ## Before a public launch
 

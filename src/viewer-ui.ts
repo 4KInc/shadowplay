@@ -40,8 +40,9 @@ const CSS = `
 .sp-sheet * { box-sizing: border-box; }
 .sp-sheet .sp-panel { max-width: 520px; }
 .sp-sheet p { margin: 0 0 12px; }
-.sp-code { display: flex; gap: 8px; margin-top: 10px; }
-.sp-code input { flex: 1 1 auto; min-height: 48px; border-radius: 24px; border: 1px solid #6b4f2a; background: #1d1826;
+.sp-code { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.sp-code .sp-btn { flex: 1 0 auto; padding: 0 16px; white-space: nowrap; }
+.sp-code input { flex: 1 1 100%; min-width: 0; min-height: 48px; border-radius: 24px; border: 1px solid #6b4f2a; background: #1d1826;
   color: #f6e3bd; font: inherit; padding: 0 16px; }
 .sp-note { color: #bfae8e; font-size: 14px; margin-top: 6px; min-height: 1.2em; }
 .sp-card.new { border-color: #e0a24a; box-shadow: 0 0 0 2px rgba(224,162,74,0.5); }
