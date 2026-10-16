@@ -332,6 +332,16 @@ export const DemoDirector = createComponent('DemoDirector', {
   branch: { type: Types.Enum, enum: { Dog: 'dog', Bird: 'bird' }, default: 'dog' },
   /** Show the capsule hands (dark) so viewers can see what casts the shadows. */
   showHands: { type: Types.Boolean, default: false },
+  /**
+   * Simulated player for bot playtests: perfect; slow (takes ~25 s to make a
+   * shape); wrong (makes another shape first); wanderer (hands leave the light
+   * for 30 s); shaky (tremor and jitter); small (a young child's hands, 75%).
+   */
+  persona: {
+    type: Types.Enum,
+    enum: { Perfect: 'perfect', Slow: 'slow', Wrong: 'wrong', Wanderer: 'wanderer', Shaky: 'shaky', Small: 'small' },
+    default: 'perfect',
+  },
   status: { type: Types.String, default: '' },
 });
 

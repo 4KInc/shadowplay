@@ -527,6 +527,7 @@
           "playing": false,
           "branch": "dog",
           "showHands": false,
+          "persona": "perfect",
           "status": ""
         }
       }

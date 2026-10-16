@@ -65,6 +65,10 @@ export class DemoDirectorSystem extends createSystem({
   private lampStart = new Vector3();
   private lampMoved = 0;
   private wasPlaying = false;
+  private beatId = '';
+  /** Seconds in the current beat (personas react to it). */
+  private beatTime = 0;
+  private persona = 'perfect';
 
   init(): void {
     // D play/stop, B switch the Chapter Three ending, H show/hide the capsule hands.
@@ -97,8 +101,15 @@ export class DemoDirectorSystem extends createSystem({
     this.time += delta;
 
     const beatId = story.getValue(StoryState, 'beatId') ?? '';
+    if (beatId !== this.beatId) {
+      this.beatId = beatId;
+      this.beatTime = 0;
+    }
+    this.beatTime += delta;
+    this.persona = director.getValue(DemoDirector, 'persona') ?? 'perfect';
     const beat = this.beats.get(beatId);
     this.direct(beat, director);
+    this.actPersona(beat);
     if (beat?.type === 'carry') this.steer(beat.toU + 0.08, (beat.minV ?? -0.05) + 0.08, delta);
     this.ease(delta);
     this.pose();
@@ -217,6 +228,26 @@ export class DemoDirectorSystem extends createSystem({
     }
   }
 
+  /** Bend the careful performance into a more human one (bot playtests). */
+  private actPersona(beat: StoryBeat | undefined): void {
+    if (!beat || (beat.type !== 'request' && beat.type !== 'choice')) return;
+    const t = this.target;
+    const asked = t.fixture?.label ?? '';
+    switch (this.persona) {
+      case 'slow':
+        // An open hand in the light, thinking, for a long while.
+        if (this.beatTime < 25) t.fixture = this.fixture('open');
+        break;
+      case 'wrong':
+        if (this.beatTime < 12) t.fixture = this.fixture(asked === 'dog' ? 'rabbit' : 'dog');
+        break;
+      case 'wanderer':
+        // Gone (to fetch a teddy) for half a minute.
+        if (this.beatTime < 30) t.fixture = null;
+        break;
+    }
+  }
+
   /**
    * Closed-loop carry: read where the living creature actually is on the stage
    * and nudge the hand until its shadow reaches the target, like a player
@@ -262,11 +293,13 @@ export class DemoDirectorSystem extends createSystem({
       handOverride.left = handOverride.right = null;
       return;
     }
-    let cached = this.local.get(fx.label);
+    const scale = this.persona === 'small' ? 0.75 : 1;
+    const key = `${fx.label}@${scale}`;
+    let cached = this.local.get(key);
     if (!cached) {
-      const make = (pose: HandPose | null, s: number) => (pose ? localJoints(pose, 1, SEED + s) : null);
+      const make = (pose: HandPose | null, s: number) => (pose ? localJoints(pose, scale, SEED + s) : null);
       cached = { right: make(fx.right, 0), left: make(fx.left, 1000) };
-      this.local.set(fx.label, cached);
+      this.local.set(key, cached);
     }
     const swayU = this.target.sway ? Math.sin(this.time * 0.5) * 0.015 : 0;
     const swayV = this.target.sway ? Math.sin(this.time * 0.8) * 0.01 : 0;
@@ -285,6 +318,14 @@ export class DemoDirectorSystem extends createSystem({
     };
     handOverride.right = place('right', cached.right, fx.rightAt);
     handOverride.left = place('left', cached.left, fx.leftAt);
+    if (this.persona === 'shaky') {
+      // A 6 Hz tremor of the whole hand (about 1 cm) plus a few millimetres of jitter per joint.
+      const tremor = Math.sin(this.time * 2 * Math.PI * 6) * 0.01;
+      for (const joints of [handOverride.right, handOverride.left]) {
+        if (!joints) continue;
+        for (let i = 0; i < joints.length; i++) joints[i] += tremor * (i % 3 === 1 ? 1 : 0.5) + (Math.random() - 0.5) * 0.006;
+      }
+    }
   }
 }
 

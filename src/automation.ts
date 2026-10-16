@@ -50,12 +50,23 @@ export class AutomationSystem extends createSystem({
   WebcamHands: { required: [WebcamHands] },
 }) {
   private frames = 0;
+  /** Milliseconds of app work (all systems) per frame, last 600 frames. */
+  private costs: number[] = [];
+  /** Worst draw calls / triangles seen (the renderer resets its counters every frame). */
+  private peak = { calls: 0, triangles: 0, programs: 0, textures: 0, geometries: 0 };
   private lastBeat = '';
   /** Every beat this stage entered, with time (ms since epoch): exact sync checks across pages. */
   private beatLog: { id: string; t: number }[] = [];
 
   update(): void {
     this.frames++;
+    const info = this.world.renderer.info;
+    const p = this.peak;
+    p.calls = Math.max(p.calls, info.render.calls);
+    p.triangles = Math.max(p.triangles, info.render.triangles);
+    p.programs = Math.max(p.programs, info.programs?.length ?? 0);
+    p.textures = Math.max(p.textures, info.memory.textures);
+    p.geometries = Math.max(p.geometries, info.memory.geometries);
     const beat = this.queries.StoryState.entities.values().next().value?.getValue(StoryState, 'beatId') ?? '';
     if (beat !== this.lastBeat) {
       this.lastBeat = beat;
@@ -65,6 +76,17 @@ export class AutomationSystem extends createSystem({
   }
 
   init(): void {
+    // Time the whole ECS update each frame (every system), for CPU budget checks.
+    const world = this.world as unknown as { update: (...a: unknown[]) => unknown };
+    const original = world.update.bind(world);
+    world.update = (...a: unknown[]) => {
+      const start = performance.now();
+      const out = original(...a);
+      this.costs.push(performance.now() - start);
+      if (this.costs.length > 600) this.costs.shift();
+      return out;
+    };
+    this.cleanupFuncs.push(() => (world.update = original));
     const entity = (name: Name): Entity | undefined => this.queries[name].entities.values().next().value;
     const api = {
       get: (name: Name, field: string) => entity(name)?.getValue(COMPONENTS[name] as never, field as never),
@@ -81,6 +103,13 @@ export class AutomationSystem extends createSystem({
         return out;
       },
       frames: () => this.frames,
+      /** Peak renderer counts since the last call (then reset), and app ms per frame. */
+      perf: () => {
+        const peak = { ...this.peak };
+        Object.keys(this.peak).forEach((k) => ((this.peak as Record<string, number>)[k] = 0));
+        const c = [...this.costs].sort((a, b) => a - b);
+        return { peak, appMs: c.length ? { median: c[c.length >> 1], p95: c[Math.floor(c.length * 0.95)], max: c[c.length - 1] } : null };
+      },
       beats: () => [...this.beatLog],
       voice: () => ({ ...voiceStats, sentEdges: [...voiceStats.sentEdges], heardEdges: [...voiceStats.heardEdges] }),
       hands: () => ({
