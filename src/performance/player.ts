@@ -86,7 +86,13 @@ export class PerformancePlayerSystem extends createSystem({
 
     this.clock += delta;
     const tMs = this.clock * 1000;
-    while (this.next < this.events.length && this.events[this.next].t <= tMs) this.apply(this.events[this.next++]);
+    // At most one beat per frame: the story reads one enterBeat per update, and
+    // instant beats (scenery, Mo landing) often share a timestamp.
+    while (this.next < this.events.length && this.events[this.next].t <= tMs) {
+      const e = this.events[this.next++];
+      this.apply(e);
+      if (e.type === 'beat') break;
+    }
 
     const hands = readFrame(this.frames, this.perf.frameCount, this.clock * this.perf.frameHz, this.left, this.right);
     handOverride.active = true;

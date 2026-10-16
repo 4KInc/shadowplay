@@ -23,6 +23,8 @@ const MAX_ROOM_MS = 2 * 3600_000;
 const HOST_GRACE_MS = 45_000;
 /** Ping every socket this often; one that misses a pong is dropped (so the other side learns quickly). */
 const HEARTBEAT_MS = 15_000;
+/** Close code a client sends when the person ends the story on purpose (not a dropout). */
+const CLOSE_ENDED = 4000;
 
 interface Room {
   code: string;
@@ -59,8 +61,9 @@ function relay(from: WebSocket, to: () => WebSocket | null): void {
 function attachHost(room: Room, ws: WebSocket): void {
   room.host = ws;
   relay(ws, () => room.guest);
-  ws.on('close', () => {
+  ws.on('close', (code) => {
     if (room.host !== ws || !rooms.has(room.code)) return;
+    if (code === CLOSE_ENDED) return closeRoom(room, 'host-left');
     room.host = null;
     send(room.guest, { type: 'host-away' });
     room.grace = setTimeout(() => closeRoom(room, 'host-left'), HOST_GRACE_MS);

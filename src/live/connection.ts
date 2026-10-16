@@ -47,9 +47,10 @@ export class LiveConnection {
     if (this.open && !this.congested) this.ws.send(data);
   }
 
+  /** The person ended the story (close code 4000), so the server ends the room at once. */
   close(): void {
     this.closed = true;
-    this.ws.close();
+    this.ws.close(4000, 'ended');
   }
 
   private receive(data: unknown): void {

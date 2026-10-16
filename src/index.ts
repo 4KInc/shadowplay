@@ -1,4 +1,5 @@
 import { World } from '@iwsdk/core';
+import { AutomationSystem, automationEnabled } from './automation.js';
 import { family } from './family.js';
 import { FamilySetupSystem } from './family-ui.js';
 import { FamilyInboxSystem } from './performance/replies.js';
@@ -64,6 +65,7 @@ World.create(
     .registerSystem(ViewerUISystem)
     .registerSystem(FamilySetupSystem);
   void family.load();
+  if (automationEnabled) world.registerSystem(AutomationSystem);
 
   // Development only: webcam-driven hands for testing recognition without a headset.
   if (import.meta.env.DEV) {

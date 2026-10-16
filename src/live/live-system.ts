@@ -140,7 +140,12 @@ export class LiveSystem extends createSystem({
     if (!stageRuntime.ready) return;
     // Host events wait until this stage is telling the host's story.
     const scriptReady = !this.hostScript || storyRuntime.script === this.hostScript;
-    while (scriptReady && this.pending.length) this.applyRemote(this.pending.shift()!);
+    // At most one beat per frame (the story reads one enterBeat per update).
+    while (scriptReady && this.pending.length) {
+      const e = this.pending.shift()!;
+      this.applyRemote(e);
+      if (e.type === 'beat') break;
+    }
 
     this.remote.step(delta);
     const peerHands = (this.remote.hasLeft ? 1 : 0) + (this.remote.hasRight ? 1 : 0);

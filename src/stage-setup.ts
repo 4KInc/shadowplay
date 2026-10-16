@@ -1,4 +1,5 @@
 import {
+  Color,
   createSystem,
   Entity,
   Matrix4,
@@ -25,6 +26,9 @@ const MAX_WALL = 4;
 const CLOSE_WALL = 1.0;
 const SCREEN_DISTANCE = 2;
 const FRONT_COS = Math.cos((40 * Math.PI) / 180);
+/** Behind the stage in a browser (no passthrough): a deep night blue. */
+const BROWSER_BACKGROUND = new Color(0x0d0a14);
+
 /** Stage subtends ~33 degrees: width = 2 * d * tan(16.5deg). */
 const WIDTH_PER_METER = 2 * Math.tan((16.5 * Math.PI) / 180);
 const SCAN_MIN_SECONDS = 1.2;
@@ -79,6 +83,7 @@ export class StageSetupSystem extends createSystem({
   private bestUMax = 0;
   private watchedRef: XRReferenceSpace | null = null;
   private onReset = () => this.resetPlacement();
+  private lampMeshes: Mesh[] = [];
   /** Where the lamp was placed; dragging away from here sweeps the light. */
   private lampHome = new Vector3();
   private sweep = new Vector3();
@@ -113,6 +118,7 @@ export class StageSetupSystem extends createSystem({
         if (inXR !== this.inXR) {
           this.inXR = inXR;
           this.resetPlacement();
+          this.applyBrowserLook();
           // Fixed foveation (lower resolution at the edges of the view) where the
           // browser supports it: the dimming layer and shadow surface are fill-rate bound.
           if (inXR) this.world.renderer.xr.setFoveation(1);
@@ -149,7 +155,21 @@ export class StageSetupSystem extends createSystem({
       this.bulbMaterial = bulb.material.clone();
       bulb.material = this.bulbMaterial;
     }
+    lampObj.traverse((o) => {
+      if (o instanceof Mesh) this.lampMeshes.push(o);
+    });
+    this.applyBrowserLook();
     return true;
+  }
+
+  /**
+   * Outside a headset (desktop link, phone or tablet viewer) there is no desk:
+   * the lamp body would sit between the screen and the stage, so only its light
+   * remains, and the empty room behind the stage is a dark night sky.
+   */
+  private applyBrowserLook(): void {
+    for (const m of this.lampMeshes) m.visible = this.inXR;
+    this.world.scene.background = this.inXR ? null : BROWSER_BACKGROUND;
   }
 
   update(delta: number): void {
