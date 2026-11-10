@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Shadowplay voice lab</title>
+<!--
+  Development only (served by the dev server, never built): the Live voice path alone
+  (mic -> AudioWorklet -> WebSocket room -> jitter buffer -> speaker) with no 3D
+  rendering, so simulations can measure true mouth-to-ear delay.
+  ?role=host  or  ?role=guest&code=CODE
+-->
+<body>
+<pre id="out">starting</pre>
+<script type="module">
+  import { LiveConnection } from '/src/live/connection.ts';
+  import { LiveVoice, voiceStats } from '/src/live/voice.ts';
+  import { KIND_VOICE, packBinary } from '/src/live/protocol.ts';
+  const params = new URLSearchParams(location.search);
+  const role = params.get('role') ?? 'host';
+  const voice = new LiveVoice();
+  const state = { role, code: params.get('code') ?? '', joined: false, error: '' };
+  const conn = new LiveConnection(role, state.code, '', {
+    onServer: (m) => {
+      if (m.type === 'room') state.code = m.code;
+      if (m.type === 'joined' || m.type === 'guest-joined') state.joined = true;
+      if (m.type === 'error') state.error = m.error;
+    },
+    onPeer: () => {},
+    onBinary: (kind, payload) => kind === KIND_VOICE && voice.play(payload),
+    onClose: () => (state.error ||= 'closed'),
+  });
+  window.lab = {
+    state,
+    stats: () => ({ ...voiceStats, sentEdges: [...voiceStats.sentEdges], heardEdges: [...voiceStats.heardEdges] }),
+    talk: () => voice.startMic((pcm) => conn.sendBinary(packBinary(KIND_VOICE, pcm))),
+  };
+  setInterval(() => (document.getElementById('out').textContent = JSON.stringify({ ...state, sent: voiceStats.sent, received: voiceStats.received })), 500);
+</script>

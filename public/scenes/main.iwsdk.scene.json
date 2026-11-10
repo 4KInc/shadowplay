@@ -3,86 +3,73 @@
   "units": "meters",
   "components": {
     "com.iwsdk.components.IBLGradient": {
-      "sky": [0.6902, 0.749, 0.7843, 1],
-      "equator": [0.6584, 0.7084, 0.7913, 1],
-      "ground": [0.807, 0.7758, 0.7454, 1],
-      "intensity": 1
+      "sky": [
+        0.32,
+        0.3,
+        0.36,
+        1
+      ],
+      "equator": [
+        0.36,
+        0.3,
+        0.26,
+        1
+      ],
+      "ground": [
+        0.18,
+        0.15,
+        0.13,
+        1
+      ],
+      "intensity": 0.6
     }
   },
   "resources": {},
   "nodes": [
     {
-      "id": "plant-sansevieria",
-      "name": "Plant Sansevieria",
-      "metadata": {
-        "iwsdk.validation": {
-          "allowFloating": true
-        }
-      },
+      "id": "stage",
+      "name": "Stage",
       "content": {
-        "type": "asset",
-        "asset": "plant-sansevieria"
+        "type": "group"
       },
       "transform": {
-        "position": [1.2, 0.2, -1.8],
-        "scale": 2
+        "position": [
+          0,
+          1.25,
+          -2
+        ]
       },
       "components": {
-        "RayInteractable": {},
-        "DistanceGrabbable": {
-          "movementMode": "MoveFromTarget"
-        }
-      }
-    },
-    {
-      "id": "robot",
-      "name": "Robot",
-      "metadata": {
-        "iwsdk.validation": {
-          "allowFloating": true
-        }
-      },
-      "content": {
-        "type": "asset",
-        "asset": "robot"
-      },
-      "transform": {
-        "position": [-1.2, 0.4, -1.8]
-      },
-      "components": {
-        "AudioSource": {
-          "src": "./audio/chime.mp3",
-          "maxInstances": 3,
-          "playbackMode": "fade-restart"
+        "Stage": {
+          "mode": "pending",
+          "distance": 2,
+          "width": 1.2,
+          "dim": 0.6,
+          "lampOn": true,
+          "lampLevel": 0,
+          "finale": 0
         },
-        "RayInteractable": {},
-        "Robot": {}
-      }
-    },
-    {
-      "id": "welcome-panel",
-      "name": "Welcome Panel",
-      "content": {
-        "type": "asset",
-        "asset": "welcome-panel"
-      },
-      "transform": {
-        "position": [0, 1.6, -2],
-        "scale": 0.4
-      },
-      "components": {
-        "RayInteractable": {},
-        "ScreenSpace": {
-          "top": "20px",
-          "left": "20px",
-          "width": "25vw",
-          "height": "40%"
+        "ShapeRecognizer": {
+          "target": "none",
+          "altTarget": "none",
+          "tolerance": 0.3,
+          "holdSeconds": 0.5,
+          "target2": "none",
+          "altTarget2": "none",
+          "freeMode": false
+        },
+        "SilhouetteMatcher": {
+          "enabled": true,
+          "threshold": 0.55,
+          "rateHz": 5,
+          "recordShape": "",
+          "templateCount": 0
         }
       }
     },
     {
-      "id": "webxr-banner",
-      "name": "WebXR Banner",
+      "id": "desk-lamp",
+      "name": "Desk Lamp",
       "metadata": {
         "iwsdk.validation": {
           "allowFloating": true
@@ -90,14 +77,505 @@
       },
       "content": {
         "type": "asset",
-        "asset": "webxr-banner"
+        "asset": "desk-lamp"
       },
       "transform": {
-        "position": [0, 1, 1.8],
-        "rotationDeg": [0, 180, 0],
-        "scale": [1, -1, 1]
+        "position": [
+          0.12,
+          0.72,
+          -0.3
+        ]
       },
-      "components": {}
+      "components": {
+        "DeskLamp": {
+          "intensity": 6,
+          "angleDeg": 38,
+          "heldBy": "none"
+        }
+      }
+    },
+    {
+      "id": "rabbit-puppet",
+      "name": "Rabbit Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "rabbit",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "story",
+      "name": "Story",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.98
+        ]
+      },
+      "components": {
+        "StoryState": {
+          "script": "story/the-moth.story.json",
+          "status": "loading",
+          "hintAfterSeconds": 15,
+          "hintVisible": false,
+          "resume": true,
+          "hintShape": "rabbit",
+          "freeStage": false
+        }
+      }
+    },
+    {
+      "id": "moth",
+      "name": "Mo the Moth",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.4,
+          -1.98
+        ]
+      },
+      "components": {
+        "Moth": {
+          "mode": "hidden",
+          "followedSeconds": 0,
+          "restU": 0.18,
+          "restV": 0.3,
+          "glow": 0
+        }
+      }
+    },
+    {
+      "id": "scenery",
+      "name": "Scenery",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          0.9,
+          -1.99
+        ]
+      },
+      "components": {
+        "Scenery": {
+          "set": "none"
+        }
+      }
+    },
+    {
+      "id": "fish-puppet",
+      "name": "Fish Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "fish",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "dog-puppet",
+      "name": "Dog Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "dog",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "bird-puppet",
+      "name": "Bird Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "bird",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "wolf",
+      "name": "Shadow Wolf",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0.4,
+          1.1,
+          -1.99
+        ]
+      },
+      "components": {
+        "StageActor": {
+          "actor": "wolf",
+          "state": "hidden",
+          "u": 0.26,
+          "v": -0.26
+        }
+      }
+    },
+    {
+      "id": "shadow-journal",
+      "name": "Shadow Journal",
+      "metadata": {
+        "iwsdk.validation": {
+          "allowFloating": true
+        }
+      },
+      "content": {
+        "type": "asset",
+        "asset": "journal-book"
+      },
+      "transform": {
+        "position": [
+          -0.2,
+          0.72,
+          -0.28
+        ],
+        "rotationDeg": [
+          0,
+          11,
+          0
+        ]
+      },
+      "components": {
+        "ShadowJournal": {
+          "open": false,
+          "count": 0,
+          "pendingAdd": "",
+          "lastAdded": "",
+          "discovered": ""
+        }
+      }
+    },
+    {
+      "id": "snail-puppet",
+      "name": "Snail Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "snail",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "swan-puppet",
+      "name": "Swan Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "swan",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "cup-puppet",
+      "name": "Cup Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "cup",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "hollow-tree",
+      "name": "Hollow Tree",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          -0.4,
+          0.9,
+          -1.99
+        ]
+      },
+      "components": {
+        "HiddenProp": {
+          "prop": "hollow",
+          "active": false,
+          "u": -0.34,
+          "revealed": 0
+        }
+      }
+    },
+    {
+      "id": "shape-of-the-day",
+      "name": "Shape of the Day",
+      "content": {
+        "type": "group"
+      },
+      "components": {
+        "DailyShape": {
+          "date": "",
+          "shape": "",
+          "riddle": "",
+          "solved": false
+        }
+      }
+    },
+    {
+      "id": "settings-panel",
+      "name": "Settings Panel",
+      "content": {
+        "type": "asset",
+        "asset": "settings-panel"
+      },
+      "transform": {
+        "position": [
+          0.8,
+          -5,
+          -1.95
+        ]
+      },
+      "components": {
+        "RayInteractable": {},
+        "Settings": {
+          "tolerance": "normal",
+          "hints": "delayed",
+          "oneHand": false,
+          "replayRequested": false
+        }
+      }
+    },
+    {
+      "id": "deer-puppet",
+      "name": "Deer Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "deer",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "crocodile-puppet",
+      "name": "Crocodile Puppet",
+      "content": {
+        "type": "group"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -1.99
+        ]
+      },
+      "components": {
+        "ShadowPuppet": {
+          "shape": "crocodile",
+          "state": "hidden",
+          "hand": "none",
+          "outlineU": 0,
+          "outlineV": 0
+        }
+      }
+    },
+    {
+      "id": "recognition-lab",
+      "name": "Recognition Lab",
+      "content": {
+        "type": "group"
+      },
+      "components": {
+        "RecognitionLab": {
+          "tester": "tester-1",
+          "label": "",
+          "trialSeconds": 5,
+          "recording": false,
+          "exportRequested": false,
+          "clearRequested": false
+        }
+      }
+    },
+    {
+      "id": "webcam-hands",
+      "name": "Webcam Hands (dev)",
+      "content": {
+        "type": "group"
+      },
+      "components": {
+        "WebcamHands": {
+          "enabled": false,
+          "status": "",
+          "handsSeen": 0
+        }
+      }
+    },
+    {
+      "id": "demo-director",
+      "name": "Demo Director (dev)",
+      "content": {
+        "type": "group"
+      },
+      "components": {
+        "DemoDirector": {
+          "playing": false,
+          "branch": "dog",
+          "showHands": false,
+          "persona": "perfect",
+          "status": ""
+        }
+      }
+    },
+    {
+      "id": "performance",
+      "name": "Performance",
+      "content": {
+        "type": "group"
+      },
+      "components": {
+        "PerformanceRecorder": {
+          "recording": false,
+          "title": "A bedtime story",
+          "performer": "",
+          "withVoice": true,
+          "status": "",
+          "lastId": "",
+          "seconds": 0
+        },
+        "PerformancePlayer": {
+          "recordingId": "",
+          "playing": false,
+          "paused": false,
+          "position": 0,
+          "duration": 0,
+          "status": ""
+        },
+        "LiveSession": {
+          "role": "off",
+          "joinCode": "",
+          "code": "",
+          "connected": false,
+          "peerPresent": false,
+          "talk": false,
+          "talking": false,
+          "hearing": false,
+          "duet": false,
+          "turn": "host",
+          "peerHands": 0,
+          "status": ""
+        },
+        "FamilyInbox": {
+          "unwatched": 0,
+          "latestFrom": "",
+          "playRequested": false
+        }
+      }
     }
   ]
 }

@@ -1,0 +1,8 @@
+node_modules
+dist
+.data
+.git
+artifacts
+docs
+*.log
+server/*.test.ts

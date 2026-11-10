@@ -1,11 +1,46 @@
-/**
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- */
-
 import { defineComponents } from '@iwsdk/core';
-import { Robot } from './robot-component.js';
+import {
+  DailyShape,
+  DemoDirector,
+  DeskLamp,
+  FamilyInbox,
+  HiddenProp,
+  LiveSession,
+  Moth,
+  PerformancePlayer,
+  PerformanceRecorder,
+  RecognitionLab,
+  Scenery,
+  Settings,
+  ShadowJournal,
+  ShadowPuppet,
+  ShapeRecognizer,
+  SilhouetteMatcher,
+  Stage,
+  StageActor,
+  StoryState,
+  WebcamHands,
+} from './shadowplay-components.js';
 
-export default defineComponents([Robot]);
+export default defineComponents([
+  Stage,
+  DeskLamp,
+  ShapeRecognizer,
+  ShadowPuppet,
+  StoryState,
+  Moth,
+  Scenery,
+  StageActor,
+  ShadowJournal,
+  HiddenProp,
+  DailyShape,
+  Settings,
+  SilhouetteMatcher,
+  RecognitionLab,
+  WebcamHands,
+  DemoDirector,
+  PerformanceRecorder,
+  PerformancePlayer,
+  LiveSession,
+  FamilyInbox,
+]);

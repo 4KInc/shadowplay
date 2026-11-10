@@ -1,0 +1,308 @@
+{
+  "version": "shadowplay.story.v1",
+  "title": "Goodnight Across the Sea",
+  "beats": [
+    {
+      "id": "sea-title",
+      "type": "chapter",
+      "chapter": "Goodnight Across the Sea",
+      "text": "Goodnight Across the Sea"
+    },
+    {
+      "id": "sea-lamp",
+      "type": "lamp",
+      "level": 1
+    },
+    {
+      "id": "sea-hush",
+      "type": "narrate",
+      "text": "Tonight, {child|little one}, someone far away is thinking of you."
+    },
+    {
+      "id": "sea-mo",
+      "type": "moth",
+      "mode": "arriving"
+    },
+    {
+      "id": "sea-job",
+      "type": "narrate",
+      "text": "Mo has a very important job. She is carrying their goodnight, all the way across the world, to you."
+    },
+    {
+      "id": "sea-follow",
+      "type": "follow",
+      "seconds": 4,
+      "text": "Raise a hand into the lamplight. Show Mo the way."
+    },
+    {
+      "id": "sea-ready",
+      "type": "narrate",
+      "text": "That's it. Off she goes."
+    },
+    {
+      "id": "sea-hills-title",
+      "type": "chapter",
+      "chapter": "The Hills",
+      "text": "The Hills"
+    },
+    {
+      "id": "sea-hills-rest",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.4,
+      "restV": 0.05
+    },
+    {
+      "id": "sea-hills",
+      "type": "scenery",
+      "set": "field"
+    },
+    {
+      "id": "sea-hills-text",
+      "type": "narrate",
+      "text": "First, over the hills where the long grass sleeps."
+    },
+    {
+      "id": "sea-want-rabbit",
+      "type": "request",
+      "shape": "rabbit",
+      "alt": "ears",
+      "text": "Make a rabbit with your hand. Rabbits know every path through the grass."
+    },
+    {
+      "id": "sea-rabbit-yes",
+      "type": "narrate",
+      "text": "A rabbit, soft and quick. Hold on tight, Mo."
+    },
+    {
+      "id": "sea-rabbit-ride",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "sea-rabbit-carry",
+      "type": "carry",
+      "toU": 0.32,
+      "text": "Hop across the hills."
+    },
+    {
+      "id": "sea-rabbit-land",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.42,
+      "restV": 0.05
+    },
+    {
+      "id": "sea-rabbit-bows",
+      "type": "release",
+      "text": "The rabbit hops home to its burrow, to sleep."
+    },
+    {
+      "id": "sea-sea-title",
+      "type": "chapter",
+      "chapter": "The Sea",
+      "text": "The Sea"
+    },
+    {
+      "id": "sea-sea",
+      "type": "scenery",
+      "set": "sea"
+    },
+    {
+      "id": "sea-sea-rest",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.42,
+      "restV": 0.08
+    },
+    {
+      "id": "sea-sea-text",
+      "type": "narrate",
+      "text": "Then the sea, wide and silver under the moon. The same moon that is shining on them, far away."
+    },
+    {
+      "id": "sea-want-fish",
+      "type": "request",
+      "shape": "fish",
+      "alt": "dog",
+      "outlineU": 0,
+      "outlineV": -0.18,
+      "text": "Make a fish: a flat hand, fingers together, thumb tucked along the side."
+    },
+    {
+      "id": "sea-fish-grow",
+      "type": "grow",
+      "factor": 1.3,
+      "minSize": 0.22,
+      "text": "Bring your hand closer to the lamp. Make the fish big enough for the waves."
+    },
+    {
+      "id": "sea-fish-yes",
+      "type": "narrate",
+      "text": "Big and strong. Climb aboard, Mo."
+    },
+    {
+      "id": "sea-fish-ride",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "sea-fish-carry",
+      "type": "carry",
+      "toU": 0.3,
+      "text": "Swim across the sea."
+    },
+    {
+      "id": "sea-fish-land",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.42,
+      "restV": 0.04
+    },
+    {
+      "id": "sea-fish-bows",
+      "type": "release",
+      "text": "The fish dives down, deep and quiet."
+    },
+    {
+      "id": "sea-sky-title",
+      "type": "chapter",
+      "chapter": "The Clouds",
+      "text": "The Clouds"
+    },
+    {
+      "id": "sea-storm",
+      "type": "scenery",
+      "set": "storm"
+    },
+    {
+      "id": "sea-storm-rest",
+      "type": "moth",
+      "mode": "buffeted",
+      "restU": -0.36,
+      "restV": 0.0
+    },
+    {
+      "id": "sea-storm-text",
+      "type": "narrate",
+      "text": "Clouds tumble in. The wind tugs at Mo's little wings. But a goodnight is stronger than any wind."
+    },
+    {
+      "id": "sea-want-bird",
+      "type": "request",
+      "shape": "bird",
+      "text": "Make a bird with two hands, side by side, thumbs together. Lift Mo above the clouds."
+    },
+    {
+      "id": "sea-bird-yes",
+      "type": "narrate",
+      "text": "A bird! Mo tucks herself under your wing."
+    },
+    {
+      "id": "sea-bird-ride",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "sea-bird-carry",
+      "type": "carry",
+      "toU": 0.34,
+      "minV": 0.12,
+      "text": "Fly high, over the clouds."
+    },
+    {
+      "id": "sea-bird-land",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.4,
+      "restV": 0.2
+    },
+    {
+      "id": "sea-bird-bows",
+      "type": "release",
+      "text": "Above the clouds, the stars come out, one by one."
+    },
+    {
+      "id": "sea-window-title",
+      "type": "chapter",
+      "chapter": "Your Window",
+      "text": "Your Window"
+    },
+    {
+      "id": "sea-clear",
+      "type": "scenery",
+      "set": "none"
+    },
+    {
+      "id": "sea-dim",
+      "type": "lamp",
+      "level": 0.55
+    },
+    {
+      "id": "sea-window",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0,
+      "restV": 0.1
+    },
+    {
+      "id": "sea-arrive",
+      "type": "narrate",
+      "text": "And at last, Mo reaches your window, {child|little one}. She has something for you."
+    },
+    {
+      "id": "sea-want-cup",
+      "type": "request",
+      "shape": "cup",
+      "text": "Cup your hands together, to catch the goodnight."
+    },
+    {
+      "id": "sea-caught",
+      "type": "narrate",
+      "text": "There it is. Warm, and just for you."
+    },
+    {
+      "id": "sea-letgo",
+      "type": "letgo",
+      "text": "Now open your hands, and let it fill the room."
+    },
+    {
+      "id": "sea-free",
+      "type": "release",
+      "text": "The goodnight spreads out, soft as a blanket..."
+    },
+    {
+      "id": "sea-finale",
+      "type": "finale",
+      "seconds": 4
+    },
+    {
+      "id": "sea-love",
+      "type": "narrate",
+      "text": "Goodnight, {child|little one}. Someone loves you, all the way across the sea."
+    },
+    {
+      "id": "sea-mo-glow",
+      "type": "moth",
+      "mode": "hovering",
+      "restU": 0.12,
+      "restV": 0.18
+    },
+    {
+      "id": "sea-sleep",
+      "type": "narrate",
+      "text": "Mo will carry one back for them, too. Close your eyes now."
+    },
+    {
+      "id": "sea-the-end",
+      "type": "chapter",
+      "chapter": "The End",
+      "text": "The End"
+    },
+    {
+      "id": "sea-end",
+      "type": "end",
+      "text": "The End"
+    }
+  ]
+}

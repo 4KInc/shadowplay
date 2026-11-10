@@ -1,0 +1,595 @@
+{
+  "version": "shadowplay.story.v1",
+  "title": "The Moth Who Borrowed Light",
+  "beats": [
+    {
+      "id": "prologue",
+      "type": "chapter",
+      "chapter": "Prologue",
+      "text": "The Moth Who Borrowed Light"
+    },
+    {
+      "id": "lamp-on",
+      "type": "lamp",
+      "level": 1
+    },
+    {
+      "id": "hush",
+      "type": "narrate",
+      "text": "Shh, {child|little one}. The show is about to begin."
+    },
+    {
+      "id": "mo-arrives",
+      "type": "moth",
+      "mode": "arriving",
+      "restU": 0.18,
+      "restV": 0.3
+    },
+    {
+      "id": "mo-intro",
+      "type": "narrate",
+      "text": "This is Mo. The Long Night took her glow, and now she cannot find her way in the dark."
+    },
+    {
+      "id": "follow",
+      "type": "follow",
+      "seconds": 3,
+      "text": "Raise a hand into the lamplight. Mo will follow your fingertip."
+    },
+    {
+      "id": "trust",
+      "type": "narrate",
+      "text": "There. She trusts you now, {child|little one}."
+    },
+    {
+      "id": "lighthouse",
+      "type": "narrate",
+      "text": "Far away, the lighthouse by the sea still shines. Mo must borrow a little of its light."
+    },
+    {
+      "id": "ch1",
+      "type": "chapter",
+      "chapter": "Chapter One",
+      "text": "Chapter One: The Field"
+    },
+    {
+      "id": "mo-rests",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.08,
+      "restV": 0.44
+    },
+    {
+      "id": "field",
+      "type": "scenery",
+      "set": "field"
+    },
+    {
+      "id": "field-wide",
+      "type": "narrate",
+      "text": "But the field is wide, and the grass is taller than the sky."
+    },
+    {
+      "id": "who",
+      "type": "narrate",
+      "text": "Mo is far too small to cross it alone. Who could carry her?"
+    },
+    {
+      "id": "want-rabbit",
+      "type": "request",
+      "shape": "rabbit",
+      "alt": "ears",
+      "text": "Make a rabbit with your hand, and hold it in the light."
+    },
+    {
+      "id": "rabbit-yes",
+      "type": "narrate",
+      "text": "A rabbit! Quick, and kind."
+    },
+    {
+      "id": "mo-rides",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "carry",
+      "type": "carry",
+      "toU": 0.32,
+      "text": "Move your hand to carry Mo across the field."
+    },
+    {
+      "id": "mo-lands",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.42,
+      "restV": 0.05
+    },
+    {
+      "id": "thanks",
+      "type": "narrate",
+      "text": "Across the field at last. Thank you, rabbit."
+    },
+    {
+      "id": "rabbit-bows",
+      "type": "release",
+      "text": "The rabbit bows. It will remember you."
+    },
+    {
+      "id": "journal-rabbit",
+      "type": "journal",
+      "creature": "rabbit",
+      "text": "Rabbit added to your Shadow Journal."
+    },
+    {
+      "id": "end-ch1",
+      "type": "narrate",
+      "text": "End of Chapter One."
+    },
+    {
+      "id": "go-on-1",
+      "type": "continue",
+      "text": "Raise an open hand into the light to go on, or pinch the lamp switch to rest."
+    },
+    {
+      "id": "ch2",
+      "type": "chapter",
+      "chapter": "Chapter Two",
+      "text": "Chapter Two: The River"
+    },
+    {
+      "id": "river",
+      "type": "scenery",
+      "set": "river"
+    },
+    {
+      "id": "mo-bank",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.4,
+      "restV": 0.05
+    },
+    {
+      "id": "river-dark",
+      "type": "narrate",
+      "text": "A dark river runs under the moon. Mo cannot swim, and the far bank is a long way off."
+    },
+    {
+      "id": "river-carry",
+      "type": "narrate",
+      "text": "Something in the water could carry her, if it were big enough."
+    },
+    {
+      "id": "want-fish",
+      "type": "request",
+      "shape": "fish",
+      "alt": "dog",
+      "outlineU": 0,
+      "outlineV": -0.18,
+      "text": "Make a fish: a flat hand, fingers together, thumb tucked in."
+    },
+    {
+      "id": "fish-yes",
+      "type": "narrate",
+      "text": "A fish! But is it big enough to carry her?"
+    },
+    {
+      "id": "grow-fish",
+      "type": "grow",
+      "text": "Move your hand closer to the lamp. Make the fish big enough to carry Mo.",
+      "factor": 1.4,
+      "minSize": 0.25
+    },
+    {
+      "id": "fish-big",
+      "type": "narrate",
+      "text": "Big enough. Climb aboard, Mo."
+    },
+    {
+      "id": "mo-boards",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "swim",
+      "type": "carry",
+      "toU": 0.3,
+      "text": "Swim across the river."
+    },
+    {
+      "id": "mo-far-bank",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.42,
+      "restV": 0.02
+    },
+    {
+      "id": "fish-goes",
+      "type": "release",
+      "text": "The fish flicks its tail and slips back into the dark water."
+    },
+    {
+      "id": "journal-fish",
+      "type": "journal",
+      "creature": "fish",
+      "text": "Fish added to your Shadow Journal."
+    },
+    {
+      "id": "end-ch2",
+      "type": "narrate",
+      "text": "End of Chapter Two."
+    },
+    {
+      "id": "go-on-2",
+      "type": "continue",
+      "text": "Raise an open hand into the light to go on, or pinch the lamp switch to rest."
+    },
+    {
+      "id": "ch3",
+      "type": "chapter",
+      "chapter": "Chapter Three",
+      "text": "Chapter Three: The Wolf"
+    },
+    {
+      "id": "forest",
+      "type": "scenery",
+      "set": "forest"
+    },
+    {
+      "id": "mo-path",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.42,
+      "restV": 0.0
+    },
+    {
+      "id": "wolf-in",
+      "type": "actor",
+      "state": "blocking",
+      "u": 0.26,
+      "v": -0.26
+    },
+    {
+      "id": "wolf-path",
+      "type": "narrate",
+      "text": "Beyond the river the path runs into the woods. And on the path, a wolf."
+    },
+    {
+      "id": "two-ways",
+      "type": "narrate",
+      "text": "Mo trembles. There are two ways past: be bigger than a wolf, or be something a wolf cannot catch."
+    },
+    {
+      "id": "wolf-choice",
+      "type": "choice",
+      "text": "Make a dog to face the wolf, or two hands side by side to become a bird.",
+      "options": [
+        {
+          "shape": "dog",
+          "outlineU": -0.3,
+          "outlineV": -0.12,
+          "goto": "dog-path"
+        },
+        {
+          "shape": "bird",
+          "alt": "open",
+          "outlineU": -0.12,
+          "outlineV": 0.3,
+          "goto": "bird-path"
+        }
+      ]
+    },
+    {
+      "id": "dog-path",
+      "type": "narrate",
+      "text": "A dog! But the wolf is not afraid of a little dog."
+    },
+    {
+      "id": "dog-grow",
+      "type": "grow",
+      "text": "Bring your hand close to the lamp. Grow, and grow, until you are huge!",
+      "factor": 1.8,
+      "minSize": 0.4
+    },
+    {
+      "id": "wolf-flees",
+      "type": "actor",
+      "state": "fleeing"
+    },
+    {
+      "id": "dog-wins",
+      "type": "narrate",
+      "text": "The wolf takes one look at your great shadow, and runs."
+    },
+    {
+      "id": "mo-rides-dog",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "dog-walk",
+      "type": "carry",
+      "toU": 0.3,
+      "text": "Lead Mo down the path."
+    },
+    {
+      "id": "dog-done",
+      "type": "goto",
+      "to": "ch3-end"
+    },
+    {
+      "id": "bird-path",
+      "type": "narrate",
+      "text": "A bird! Mo tucks herself under your wing."
+    },
+    {
+      "id": "mo-rides-bird",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "fly-over",
+      "type": "carry",
+      "toU": 0.34,
+      "minV": 0.12,
+      "text": "Fly high over the wolf's head."
+    },
+    {
+      "id": "wolf-dozes",
+      "type": "actor",
+      "state": "dozing"
+    },
+    {
+      "id": "bird-wins",
+      "type": "narrate",
+      "text": "High above, the wolf never even looked up. It yawns, and falls asleep."
+    },
+    {
+      "id": "ch3-end",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.44,
+      "restV": 0.05
+    },
+    {
+      "id": "ch3-bow",
+      "type": "release",
+      "text": "Your shadow bows, and the woods grow quiet."
+    },
+    {
+      "id": "journal-ch3",
+      "type": "journal",
+      "creature": "$last",
+      "text": "$name added to your Shadow Journal."
+    },
+    {
+      "id": "end-ch3",
+      "type": "narrate",
+      "text": "End of Chapter Three."
+    },
+    {
+      "id": "go-on-3",
+      "type": "continue",
+      "text": "Raise an open hand into the light to go on, or pinch the lamp switch to rest."
+    },
+    {
+      "id": "ch4",
+      "type": "chapter",
+      "chapter": "Chapter Four",
+      "text": "Chapter Four: The Storm"
+    },
+    {
+      "id": "ch4-clear-wolf",
+      "type": "actor",
+      "state": "hidden"
+    },
+    {
+      "id": "storm",
+      "type": "scenery",
+      "set": "storm"
+    },
+    {
+      "id": "mo-buffeted",
+      "type": "moth",
+      "mode": "buffeted",
+      "restU": 0.1,
+      "restV": 0.2
+    },
+    {
+      "id": "hollow-hidden",
+      "type": "prop",
+      "active": true,
+      "u": -0.34
+    },
+    {
+      "id": "storm-rises",
+      "type": "narrate",
+      "text": "The wind rises. Rain lashes the wall, and Mo is tossed about like a leaf."
+    },
+    {
+      "id": "shelter-somewhere",
+      "type": "narrate",
+      "text": "Somewhere nearby there is shelter, hidden in the dark."
+    },
+    {
+      "id": "search",
+      "type": "reveal",
+      "text": "Pinch the lamp and slide it along the desk to search the dark for shelter."
+    },
+    {
+      "id": "found-hollow",
+      "type": "narrate",
+      "text": "There! A hollow in the old tree."
+    },
+    {
+      "id": "mo-shelters",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.345,
+      "restV": -0.24
+    },
+    {
+      "id": "storm-waits",
+      "type": "narrate",
+      "text": "Mo creeps inside and waits out the storm, safe and dry."
+    },
+    {
+      "id": "storm-ends",
+      "type": "scenery",
+      "set": "none"
+    },
+    {
+      "id": "hollow-fades",
+      "type": "prop",
+      "active": false
+    },
+    {
+      "id": "wind-still",
+      "type": "narrate",
+      "text": "The rain stops. The wind is still strong enough to fly on."
+    },
+    {
+      "id": "want-wings",
+      "type": "request",
+      "shape": "bird",
+      "alt": "open",
+      "outlineU": -0.1,
+      "outlineV": 0.15,
+      "text": "Make a bird with two hands side by side, and carry Mo on the wind."
+    },
+    {
+      "id": "mo-flies",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "fly-to-sea",
+      "type": "carry",
+      "toU": 0.32,
+      "minV": 0.05,
+      "text": "Fly toward the sea."
+    },
+    {
+      "id": "mo-lands-4",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.42,
+      "restV": 0.1
+    },
+    {
+      "id": "wings-bow",
+      "type": "release",
+      "text": "Your wings fold, and the sea shines faintly ahead."
+    },
+    {
+      "id": "end-ch4",
+      "type": "narrate",
+      "text": "End of Chapter Four."
+    },
+    {
+      "id": "go-on-4",
+      "type": "continue",
+      "text": "Raise an open hand into the light to go on, or pinch the lamp switch to rest."
+    },
+    {
+      "id": "ch5",
+      "type": "chapter",
+      "chapter": "Chapter Five",
+      "text": "Chapter Five: The Lighthouse"
+    },
+    {
+      "id": "ch5-clear-wolf",
+      "type": "actor",
+      "state": "hidden"
+    },
+    {
+      "id": "sea",
+      "type": "scenery",
+      "set": "sea"
+    },
+    {
+      "id": "mo-at-sea",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.2,
+      "restV": -0.1
+    },
+    {
+      "id": "keeper-asleep",
+      "type": "narrate",
+      "text": "At last, the lighthouse by the sea. But the keeper is asleep, and the great light has gone out."
+    },
+    {
+      "id": "dark-lamp",
+      "type": "narrate",
+      "text": "Mo cannot borrow light from a lamp that is dark. Perhaps you can help."
+    },
+    {
+      "id": "want-cup",
+      "type": "request",
+      "shape": "cup",
+      "outlineU": -0.25,
+      "outlineV": -0.05,
+      "text": "Cup your hands together, as if holding something small and precious."
+    },
+    {
+      "id": "holding",
+      "type": "narrate",
+      "text": "You are holding the last of the light."
+    },
+    {
+      "id": "mo-rides-light",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "climb",
+      "type": "carry",
+      "toU": 0.2,
+      "minV": 0.18,
+      "text": "Carry the light up to the lamp room at the top of the tower."
+    },
+    {
+      "id": "let-go",
+      "type": "letgo",
+      "text": "Now open your hands, and let the light go."
+    },
+    {
+      "id": "light-free",
+      "type": "release",
+      "text": "The light leaps from your hands..."
+    },
+    {
+      "id": "finale",
+      "type": "finale",
+      "seconds": 4
+    },
+    {
+      "id": "lighthouse-wakes",
+      "type": "narrate",
+      "text": "...and pours out across the sea. The lighthouse wakes. And Mo... Mo is glowing again."
+    },
+    {
+      "id": "mo-glows",
+      "type": "moth",
+      "mode": "hovering",
+      "restU": 0.0,
+      "restV": 0.2
+    },
+    {
+      "id": "thank-you",
+      "type": "narrate",
+      "text": "Thank you, {child|puppeteer}. Every shadow needs a little light, and every light needs someone to hold it."
+    },
+    {
+      "id": "the-end",
+      "type": "chapter",
+      "chapter": "The End",
+      "text": "The End"
+    },
+    {
+      "id": "free-stage",
+      "type": "freestage",
+      "text": "Free Stage. Make any creature you know."
+    }
+  ]
+}

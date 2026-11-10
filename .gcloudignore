@@ -1,0 +1,11 @@
+.gcloudignore
+.git
+.gitignore
+node_modules
+dist
+.data
+artifacts
+docs
+*.log
+.claude
+server/*.test.ts
