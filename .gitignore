@@ -46,3 +46,4 @@ pids/
 
 # Local story storage (sharing server in development)
 .data/
+shadowplay-video.mp4

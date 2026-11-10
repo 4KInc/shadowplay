@@ -92,6 +92,7 @@ export class ViewerUISystem extends createSystem({
   private handsBtn: HTMLButtonElement | null = null;
   private lastLive: boolean | null = null;
   private waitBanner: HTMLDivElement | null = null;
+  private ticks = 0;
   private lastLiveStatus = '';
   /** What the camera is for right now: joining in to a replay, or showing hands in a live story. */
   private cameraFor: 'replay' | 'live' | 'reply' = 'replay';
@@ -116,7 +117,19 @@ export class ViewerUISystem extends createSystem({
     this.cleanupFuncs.push(() => this.teardownUI());
   }
 
+  /**
+   * The family viewer is for phones and tablets: the headset's Enter XR button
+   * (rendered by the XR runtime in its own shadow root) only confuses there.
+   */
+  private setEnterXRHidden(hidden: boolean): void {
+    for (const el of document.body.children) {
+      const button = (el as HTMLElement).shadowRoot?.querySelector('button');
+      if (button && /XR/i.test(button.textContent ?? '')) (el as HTMLElement).style.display = hidden ? 'none' : '';
+    }
+  }
+
   private teardownUI(): void {
+    this.setEnterXRHidden(false);
     this.style?.remove();
     this.style = null;
     this.root?.remove();
@@ -129,6 +142,7 @@ export class ViewerUISystem extends createSystem({
   }
 
   private build(): void {
+    this.setEnterXRHidden(true);
     this.style = document.createElement('style');
     this.style.textContent = CSS;
     document.head.appendChild(this.style);
@@ -361,6 +375,8 @@ export class ViewerUISystem extends createSystem({
     if (viewerMode.on && !this.root) this.build();
     if (!viewerMode.on && this.root) this.teardownUI();
     if (!this.root) return;
+    // The XR runtime may add its button after the viewer opened.
+    if (++this.ticks % 60 === 0) this.setEnterXRHidden(true);
     const p = this.performanceEntity();
     if (!p) return;
     const playing = Boolean(p.getValue(PerformancePlayer, 'playing'));
