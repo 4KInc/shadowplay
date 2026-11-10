@@ -1,5 +1,5 @@
 import { createSystem, Entity } from '@iwsdk/core';
-import { Settings, StoryState, StoryStatuses } from './shadowplay-components.js';
+import { LiveSession, PerformanceRecorder, Settings, StoryState, StoryStatuses } from './shadowplay-components.js';
 
 interface NarrationManifest {
   version: 'shadowplay.narration.v1';
@@ -18,6 +18,8 @@ interface NarrationManifest {
 export class NarrationSystem extends createSystem({
   stories: { required: [StoryState] },
   settings: { required: [Settings] },
+  recorders: { required: [PerformanceRecorder] },
+  sessions: { required: [LiveSession] },
 }) {
   private clips: Record<string, string> = {};
   private loaded = false;
@@ -47,10 +49,16 @@ export class NarrationSystem extends createSystem({
       this.pauseLine();
       return;
     }
-    // During a replayed performance the performer's own voice is the narration.
+    // During a replayed performance the performer's own voice is the narration;
+    // and while a parent records with their voice or talks live, they are the
+    // narrator (the captions become their script).
     const replaying = Boolean(story.getValue(StoryState, 'followMode'));
-    if (status !== StoryStatuses.Playing || story.getValue(StoryState, 'freeStage') || replaying) {
-      if (this.audio || this.speaking) this.stopLine();
+    if (status !== StoryStatuses.Playing || story.getValue(StoryState, 'freeStage') || replaying || this.parentNarrating()) {
+      if (this.audio || this.speaking) {
+        this.stopLine();
+        // A cut-off line counts as finished, so the story paces itself by reading time.
+        story.setValue(StoryState, 'voiceDone', true);
+      }
       return;
     }
     this.resumeLine();
@@ -66,6 +74,12 @@ export class NarrationSystem extends createSystem({
     }
     this.lastText = text;
     this.speak(story, beat, text);
+  }
+
+  private parentNarrating(): boolean {
+    const rec = first(this.queries.recorders.entities);
+    if (rec?.getValue(PerformanceRecorder, 'recording') && rec.getValue(PerformanceRecorder, 'withVoice')) return true;
+    return Boolean(first(this.queries.sessions.entities)?.getValue(LiveSession, 'talking'));
   }
 
   private load(): void {
