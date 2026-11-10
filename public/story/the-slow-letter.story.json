@@ -1,0 +1,251 @@
+{
+  "version": "shadowplay.story.v1",
+  "title": "The Letter That Took the Slow Way",
+  "beats": [
+    {
+      "id": "letter-title",
+      "type": "chapter",
+      "chapter": "The Letter That Took the Slow Way",
+      "text": "The Letter That Took the Slow Way"
+    },
+    {
+      "id": "letter-lamp",
+      "type": "lamp",
+      "level": 1
+    },
+    {
+      "id": "letter-far",
+      "type": "narrate",
+      "text": "Far away, someone who loves {child|you} wrote a letter, and folded it very small."
+    },
+    {
+      "id": "letter-mo",
+      "type": "moth",
+      "mode": "arriving"
+    },
+    {
+      "id": "letter-mo-finds",
+      "type": "narrate",
+      "text": "Mo found it on the doorstep. But a letter is heavy for a moth. She needs a friend who is never in a hurry."
+    },
+    {
+      "id": "letter-forest",
+      "type": "scenery",
+      "set": "forest"
+    },
+    {
+      "id": "letter-mo-rests",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.4,
+      "restV": 0.02
+    },
+    {
+      "id": "letter-want-snail",
+      "type": "request",
+      "shape": "snail",
+      "text": "Make a snail: a fist for the shell, and two fingers poking forward for its eyes."
+    },
+    {
+      "id": "letter-snail-yes",
+      "type": "narrate",
+      "text": "A snail! Slow and steady. That is all right. Letters can wait."
+    },
+    {
+      "id": "letter-snail-ride",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "letter-snail-carry",
+      "type": "carry",
+      "toU": 0.3,
+      "text": "Carry the letter along the forest path. Slowly now."
+    },
+    {
+      "id": "letter-snail-land",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.42,
+      "restV": 0.03
+    },
+    {
+      "id": "letter-snail-bows",
+      "type": "release",
+      "text": "The snail tucks itself into its shell, for a little sleep."
+    },
+    {
+      "id": "letter-river",
+      "type": "scenery",
+      "set": "river"
+    },
+    {
+      "id": "letter-river-rest",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.42,
+      "restV": 0.05
+    },
+    {
+      "id": "letter-river-text",
+      "type": "narrate",
+      "text": "Then the river, still and dark. Too wide for a snail, and too wet for a letter."
+    },
+    {
+      "id": "letter-want-swan",
+      "type": "request",
+      "shape": "swan",
+      "text": "Make a swan: a flat hand, bent down at the wrist, like a long neck and a beak."
+    },
+    {
+      "id": "letter-swan-yes",
+      "type": "narrate",
+      "text": "A swan, smooth and white. Hold the letter high, Mo."
+    },
+    {
+      "id": "letter-swan-ride",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "letter-swan-carry",
+      "type": "carry",
+      "toU": 0.3,
+      "text": "Glide across the river."
+    },
+    {
+      "id": "letter-swan-land",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.42,
+      "restV": 0.04
+    },
+    {
+      "id": "letter-swan-bows",
+      "type": "release",
+      "text": "The swan folds its neck and floats away."
+    },
+    {
+      "id": "letter-field",
+      "type": "scenery",
+      "set": "field"
+    },
+    {
+      "id": "letter-field-rest",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.42,
+      "restV": 0.04
+    },
+    {
+      "id": "letter-field-text",
+      "type": "narrate",
+      "text": "The last part is a big meadow, and night is coming fast."
+    },
+    {
+      "id": "letter-want-deer",
+      "type": "request",
+      "shape": "deer",
+      "text": "Make a deer with two hands: wrists together, fingers up and spread, like antlers."
+    },
+    {
+      "id": "letter-deer-yes",
+      "type": "narrate",
+      "text": "A deer! Quick and gentle. Off you go."
+    },
+    {
+      "id": "letter-deer-ride",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "letter-deer-carry",
+      "type": "carry",
+      "toU": 0.32,
+      "text": "Leap across the meadow."
+    },
+    {
+      "id": "letter-deer-land",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.4,
+      "restV": 0.1
+    },
+    {
+      "id": "letter-deer-bows",
+      "type": "release",
+      "text": "The deer bows its antlers, and is gone."
+    },
+    {
+      "id": "letter-home",
+      "type": "scenery",
+      "set": "none"
+    },
+    {
+      "id": "letter-dim",
+      "type": "lamp",
+      "level": 0.6
+    },
+    {
+      "id": "letter-window",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0,
+      "restV": 0.12
+    },
+    {
+      "id": "letter-arrives",
+      "type": "narrate",
+      "text": "And at last, the letter arrives, at your window, {child|little one}."
+    },
+    {
+      "id": "letter-want-cup",
+      "type": "request",
+      "shape": "cup",
+      "text": "Cup your hands together, to hold the letter."
+    },
+    {
+      "id": "letter-reads",
+      "type": "narrate",
+      "text": "Inside it says: I am thinking of you. I took the slow way, but I always come."
+    },
+    {
+      "id": "letter-letgo",
+      "type": "letgo",
+      "text": "Now open your hands, and let the words float up."
+    },
+    {
+      "id": "letter-free",
+      "type": "release",
+      "text": "The words drift up, like little stars..."
+    },
+    {
+      "id": "letter-finale",
+      "type": "finale",
+      "seconds": 4
+    },
+    {
+      "id": "letter-goodnight",
+      "type": "narrate",
+      "text": "Goodnight, {child|little one}. The slow way is still the way home."
+    },
+    {
+      "id": "letter-mo-glow",
+      "type": "moth",
+      "mode": "hovering",
+      "restU": 0.12,
+      "restV": 0.18
+    },
+    {
+      "id": "letter-the-end",
+      "type": "chapter",
+      "chapter": "The End",
+      "text": "The End"
+    },
+    {
+      "id": "letter-end",
+      "type": "end",
+      "text": "The End"
+    }
+  ]
+}
