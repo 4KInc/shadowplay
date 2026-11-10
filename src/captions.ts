@@ -9,10 +9,33 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { CAPTION_H, CAPTION_W, drawCaption, drawHandHint, HINT_SIZE } from './caption-art.js';
-import { StoryState } from './shadowplay-components.js';
+import { ShapeRecognizer, StoryState } from './shadowplay-components.js';
 import { stageRuntime } from './stage-runtime.js';
 
 const FADE_PER_SECOND = 4;
+const NUDGE_W = 1024;
+const NUDGE_H = 120;
+const NUDGE_TEXT: Record<string, string> = {
+  almost: 'Almost! Hold it still...',
+  light: 'Bring your hand into the lamplight.',
+};
+
+/** A small amber pill with one short line (recognition nudges). */
+function drawNudge(g: CanvasRenderingContext2D, text: string): void {
+  g.clearRect(0, 0, NUDGE_W, NUDGE_H);
+  if (!text) return;
+  g.font = 'italic 600 48px Georgia, "Times New Roman", serif';
+  const w = Math.min(NUDGE_W - 8, g.measureText(text).width + 80);
+  const x = (NUDGE_W - w) / 2;
+  g.fillStyle = 'rgba(224, 162, 74, 0.92)';
+  g.beginPath();
+  g.roundRect(x, 12, w, NUDGE_H - 24, (NUDGE_H - 24) / 2);
+  g.fill();
+  g.fillStyle = '#1a1320';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, NUDGE_W / 2, NUDGE_H / 2 + 2);
+}
 
 function canvasQuad(width: number, height: number, name: string) {
   const canvas = document.createElement('canvas');
@@ -38,9 +61,13 @@ function canvasQuad(width: number, height: number, name: string) {
  */
 export class CaptionSystem extends createSystem({
   stories: { required: [StoryState] },
+  recognizers: { required: [ShapeRecognizer] },
 }) {
   private caption = canvasQuad(CAPTION_W, CAPTION_H, 'story-caption');
   private hint = canvasQuad(HINT_SIZE, HINT_SIZE, 'show-me-hint');
+  private nudge = canvasQuad(NUDGE_W, NUDGE_H, 'recognition-nudge');
+  private nudgeShown = '';
+  private nudgeLevel = 0;
   private shown = '';
   private pending = '';
   private hintLevel = 0;
@@ -52,7 +79,7 @@ export class CaptionSystem extends createSystem({
 
   init(): void {
     this.cleanupFuncs.push(() => {
-      for (const q of [this.caption, this.hint]) {
+      for (const q of [this.caption, this.hint, this.nudge]) {
         q.mesh.removeFromParent();
         q.texture.dispose();
         q.material.dispose();
@@ -67,7 +94,7 @@ export class CaptionSystem extends createSystem({
     const root = story?.object3D;
     if (!story || !root) return;
     if (!this.attached) {
-      root.add(this.caption.mesh, this.hint.mesh);
+      root.add(this.caption.mesh, this.hint.mesh, this.nudge.mesh);
       this.attached = true;
     }
     root.visible = stageRuntime.ready;
@@ -86,6 +113,25 @@ export class CaptionSystem extends createSystem({
       this.hint.texture.needsUpdate = true;
     }
     this.updateHint(Boolean(story.getValue(StoryState, 'hintVisible')), delta);
+    const rec = this.queries.recognizers.entities.values().next().value;
+    this.updateNudge(NUDGE_TEXT[rec?.getValue(ShapeRecognizer, 'nudge') ?? 'none'] ?? '', delta);
+  }
+
+  /** The recognition nudge sits just above the caption, fading in and out. */
+  private updateNudge(text: string, delta: number): void {
+    if (text && text !== this.nudgeShown) {
+      this.nudgeShown = text;
+      drawNudge(this.nudge.g, text);
+      this.nudge.texture.needsUpdate = true;
+    }
+    const target = text ? 1 : 0;
+    this.nudgeLevel += Math.sign(target - this.nudgeLevel) * Math.min(Math.abs(target - this.nudgeLevel), delta * FADE_PER_SECOND);
+    this.nudge.material.opacity = this.nudgeLevel;
+    const w = stageRuntime.width * 0.5;
+    const h = (w * NUDGE_H) / NUDGE_W;
+    this.nudge.mesh.scale.set(w, h, 1);
+    this.nudge.mesh.position.set(0, -stageRuntime.height * 0.5 + h * 0.9, 0.003);
+    this.nudge.mesh.visible = this.nudgeLevel > 0.001;
   }
 
   private updateCaption(text: string, delta: number): void {

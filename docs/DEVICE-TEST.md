@@ -36,7 +36,7 @@ Run the core checks (A and B) in at least three rooms; the rest once per headset
 
 | # | Check | Pass | Notes / numbers |
 | --- | --- | --- | --- |
-| A1 | Cold start: link opened to page shown (seconds) | [ ] | |
+| A1 | Cold start: link opened to the lamp glow, and to the stage (seconds; the glow should show at once) | [ ] | |
 | A2 | Enter XR to stage placed (panel: `placed +Xs`) | [ ] | |
 | A3 | Permission prompts: which appeared, all understandable | [ ] | |
 | A4 | Stage on the wall straight ahead (panel: `wall`), or floating screen (`screen`) in R3 | [ ] | |
@@ -63,6 +63,9 @@ and whether anything woke that you did not ask for (panel: `match`).
 | B9 | Deer (two hands) | Slow Letter | [ ] | |
 | B10 | Crocodile (two hands) | Brave Little Dog | [ ] | |
 | B11 | Relaxed or half-closed hands never wake anything | anywhere | [ ] | |
+| B12 | Make a shape almost right: "Almost! Hold it still..." appears after about a second | any request | [ ] | |
+| B13 | Make the right shape outside the light: "Bring your hand into the lamplight." | any request | [ ] | |
+| B14 | Cupped hands with fingers overlapping (hard to track): still wakes within a few seconds | Moth finale, Sea | [ ] | |
 
 ## C. Whole stories (once per headset)
 
@@ -100,13 +103,24 @@ and whether anything woke that you did not ask for (panel: `match`).
 | E6 | Settings: Re-place stage on the wall ahead works by pinch | [ ] | |
 | E7 | One-hand mode: bird and cup with one hand | [ ] | |
 | E8 | Tolerance Very forgiving: shapes wake sooner, no false wakes | [ ] | |
+| E8b | Change Tolerance while a shape is being asked for: takes effect at once and stays after it wakes | [ ] | |
 | E9 | Captions, journal and settings readable without turning the head | [ ] | |
 | E10 | Session ended mid-story: next launch continues from that chapter | [ ] | |
+
+## Optional: silhouette templates
+
+Recognition currently runs on joint angles alone: the second method
+(silhouette matching) has no templates until some are recorded on a headset
+(`public/silhouettes/templates.json` is empty). With the dev server and a
+paired Quest, record a few per shape with the recognition lab; this only adds
+a second opinion, it is not required.
 
 ## Open questions only a device can answer
 
 - Real frame rate and GPU cost on Quest 3 vs 3S (the panel and the summary).
 - Whether Quest Browser grants 72 Hz (summary: `requested 72 Hz`).
-- Recognition accuracy with real hand tracking noise, per shape, per room light.
+- Recognition accuracy with real hand tracking noise, per shape, per room light
+  (the synthetic sweep models +/-5 mm jitter, an occluded finger and 100 ms
+  dropouts; summarize.mjs counts triggers by shape and what was asked).
 - How the capsule hand shadows look on a real wall compared with a real hand.
 - Plane detection timing in each room (`placed +Xs`) and the fallback in R3.
