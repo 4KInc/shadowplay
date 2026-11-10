@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
@@ -13,7 +13,7 @@ let server: ChildProcess;
 
 before(async () => {
   server = spawn(process.execPath, ['server/main.ts'], {
-    env: { ...process.env, PORT: String(PORT), DATA_DIR: data, STATIC_DIR: join(process.cwd(), 'public'), TRUSTED_PROXY_HOPS: '1' },
+    env: { ...process.env, PORT: String(PORT), DATA_DIR: data, DIAG_DIR: join(data, 'diag'), STATIC_DIR: join(process.cwd(), 'public'), TRUSTED_PROXY_HOPS: '1' },
     stdio: 'ignore',
   });
   for (let i = 0; i < 50; i++) {
@@ -127,4 +127,52 @@ test('static files cannot escape the app folder', async () => {
     const text = await (await fetch(BASE + path)).text();
     assert.ok(!text.includes('"dependencies"') && !text.includes('createServer'), path);
   }
+});
+
+test('diagnostics: valid batches are appended as lines; anything else is refused', async () => {
+  const c = as();
+  const batch = {
+    v: 1,
+    session: 'abcdef123456',
+    device: 'quest3',
+    gpu: 'Adreno (TM) 740',
+    seq: 0,
+    items: [
+      { k: 'snap', t: 5, fps: 71.8, p95Ms: 14.2, quality: 0, lt: true, ls: 'rabbit', rates: [72, 90], place: 'wall' },
+      { k: 'ev', t: 6, e: 'error', message: 'TypeError: x is undefined', stack: 'at story.ts:10\nat main.ts:2', source: 'story.ts:10' },
+    ],
+  };
+  assert.equal((await c.post('/api/diag', batch)).status, 204);
+  const day = readdirSync(join(data, 'diag'))[0];
+  const lines = readFileSync(join(data, 'diag', day, 'abcdef123456.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.equal(lines.length, 2);
+  assert.equal(lines[0].fps, 71.8);
+  assert.equal(lines[1].e, 'error');
+  for (const bad of [
+    { ...batch, session: '../../etc' },
+    { ...batch, v: 2 },
+    { ...batch, items: [] },
+    { ...batch, items: [{ k: 'snap', name: '<img src=x onerror=alert(1)>' }] },
+    { ...batch, items: [{ k: 'other' }] },
+    { ...batch, items: [{ k: 'snap', nested: { deep: { deeper: 1 } } }] },
+    { ...batch, items: Array.from({ length: 41 }, () => ({ k: 'snap' })) },
+  ]) {
+    assert.equal((await c.post('/api/diag', bad)).status, 400, JSON.stringify(bad).slice(0, 80));
+  }
+  assert.equal((await c.post('/api/diag', { ...batch, items: [{ k: 'ev', message: 'x'.repeat(40_000) }] })).status, 413);
+});
+
+test('diagnostics are rate limited per client', async () => {
+  const c = as();
+  const batch = { v: 1, session: 'ratelimit1234', items: [{ k: 'snap', t: 1 }] };
+  const statuses = [];
+  for (let i = 0; i < 62; i++) statuses.push((await c.post('/api/diag', batch)).status);
+  assert.equal(statuses.filter((s) => s === 204).length, 60);
+  assert.equal(statuses.at(-1), 429);
+});
+
+test('healthz', async () => {
+  const r = await fetch(`${BASE}/healthz`);
+  assert.equal(r.status, 200);
+  assert.equal(((await r.json()) as { ok: boolean }).ok, true);
 });
