@@ -5,3 +5,4 @@ dist
 artifacts
 docs
 *.log
+server/*.test.ts

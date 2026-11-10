@@ -54,6 +54,8 @@ export class LiveConnection {
   }
 
   private receive(data: unknown): void {
+    // Frames already in flight when the person left are ignored.
+    if (this.closed) return;
     if (data instanceof ArrayBuffer) {
       const msg = unpackBinary(data);
       if (msg) this.handlers.onBinary(msg.kind, msg.payload);

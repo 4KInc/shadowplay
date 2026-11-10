@@ -51,7 +51,7 @@ gcloud storage buckets update gs://$BUCKET --lifecycle-file=/tmp/lifecycle.json
 
 gcloud run deploy shadowplay --project $PROJECT --region $REGION --source . \
   --allow-unauthenticated \
-  --set-env-vars STORY_BUCKET=$BUCKET \
+  --set-env-vars STORY_BUCKET=$BUCKET,TRUSTED_PROXY_HOPS=1 \
   --min-instances 0 --max-instances 1 --timeout 3600 --session-affinity \
   --memory 512Mi --cpu 1
 

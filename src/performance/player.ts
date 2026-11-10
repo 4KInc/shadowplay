@@ -1,7 +1,7 @@
 import { createSystem, Entity } from '@iwsdk/core';
 import { family } from '../family.js';
 import { loadRecording } from '../journal-store.js';
-import { loadStoryScript, StoryBeat, storyRuntime } from '../story-script.js';
+import { isStoryScript, loadStoryScript, StoryBeat, storyRuntime } from '../story-script.js';
 import {
   DeskLamp,
   HiddenProp,
@@ -16,7 +16,7 @@ import {
 } from '../shadowplay-components.js';
 import { handOverride, JOINT_COUNT, stageRuntime } from '../stage-runtime.js';
 import { applyEvent, ApplyTargets, applyTargets } from './apply.js';
-import { decodeHands, Performance, PerformanceEvent, readFrame } from './format.js';
+import { decodeHands, FRAME_STRIDE, Performance, PerformanceEvent, readFrame } from './format.js';
 
 /** Re-sync the voice when it drifts this far (s) from the performance clock. */
 const AUDIO_DRIFT = 0.25;
@@ -110,17 +110,30 @@ export class PerformancePlayerSystem extends createSystem({
   private async load(player: Entity): Promise<void> {
     this.loading = true;
     const id = player.getValue(PerformancePlayer, 'recordingId') ?? '';
-    const perf = await loadRecording<Performance>(id);
-    this.loading = false;
-    if (!perf) {
+    let perf: Performance | null = null;
+    let frames: Int16Array;
+    let beats: StoryBeat[] = [];
+    try {
+      perf = await loadRecording<Performance>(id);
+      if (!perf) throw new Error(`No recording "${id}".`);
+      // A story this version does not know plays without changing the stage's story.
+      if (perf.script && !isStoryScript(perf.script)) perf = { ...perf, script: '' };
+      frames = decodeHands(perf.hands);
+      if (frames.length < perf.frameCount * FRAME_STRIDE) throw new Error('This recording is damaged.');
+      beats = perf.script ? (await loadStoryScript(perf.script).catch(() => null))?.beats ?? [] : [];
+    } catch (error) {
       player.setValue(PerformancePlayer, 'playing', false);
-      player.setValue(PerformancePlayer, 'status', `No recording "${id}".`);
+      player.setValue(PerformancePlayer, 'status', (error as Error).message);
       return;
+    } finally {
+      this.loading = false;
     }
+    // Stopped, or asked for another recording, while this one was loading.
+    if (!player.getValue(PerformancePlayer, 'playing') || player.getValue(PerformancePlayer, 'recordingId') !== id) return;
     this.perf = perf;
-    this.frames = decodeHands(perf.hands);
+    this.frames = frames;
     this.events = [...perf.events].sort((a, b) => a.t - b.t);
-    this.beats = perf.script ? (await loadStoryScript(perf.script).catch(() => null))?.beats ?? [] : [];
+    this.beats = beats;
     this.rejoinAt = -1;
     // The recorded hands drive the stage; the camera only takes over for join-in moments.
     handOverride.cameraAllowed = false;

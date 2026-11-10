@@ -174,7 +174,10 @@ const inPhase = (xs, name) => xs.filter((x) => x >= marks[name].start && x <= ma
 const parentToChild = delays(voice.parent.sentEdges, voice.child.heardEdges);
 // Match the parent's beats (after the child joined) to the child's, in order.
 const joined = marks.clean.start;
-const pb = pageBeats.parent.filter((b) => b.t >= joined);
+// Beats the parent entered while disconnected (the dropout) reach the child as the
+// snapshot sent on reconnect, not one by one, so they are not counted as missed.
+const offline = (t) => t >= marks.dropAt && t <= marks.dropAt + 4000;
+const pb = pageBeats.parent.filter((b) => b.t >= joined && b.t <= marks.endAt && !offline(b.t));
 let ci = 0;
 const beatLag = [];
 const missed = [];

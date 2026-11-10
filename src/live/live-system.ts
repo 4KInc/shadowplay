@@ -16,7 +16,7 @@ import {
   StageActor,
   StoryState,
 } from '../shadowplay-components.js';
-import { loadStoryScript, StoryBeat, storyRuntime } from '../story-script.js';
+import { isStoryScript, loadStoryScript, StoryBeat, storyRuntime } from '../story-script.js';
 import { handOverride, handRuntime, JOINT_COUNT, secondHands, stageRuntime, xrSecond } from '../stage-runtime.js';
 import { LiveConnection } from './connection.js';
 import { HANDS_HZ, HEADER_BYTES, KIND_HANDS, KIND_VOICE, packBinary, PeerMessage, ServerMessage } from './protocol.js';
@@ -214,12 +214,14 @@ export class LiveSystem extends createSystem({
 
   private connect(session: Entity): void {
     if (this.role === 'off') return;
-    this.conn = new LiveConnection(this.role, this.roomCode, this.token, {
-      onServer: (m) => this.onServer(session, m),
-      onPeer: (m) => this.onPeer(m),
-      onBinary: (kind, payload) => this.onBinary(kind, payload),
-      onClose: () => this.onClosed(session),
+    // Callbacks from an older connection (replaced or closed) are ignored.
+    const conn: LiveConnection = new LiveConnection(this.role, this.roomCode, this.token, {
+      onServer: (m) => this.conn === conn && this.onServer(session, m),
+      onPeer: (m) => this.conn === conn && this.onPeer(m),
+      onBinary: (kind, payload) => this.conn === conn && this.onBinary(kind, payload),
+      onClose: () => this.conn === conn && this.onClosed(session),
     });
+    this.conn = conn;
   }
 
   private onServer(session: Entity, m: ServerMessage): void {
@@ -287,8 +289,8 @@ export class LiveSystem extends createSystem({
     if (this.role !== 'guest') return; // Only the host's story drives a stage.
     if (m.type === 'hello') {
       family.borrow({ performer: m.performer, child: m.child });
-      this.hostScript = m.script;
-      if (m.script) first(this.queries.stories.entities)?.setValue(StoryState, 'script', m.script);
+      this.hostScript = isStoryScript(m.script) ? m.script : '';
+      if (this.hostScript) first(this.queries.stories.entities)?.setValue(StoryState, 'script', m.script);
     }
     else if (m.type === 'state') this.pending.push(...m.events);
     else if (m.type === 'event') this.pending.push(m.event);

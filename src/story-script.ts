@@ -60,7 +60,15 @@ export function readingSeconds(text: string): number {
   return Math.max(2.5, words / 3 + 1.2);
 }
 
+/** Only the app's own story files (a recording or a Live peer names one; never any other path). */
+const SCRIPT_PATH = /^story\/[a-z0-9-]{1,40}\.story\.json$/;
+
+export function isStoryScript(path: string): boolean {
+  return SCRIPT_PATH.test(path);
+}
+
 export async function loadStoryScript(path: string): Promise<StoryScript> {
+  if (!SCRIPT_PATH.test(path)) throw new Error(`Unknown story "${path.slice(0, 60)}"`);
   const url = `${import.meta.env.BASE_URL}${path.replace(/^\/+/u, '')}`;
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Story script ${url}: HTTP ${response.status}`);

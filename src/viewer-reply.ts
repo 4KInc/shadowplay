@@ -26,6 +26,11 @@ export class ReplySheet {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private tick: ReturnType<typeof setInterval> | null = null;
   private recordedId = '';
+  private wait: ReturnType<typeof setInterval> | null = null;
+  private closeTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Recorder while a goodnight is being recorded (so closing mid-way can stop it). */
+  private recording: Entity | null = null;
+  private lastIdBefore = '';
   private deps: ReplyDeps;
   private code: string;
   private to: string;
@@ -84,6 +89,8 @@ export class ReplySheet {
     rec.setValue(PerformanceRecorder, 'performer', this.from);
     rec.setValue(PerformanceRecorder, 'withVoice', voice);
     rec.setValue(PerformanceRecorder, 'recording', true);
+    this.recording = rec;
+    this.lastIdBefore = before;
     let left = MAX_SECONDS;
     // The sheet steps aside so the stage is visible; a small bar keeps time.
     this.sheet.classList.add('sp-recording');
@@ -104,17 +111,24 @@ export class ReplySheet {
     if (this.tick) clearInterval(this.tick);
     this.timer = this.tick = null;
     rec.setValue(PerformanceRecorder, 'recording', false);
+    this.recording = null;
     this.deps.freeMode(false);
     this.deps.camera(false);
     this.sheet.classList.remove('sp-recording');
     this.render('<p class="sp-title">Saving your goodnight...</p>');
     // The recorder saves asynchronously (voice included); wait for the new recording.
-    const wait = setInterval(() => {
+    const started = Date.now();
+    this.wait = setInterval(() => {
       const id = rec.getValue(PerformanceRecorder, 'lastId') ?? '';
       if (id && id !== before) {
-        clearInterval(wait);
+        this.stopWaiting();
         this.recordedId = id;
         this.showSend();
+      } else if (Date.now() - started > 15000) {
+        this.stopWaiting();
+        this.render(`<p class="sp-title">That goodnight could not be saved.</p>
+          <div class="sp-row"><button class="sp-btn" data-act="cancel">Close</button></div>`);
+        this.on('cancel', () => this.close());
       }
     }, 100);
   }
@@ -149,15 +163,37 @@ export class ReplySheet {
       // It was for them, not for this device's story list.
       await deleteRecording(this.recordedId);
       this.render(`<p class="sp-title">Sent! ${escape(this.to)} will see it on their wall. Goodnight.</p>`);
-      setTimeout(() => this.close(), 3500);
+      this.closeTimer = setTimeout(() => this.close(), 3500);
     } catch (error) {
       if (note) note.textContent = (error as Error).message;
     }
   }
 
+  private stopWaiting(): void {
+    if (this.wait) clearInterval(this.wait);
+    this.wait = null;
+  }
+
+  /** Full teardown, whenever the sheet goes: timers, and a recording or camera left running. */
   close(): void {
     if (this.timer) clearTimeout(this.timer);
     if (this.tick) clearInterval(this.tick);
+    if (this.closeTimer) clearTimeout(this.closeTimer);
+    this.timer = this.tick = this.closeTimer = null;
+    this.stopWaiting();
+    if (this.recording) {
+      const rec = this.recording;
+      rec.setValue(PerformanceRecorder, 'recording', false);
+      // The half-made goodnight is saved a moment later; it was never meant to be kept.
+      const before = this.lastIdBefore;
+      setTimeout(() => {
+        const id = rec.getValue(PerformanceRecorder, 'lastId') ?? '';
+        if (id && id !== before) void deleteRecording(id);
+      }, 3000);
+      this.recording = null;
+      this.deps.freeMode(false);
+      this.deps.camera(false);
+    }
     this.sheet.remove();
   }
 }

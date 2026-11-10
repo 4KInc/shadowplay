@@ -8,3 +8,4 @@ artifacts
 docs
 *.log
 .claude
+server/*.test.ts

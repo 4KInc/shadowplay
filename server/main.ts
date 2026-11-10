@@ -1,8 +1,9 @@
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { extname, join, normalize } from 'node:path';
+import { extname, join, normalize, sep } from 'node:path';
 import { isCode, newCode, normaliseCode } from './codes.ts';
+import { checkPerformance, clientIp, decodeSafe, RateLimiter } from './guard.ts';
 import { attachLive, liveRoomCount } from './live.ts';
 import { DiskStore, GcsStore, type StoryStore } from './storage.ts';
 
@@ -23,7 +24,6 @@ const STATIC_DIR = process.env.STATIC_DIR ?? join(process.cwd(), 'dist');
 const DATA_DIR = process.env.DATA_DIR ?? join(process.cwd(), '.data/stories');
 const MAX_BYTES = Number(process.env.MAX_STORY_BYTES ?? 30 * 1024 * 1024);
 const TTL_DAYS = Number(process.env.STORY_TTL_DAYS ?? 30);
-const PERFORMANCE_VERSION = 'shadowplay.performance.v1';
 const MAX_REPLIES = 5;
 /** Replies are short: a goodnight, not a second story. */
 const MAX_REPLY_BYTES = Number(process.env.MAX_REPLY_BYTES ?? 6 * 1024 * 1024);
@@ -36,25 +36,15 @@ const store: StoryStore = BUCKET
 
 // ---------------------------------------------------------------- rate limiting
 
-/** Simple per-IP token buckets: uploads are rare, lookups are a little more frequent. */
-const LIMITS = { upload: { per: 3600_000, max: 20 }, lookup: { per: 60_000, max: 30 } } as const;
-const buckets = new Map<string, { count: number; reset: number }>();
+/** Per client address: uploads are rare, lookups a little more frequent (this also guards the code space). */
+const limits = { upload: new RateLimiter(3600_000, 20), lookup: new RateLimiter(60_000, 30) };
 
-function allowed(kind: keyof typeof LIMITS, ip: string): boolean {
-  const key = `${kind}:${ip}`;
-  const now = Date.now();
-  const b = buckets.get(key);
-  if (!b || now > b.reset) {
-    buckets.set(key, { count: 1, reset: now + LIMITS[kind].per });
-    return true;
-  }
-  b.count++;
-  return b.count <= LIMITS[kind].max;
-}
-
-function clientIp(req: IncomingMessage): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  return (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0].trim() || req.socket.remoteAddress || '?';
+function allowed(kind: keyof typeof limits, req: IncomingMessage): boolean {
+  const ip = clientIp(req);
+  if (limits[kind].allow(ip)) return true;
+  // Masked: enough to see that limits key on real client addresses, not enough to identify anyone.
+  console.warn(`[limit] ${kind} refused for ${ip.replace(/[.:][^.:]*$/, '.x')}`);
+  return false;
 }
 
 // ---------------------------------------------------------------- helpers
@@ -80,43 +70,75 @@ async function readBody(req: IncomingMessage, limit: number): Promise<string | n
   return Buffer.concat(chunks).toString('utf8');
 }
 
-/** Minimal shape check so the store only ever holds performance streams. */
-function validPerformance(p: unknown): p is Record<string, unknown> {
-  if (!p || typeof p !== 'object') return false;
-  const o = p as Record<string, unknown>;
-  return (
-    o.version === PERFORMANCE_VERSION &&
-    typeof o.hands === 'string' &&
-    typeof o.frameCount === 'number' &&
-    typeof o.durationMs === 'number' &&
-    Array.isArray(o.events) &&
-    (o.audio === undefined || o.audio === null || (typeof o.audio === 'string' && o.audio.startsWith('data:audio/')))
-  );
+/** Keep only the fields the app records (never store or hand back anything extra). */
+const STORY_FIELDS = [
+  'version', 'id', 'title', 'performer', 'child', 'createdAt', 'durationMs', 'script', 'frameHz',
+  'hands', 'frameCount', 'events', 'audio', 'audioType',
+] as const;
+
+function pick(perf: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of STORY_FIELDS) if (perf[k] !== undefined) out[k] = perf[k];
+  return out;
+}
+
+/** Parse and check a story body; answers the story or sends the error itself. */
+async function readStory(req: IncomingMessage, res: ServerResponse, limit: number): Promise<Record<string, unknown> | null> {
+  const body = await readBody(req, limit);
+  if (body === null) {
+    json(res, 413, { error: 'Story too large.' });
+    return null;
+  }
+  let perf: unknown;
+  try {
+    perf = JSON.parse(body);
+  } catch {
+    json(res, 400, { error: 'Not a story.' });
+    return null;
+  }
+  // Base64 grows audio by a third; leave room for the rest of the story.
+  const problem = checkPerformance(perf, Math.floor(limit * 0.95));
+  if (problem) {
+    json(res, 400, { error: problem });
+    return null;
+  }
+  return pick(perf as Record<string, unknown>);
+}
+
+/** Codes from the URL: decoded, normalised and checked, or null. */
+function codeFrom(raw: string): string | null {
+  const decoded = decodeSafe(raw);
+  const code = decoded === null ? '' : normaliseCode(decoded);
+  return isCode(code) ? code : null;
+}
+
+/** One reply write at a time per story, so two goodnights never take the same slot. */
+const replyLocks = new Map<string, Promise<unknown>>();
+function withReplyLock<T>(code: string, fn: () => Promise<T>): Promise<T> {
+  const run = (replyLocks.get(code) ?? Promise.resolve()).then(fn, fn);
+  const tail = run.catch(() => undefined);
+  replyLocks.set(code, tail);
+  void tail.then(() => replyLocks.get(code) === tail && replyLocks.delete(code));
+  return run;
 }
 
 // ---------------------------------------------------------------- API
 
 async function uploadStory(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  if (!allowed('upload', clientIp(req))) return json(res, 429, { error: 'Too many uploads. Try again later.' });
-  const body = await readBody(req, MAX_BYTES);
-  if (body === null) return json(res, 413, { error: 'Story too large.' });
-  let perf: unknown;
-  try {
-    perf = JSON.parse(body);
-  } catch {
-    return json(res, 400, { error: 'Not a story.' });
-  }
-  if (!validPerformance(perf)) return json(res, 400, { error: 'Not a Shadowplay story.' });
-  const code = newCode();
+  if (!allowed('upload', req)) return json(res, 429, { error: 'Too many uploads. Try again later.' });
+  const perf = await readStory(req, res, MAX_BYTES);
+  if (!perf) return;
+  let code = newCode();
+  while (await store.get(code)) code = newCode();
   const expiresAt = Date.now() + TTL_DAYS * 86_400_000;
   await store.put(code, JSON.stringify({ storedAt: Date.now(), expiresAt, performance: perf }));
   json(res, 201, { code, expiresAt });
 }
 
 async function fetchStory(req: IncomingMessage, res: ServerResponse, raw: string): Promise<void> {
-  if (!allowed('lookup', clientIp(req))) return json(res, 429, { error: 'Too many tries. Wait a minute.' });
-  const code = normaliseCode(decodeURIComponent(raw));
-  if (!isCode(code)) return json(res, 404, { error: 'No story with that code.' });
+  if (!allowed('lookup', req)) return json(res, 429, { error: 'Too many tries. Wait a minute.' });
+  const code = codeFrom(raw);
+  if (!code) return json(res, 404, { error: 'No story with that code.' });
   const text = await store.get(code);
   if (!text) return json(res, 404, { error: 'No story with that code.' });
   const record = JSON.parse(text) as { expiresAt: number; performance: unknown };
@@ -136,35 +158,26 @@ async function loadRecord(code: string): Promise<{ expiresAt: number; performanc
 }
 
 async function replyToStory(req: IncomingMessage, res: ServerResponse, raw: string): Promise<void> {
-  if (!allowed('upload', clientIp(req))) return json(res, 429, { error: 'Too many uploads. Try again later.' });
-  const code = normaliseCode(decodeURIComponent(raw));
-  const record = isCode(code) ? await loadRecord(code) : null;
-  if (!record) return json(res, 404, { error: 'No story with that code.' });
-  let slot = -1;
-  for (let i = 0; i < MAX_REPLIES; i++) {
-    if (!(await store.get(`${code}.reply-${i}`))) {
-      slot = i;
-      break;
+  if (!allowed('upload', req)) return json(res, 429, { error: 'Too many uploads. Try again later.' });
+  const code = codeFrom(raw);
+  const record = code ? await loadRecord(code) : null;
+  if (!code || !record) return json(res, 404, { error: 'No story with that code.' });
+  const perf = await readStory(req, res, MAX_REPLY_BYTES);
+  if (!perf) return;
+  await withReplyLock(code, async () => {
+    for (let i = 0; i < MAX_REPLIES; i++) {
+      if (await store.get(`${code}.reply-${i}`)) continue;
+      await store.put(`${code}.reply-${i}`, JSON.stringify({ storedAt: Date.now(), expiresAt: record.expiresAt, performance: perf }));
+      return json(res, 201, { ok: true });
     }
-  }
-  if (slot < 0) return json(res, 409, { error: 'This story already has all its goodnights.' });
-  const body = await readBody(req, MAX_REPLY_BYTES);
-  if (body === null) return json(res, 413, { error: 'That goodnight is too long.' });
-  let perf: unknown;
-  try {
-    perf = JSON.parse(body);
-  } catch {
-    return json(res, 400, { error: 'Not a goodnight.' });
-  }
-  if (!validPerformance(perf)) return json(res, 400, { error: 'Not a Shadowplay goodnight.' });
-  await store.put(`${code}.reply-${slot}`, JSON.stringify({ storedAt: Date.now(), expiresAt: record.expiresAt, performance: perf }));
-  json(res, 201, { ok: true });
+    json(res, 409, { error: 'This story already has all its goodnights.' });
+  });
 }
 
 async function listReplies(req: IncomingMessage, res: ServerResponse, raw: string): Promise<void> {
-  if (!allowed('lookup', clientIp(req))) return json(res, 429, { error: 'Too many tries. Wait a minute.' });
-  const code = normaliseCode(decodeURIComponent(raw));
-  if (!isCode(code) || !(await loadRecord(code))) return json(res, 404, { error: 'No story with that code.' });
+  if (!allowed('lookup', req)) return json(res, 429, { error: 'Too many tries. Wait a minute.' });
+  const code = codeFrom(raw);
+  if (!code || !(await loadRecord(code))) return json(res, 404, { error: 'No story with that code.' });
   const replies: unknown[] = [];
   for (let i = 0; i < MAX_REPLIES; i++) {
     const text = await store.get(`${code}.reply-${i}`);
@@ -192,7 +205,7 @@ const TYPES: Record<string, string> = {
 async function serveStatic(req: IncomingMessage, res: ServerResponse, path: string): Promise<void> {
   const safe = normalize(path).replace(/^(\.\.[/\\])+/, '');
   let file = join(STATIC_DIR, safe);
-  if (!file.startsWith(STATIC_DIR)) return json(res, 404, { error: 'Not found' });
+  if (file !== STATIC_DIR && !file.startsWith(STATIC_DIR + sep)) return json(res, 404, { error: 'Not found' });
   try {
     if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
   } catch {
@@ -240,6 +253,8 @@ const server = createServer((req, res) => {
 async function sweep(): Promise<void> {
   const cutoff = Date.now() - TTL_DAYS * 86_400_000;
   for (const code of await store.olderThan(cutoff)) await store.remove(code);
+  limits.upload.prune();
+  limits.lookup.prune();
 }
 setInterval(() => void sweep(), 3600_000).unref();
 void sweep();
