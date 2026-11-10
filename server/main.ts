@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize, sep } from 'node:path';
 import { isCode, newCode, normaliseCode } from './codes.ts';
+import { compressed, compressible, pickEncoding, warm } from './compress.ts';
 import { BucketDiagSink, checkDiag, DiskDiagSink, type DiagSink } from './diag.ts';
 import { checkPerformance, clientIp, decodeSafe, RateLimiter } from './guard.ts';
 import { attachLive, liveRoomCount } from './live.ts';
@@ -241,14 +242,25 @@ async function serveStatic(req: IncomingMessage, res: ServerResponse, path: stri
   }
   try {
     const info = await stat(file);
-    const hashed = /\/assets\//.test(file);
-    res.writeHead(200, {
+    // Hashed build output never changes under its name; everything else (index.html,
+    // stories, narration, samples) is revalidated so a new deploy shows at once.
+    const hashed = /[/\\]assets[/\\]/.test(file);
+    const headers: Record<string, string | number> = {
       'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream',
-      'Content-Length': info.size,
       'Cache-Control': hashed ? 'public, max-age=31536000, immutable' : 'no-cache',
       'X-Content-Type-Options': 'nosniff',
-    });
-    createReadStream(file).pipe(res);
+    };
+    const encoding = compressible(file) ? pickEncoding(req.headers['accept-encoding']) : null;
+    if (compressible(file)) headers.Vary = 'Accept-Encoding';
+    if (encoding) {
+      const body = await compressed(file, info.mtimeMs, encoding);
+      res.writeHead(200, { ...headers, 'Content-Encoding': encoding, 'Content-Length': body.length });
+      res.end(req.method === 'HEAD' ? undefined : body);
+      return;
+    }
+    res.writeHead(200, { ...headers, 'Content-Length': info.size });
+    if (req.method === 'HEAD') res.end();
+    else createReadStream(file).pipe(res);
   } catch {
     json(res, 404, { error: 'Not found' });
   }
@@ -290,4 +302,6 @@ setInterval(() => void sweep(), 3600_000).unref();
 void sweep();
 
 attachLive(server);
+// Compress the app's text files in the background so the first visitor gets them ready.
+void warm(STATIC_DIR).then((n) => console.log(`[server] compressed ${n} app files`));
 server.listen(PORT, () => console.log(`[server] Shadowplay on :${PORT} (stories in ${BUCKET ? `gs://${BUCKET}` : DATA_DIR})`));

@@ -1,6 +1,8 @@
 // Smoke test a deployed Shadowplay: app, assets, samples, narration, sharing, replies,
 // security checks and live rooms. Cleans nothing up itself: test stories expire with the bucket rule.
 //   node scripts/sim/smoke.mjs https://<service-url>
+import { request } from 'node:https';
+import { request as httpRequest } from 'node:http';
 import { WebSocket } from 'ws';
 
 const base = process.argv[2].replace(/\/$/, '');
@@ -13,6 +15,43 @@ const get = (p, init) => fetch(base + p, init);
 
 const h = await (await get('/api/health')).json();
 ok('health', h.ok, JSON.stringify(h));
+ok('/healthz', (await get('/healthz')).ok);
+
+/** Bytes on the wire for one request with Accept-Encoding: br, gzip (fetch would decode them). */
+function wire(path) {
+  const url = new URL(base + path);
+  const req = url.protocol === 'https:' ? request : httpRequest;
+  return new Promise((resolve, reject) => {
+    req(url, { headers: { 'Accept-Encoding': 'br, gzip' } }, (res) => {
+      let bytes = 0;
+      res.on('data', (c) => (bytes += c.length));
+      res.on('end', () => resolve({ bytes, headers: res.headers, status: res.statusCode }));
+    }).on('error', reject).end();
+  });
+}
+
+// Cold load: index.html, its entry script and the entry's static imports, as transferred.
+{
+  const index = await wire('/');
+  ok('index.html no-cache', index.headers['cache-control'] === 'no-cache', index.headers['cache-control']);
+  const page = await (await get('/')).text();
+  const entry = page.match(/<script[^>]+src="\.?\/?([^"]+\.js)"/)?.[1];
+  const files = new Set([entry]);
+  for (const f of files) {
+    const code = await (await get('/' + f)).text();
+    for (const m of code.matchAll(/(?:^|[;}\s])import\s*(?:[\w*{}\s,$]+from\s*)?["']\.\/([\w.-]+\.js)["']/g)) files.add('assets/' + m[1]);
+  }
+  let bytes = index.bytes;
+  for (const f of files) {
+    const r = await wire('/' + f);
+    bytes += r.bytes;
+    if (f === entry) {
+      ok('entry script compressed', ['br', 'gzip'].includes(r.headers['content-encoding']), r.headers['content-encoding']);
+      ok('entry script immutable', /immutable/.test(r.headers['cache-control'] ?? ''), r.headers['cache-control']);
+    }
+  }
+  ok('cold-load bytes under 2 MB', bytes < 2 * 1024 * 1024, `${(bytes / 1024).toFixed(0)} KB over ${files.size + 1} files`);
+}
 const html = await (await get('/')).text();
 ok('app page', html.includes('<script'));
 const js = html.match(/src="([^"]+\.js)"/)?.[1];

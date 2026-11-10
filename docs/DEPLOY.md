@@ -24,6 +24,8 @@ One container serves everything:
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `PORT` | `8787` (`8080` in the image) | HTTP port |
+| `TRUSTED_PROXY_HOPS` | `0` | Proxy hops to trust in X-Forwarded-For (`1` on Cloud Run) |
+| `DIAG_DIR` | `./.data/diag` | Local folder for `?diag` diagnostics (production: `diag/` in the bucket) |
 | `STATIC_DIR` | `./dist` | built app |
 | `STORY_BUCKET` | unset | Cloud Storage bucket for shared stories; unset = local disk |
 | `DATA_DIR` | `./.data/stories` | local story folder when no bucket is set |
@@ -64,6 +66,76 @@ gcloud storage buckets add-iam-policy-binding gs://$BUCKET \
 
 WebXR needs HTTPS, which Cloud Run provides. Family viewer links use the page's
 own address, so they work on the deployed URL without configuration.
+
+## Judging configuration (freeze, then leave running)
+
+Run these yourself on freeze day (17 Nov). Judging uses the build as it stands
+at 18 Nov 12:00 PT and runs until about 11 Dec, so after this **do not deploy**.
+
+```sh
+PROJECT=quick-catcher-470218-b0
+REGION=us-central1
+SA=shadowplay-run@$PROJECT.iam.gserviceaccount.com
+BUCKET=$PROJECT-shadowplay-stories
+
+# 1. Freeze the code and deploy it as a tagged revision called "competition".
+git checkout main && git pull --ff-only
+git tag v1.0-competition && git push origin v1.0-competition
+gcloud run deploy shadowplay --project $PROJECT --region $REGION --source . \
+  --service-account $SA --allow-unauthenticated \
+  --set-env-vars STORY_BUCKET=$BUCKET,TRUSTED_PROXY_HOPS=1 \
+  --min-instances 1 --max-instances 1 \
+  --no-cpu-throttling --cpu 1 --memory 1Gi \
+  --timeout 3600 --session-affinity \
+  --revision-suffix competition --tag competition --no-traffic
+
+# 2. Pin 100% of traffic to that revision (later deploys would then not go live by accident).
+gcloud run services update-traffic shadowplay --project $PROJECT --region $REGION \
+  --to-revisions shadowplay-competition=100
+
+# 3. Uptime check on /healthz every 5 minutes, emailing you when it fails.
+gcloud beta monitoring channels create --project $PROJECT \
+  --display-name="Shadowplay alerts" --type=email --channel-labels=email_address=YOU@example.com
+CHANNEL=$(gcloud beta monitoring channels list --project $PROJECT \
+  --filter='displayName="Shadowplay alerts"' --format='value(name)')
+gcloud monitoring uptime create shadowplay-healthz --project $PROJECT \
+  --resource-type=uptime-url \
+  --resource-labels=host=shadowplay-1031148889398.us-central1.run.app,project_id=$PROJECT \
+  --path=/healthz --protocol=https --period=5 --timeout=10
+CHECK=$(gcloud monitoring uptime list-configs --project $PROJECT \
+  --filter='displayName="shadowplay-healthz"' --format='value(name.basename())')
+cat > /tmp/shadowplay-uptime-policy.json <<JSON
+{
+  "displayName": "Shadowplay is down",
+  "combiner": "OR",
+  "conditions": [{
+    "displayName": "healthz failing",
+    "conditionThreshold": {
+      "filter": "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.type=\"uptime_url\" AND metric.label.check_id=\"$CHECK\"",
+      "aggregations": [{ "alignmentPeriod": "600s", "perSeriesAligner": "ALIGN_FRACTION_TRUE" }],
+      "comparison": "COMPARISON_LT", "thresholdValue": 0.5, "duration": "600s"
+    }
+  }],
+  "notificationChannels": ["$CHANNEL"]
+}
+JSON
+gcloud monitoring policies create --project $PROJECT --policy-from-file=/tmp/shadowplay-uptime-policy.json
+
+# 4. Check it.
+node scripts/sim/smoke.mjs https://shadowplay-1031148889398.us-central1.run.app
+```
+
+Why these settings:
+
+| Setting | Reason |
+| --- | --- |
+| `--min-instances 1 --max-instances 1` | No cold start for a judge; Live rooms live in memory, so exactly one instance |
+| `--no-cpu-throttling` | CPU stays allocated between requests (WebSocket rooms, diagnostics flushes) |
+| `--memory 1Gi` | Headroom for compressed assets in memory and Live rooms |
+| `--tag competition` + traffic pinned | The judged build cannot change by accident |
+
+Cost: one always-on instance (1 vCPU, 1 GiB) for about four weeks, roughly
+US$50-70 at list price; check the pricing calculator for your account.
 
 ## Verified locally
 
