@@ -43,7 +43,8 @@ function allowed(kind: keyof typeof limits, req: IncomingMessage): boolean {
   const ip = clientIp(req);
   if (limits[kind].allow(ip)) return true;
   // Masked: enough to see that limits key on real client addresses, not enough to identify anyone.
-  console.warn(`[limit] ${kind} refused for ${ip.replace(/[.:][^.:]*$/, '.x')}`);
+  const masked = ip.includes(':') ? `${ip.split(':').slice(0, 3).join(':')}::x` : ip.replace(/\.\d+$/, '.x');
+  console.warn(`[limit] ${kind} refused for ${masked}`);
   return false;
 }
 
