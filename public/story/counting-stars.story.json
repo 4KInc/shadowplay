@@ -1,0 +1,199 @@
+{
+  "version": "shadowplay.story.v1",
+  "title": "Counting Stars",
+  "beats": [
+    {
+      "id": "stars-title",
+      "type": "chapter",
+      "chapter": "Counting Stars",
+      "text": "Counting Stars"
+    },
+    {
+      "id": "stars-lamp",
+      "type": "lamp",
+      "level": 1
+    },
+    {
+      "id": "stars-shh",
+      "type": "narrate",
+      "text": "Shh. It's nearly sleepy time, {child|little one}. Let's count the stars together."
+    },
+    {
+      "id": "stars-mo",
+      "type": "moth",
+      "mode": "arriving"
+    },
+    {
+      "id": "stars-follow",
+      "type": "follow",
+      "seconds": 3,
+      "text": "Hold up your hand. Mo will follow your finger, slowly, slowly."
+    },
+    {
+      "id": "stars-one",
+      "type": "narrate",
+      "text": "Here is star number one. Mo saw it first."
+    },
+    {
+      "id": "stars-want-bird",
+      "type": "request",
+      "shape": "bird",
+      "text": "Make a bird with two hands, side by side. Fly up to find star number two."
+    },
+    {
+      "id": "stars-bird-ride",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "stars-bird-carry",
+      "type": "carry",
+      "toU": 0.3,
+      "minV": 0.12,
+      "text": "Fly up, up, up."
+    },
+    {
+      "id": "stars-two",
+      "type": "narrate",
+      "text": "Star number two, high in the sky."
+    },
+    {
+      "id": "stars-bird-bows",
+      "type": "release",
+      "text": "The bird tucks its head under its wing."
+    },
+    {
+      "id": "stars-dim1",
+      "type": "lamp",
+      "level": 0.8
+    },
+    {
+      "id": "stars-sea",
+      "type": "scenery",
+      "set": "sea"
+    },
+    {
+      "id": "stars-sea-rest",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.4,
+      "restV": 0.08
+    },
+    {
+      "id": "stars-sea-text",
+      "type": "narrate",
+      "text": "Star number three is hiding in the sea. Can you see it, shining in the water?"
+    },
+    {
+      "id": "stars-want-fish",
+      "type": "request",
+      "shape": "fish",
+      "alt": "dog",
+      "outlineU": 0,
+      "outlineV": -0.18,
+      "text": "Make a fish: a flat hand, fingers together. Swim to star number three."
+    },
+    {
+      "id": "stars-fish-ride",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "stars-fish-carry",
+      "type": "carry",
+      "toU": 0.3,
+      "text": "Swim, swim, swim."
+    },
+    {
+      "id": "stars-three",
+      "type": "narrate",
+      "text": "Star number three. It was the moon all along, winking."
+    },
+    {
+      "id": "stars-fish-bows",
+      "type": "release",
+      "text": "The fish yawns a big bubbly yawn."
+    },
+    {
+      "id": "stars-dim2",
+      "type": "lamp",
+      "level": 0.6
+    },
+    {
+      "id": "stars-clear",
+      "type": "scenery",
+      "set": "none"
+    },
+    {
+      "id": "stars-mo-centre",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0,
+      "restV": 0.1
+    },
+    {
+      "id": "stars-falling",
+      "type": "narrate",
+      "text": "Oh! A little star is falling. Quick, catch it."
+    },
+    {
+      "id": "stars-want-cup",
+      "type": "request",
+      "shape": "cup",
+      "text": "Cup your hands together, softly."
+    },
+    {
+      "id": "stars-four",
+      "type": "narrate",
+      "text": "Star number four, warm in your hands."
+    },
+    {
+      "id": "stars-letgo",
+      "type": "letgo",
+      "text": "Now open your hands, and let it go back to the sky."
+    },
+    {
+      "id": "stars-free",
+      "type": "release",
+      "text": "Up it goes..."
+    },
+    {
+      "id": "stars-finale",
+      "type": "finale",
+      "seconds": 4
+    },
+    {
+      "id": "stars-five",
+      "type": "narrate",
+      "text": "And star number five is you, {child|little one}. The brightest one of all."
+    },
+    {
+      "id": "stars-dim3",
+      "type": "lamp",
+      "level": 0.35
+    },
+    {
+      "id": "stars-goodnight",
+      "type": "narrate",
+      "text": "Close your eyes now. Goodnight, little star."
+    },
+    {
+      "id": "stars-mo-sleep",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.1,
+      "restV": 0.15
+    },
+    {
+      "id": "stars-the-end",
+      "type": "chapter",
+      "chapter": "The End",
+      "text": "The End"
+    },
+    {
+      "id": "stars-end",
+      "type": "end",
+      "text": "The End"
+    }
+  ]
+}

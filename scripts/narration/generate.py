@@ -24,7 +24,8 @@ import soundfile as sf
 from kokoro_onnx import Kokoro
 
 ROOT = Path(__file__).resolve().parents[2]
-STORIES = ['public/story/the-moth.story.json', 'public/story/across-the-sea.story.json']
+# Every story in the library.
+STORIES = ['public/' + st['script'] for st in json.loads((ROOT / 'public/story/library.json').read_text())['stories']]
 OUT = ROOT / 'public/narration'
 
 

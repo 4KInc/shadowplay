@@ -102,6 +102,40 @@
     cursor: pointer;
   }
 
+  .arrow {
+    flex-grow: 0;
+    width: 5;
+    font-size: 2;
+  }
+
+  .story-name {
+    flex-grow: 1;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.3;
+    height: 6;
+    padding-left: 1;
+    padding-right: 1;
+    border-radius: 1.2;
+    background-color: #2b2338;
+    border-width: 0.15;
+    border-color: #4a3d5c;
+  }
+
+  .story-title {
+    font-size: 1.55;
+    font-weight: 700;
+    color: #f2c47a;
+    text-align: center;
+  }
+
+  .story-blurb {
+    font-size: 1.15;
+    color: #d9c7a3;
+    text-align: center;
+  }
+
   .family-status {
     font-size: 1.35;
     color: #f2c47a;
@@ -144,9 +178,16 @@
 
   <div class="label">Tonight's story</div>
   <div class="row">
-    <button id="story-the-moth" class="option">The Moth</button>
-    <button id="story-across-the-sea" class="option">Across the Sea</button>
+    <button id="story-prev" class="option arrow">&lt;</button>
+    <div class="story-name">
+      <span id="story-title" class="story-title">The Moth Who Borrowed Light</span>
+      <span id="story-blurb" class="story-blurb">Help Mo find her glow.</span>
+    </div>
+    <button id="story-next" class="option arrow">&gt;</button>
   </div>
+  <button id="story-start" class="family">
+    <span id="story-start-label" class="toggle-text">Tell this story</span>
+  </button>
 
   <div class="label">Shape recognition</div>
   <div class="row">

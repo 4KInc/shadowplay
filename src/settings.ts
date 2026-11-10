@@ -49,12 +49,15 @@ const CHAPTER_BUTTONS: readonly [string, string, string][] = [
   ['chap-ch4', 'ch4', 'Chapter Four'],
   ['chap-ch5', 'ch5', 'Chapter Five'],
 ];
-/** Stories in the library: button id, script. */
-const STORY_BUTTONS: readonly [string, string][] = [
-  ['story-the-moth', 'story/the-moth.story.json'],
-  ['story-across-the-sea', 'story/across-the-sea.story.json'],
-];
-const MOTH_SCRIPT = STORY_BUTTONS[0][1];
+/** The story library (public/story/library.json): browse with the arrows, start with "Tell this story". */
+interface LibraryStory {
+  id: string;
+  title: string;
+  script: string;
+  minutes: number;
+  blurb: string;
+}
+const MOTH_SCRIPT = 'story/the-moth.story.json';
 
 const LOCKED = { backgroundColor: '#1d1826', borderColor: '#2e2639', color: '#6b5f7a' };
 
@@ -82,8 +85,14 @@ export class SettingsSystem extends createSystem({
   private loaded = false;
   private loading = false;
   private applied = '';
-  /** Script highlighted on the story buttons. */
+  /** What the story picker last showed. */
   private shownScript = '';
+  private library: LibraryStory[] = [];
+  /** Index of the story being looked at in the picker. */
+  private browsing = 0;
+  private storyTitle: UIKit.Text | undefined;
+  private storyBlurb: UIKit.Text | undefined;
+  private storyStart: UIKit.Text | undefined;
   /** Last unlock list shown on the chapter buttons. */
   private shownUnlocks: string | null = null;
   private quat = new Quaternion();
@@ -111,13 +120,33 @@ export class SettingsSystem extends createSystem({
     this.place(settings);
   }
 
-  /** Highlight tonight's story; chapters belong to The Moth only. */
+  /** The browsed story's name and blurb; the start button shows whether it is tonight's. */
   private refreshStories(): void {
     const script = first(this.queries.stories.entities)?.getValue(StoryState, 'script') ?? '';
-    if (script === this.shownScript || !this.panel) return;
-    this.shownScript = script;
-    for (const [id, path] of STORY_BUTTONS) this.buttons.get(id)?.setProperties(path === script ? SELECTED : UNSELECTED);
+    const key = `${script}|${this.browsing}|${this.library.length}`;
+    if (key === this.shownScript || !this.panel) return;
+    this.shownScript = key;
+    const story = this.library[this.browsing];
+    if (!story) return;
+    const telling = story.script === script;
+    this.storyTitle?.setProperties({ text: story.title });
+    this.storyBlurb?.setProperties({ text: `${story.blurb} (${story.minutes} min)` });
+    this.buttons.get('story-start')?.setProperties(telling ? SELECTED : UNSELECTED);
+    this.storyStart?.setProperties({ text: telling ? 'Telling this story tonight' : 'Tell this story', color: telling ? '#1a1320' : '#f6e3bd' });
     this.panel.getElementById('chapter-section')?.setProperties({ display: script === MOTH_SCRIPT ? 'flex' : 'none' });
+  }
+
+  private loadLibrary(): void {
+    fetch(`${import.meta.env.BASE_URL}story/library.json`)
+      .then((r) => (r.ok ? (r.json() as Promise<{ stories: LibraryStory[] }>) : null))
+      .then((lib) => {
+        this.library = lib?.stories ?? [];
+        // Start browsing at tonight's story.
+        const script = first(this.queries.stories.entities)?.getValue(StoryState, 'script') ?? '';
+        this.browsing = Math.max(0, this.library.findIndex((s) => s.script === script));
+        this.shownScript = '';
+      })
+      .catch(() => undefined);
   }
 
   /** Dim chapters the player has not reached yet. */
@@ -179,15 +208,25 @@ export class SettingsSystem extends createSystem({
         this.status?.setProperties({ text: `Starting ${name}...` });
       });
     }
-    for (const [id, path] of STORY_BUTTONS) {
-      on(id, () => {
-        const story = first(this.queries.stories.entities);
-        if (!story || story.getValue(StoryState, 'followMode')) return;
-        for (const j of this.queries.journals.entities) j.setValue(ShadowJournal, 'open', false);
-        story.setValue(StoryState, 'script', path);
-        this.status?.setProperties({ text: 'Starting tonight\'s story...' });
-      });
-    }
+    const browse = (step: number) => {
+      if (!this.library.length) return;
+      this.browsing = (this.browsing + step + this.library.length) % this.library.length;
+    };
+    on('story-prev', () => browse(-1));
+    on('story-next', () => browse(1));
+    on('story-start', () => {
+      const story = first(this.queries.stories.entities);
+      const chosen = this.library[this.browsing];
+      if (!story || !chosen || story.getValue(StoryState, 'followMode')) return;
+      if (story.getValue(StoryState, 'script') === chosen.script) return;
+      for (const j of this.queries.journals.entities) j.setValue(ShadowJournal, 'open', false);
+      story.setValue(StoryState, 'script', chosen.script);
+      this.status?.setProperties({ text: `Starting "${chosen.title}"...` });
+    });
+    this.storyTitle = panel.getElementById<UIKit.Text>('story-title') ?? undefined;
+    this.storyBlurb = panel.getElementById<UIKit.Text>('story-blurb') ?? undefined;
+    this.storyStart = panel.getElementById<UIKit.Text>('story-start-label') ?? undefined;
+    if (!this.library.length) this.loadLibrary();
     on('replace-stage-button', () => {
       // Close the journal so the stage can be found again, then re-place it.
       for (const j of this.queries.journals.entities) j.setValue(ShadowJournal, 'open', false);

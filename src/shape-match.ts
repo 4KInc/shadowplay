@@ -71,9 +71,14 @@ export class ShapeMatchSystem extends createSystem({
       const tolerance = entity.getValue(ShapeRecognizer, 'tolerance') ?? 0.3;
       this.evaluate(handRuntime.left, tolerance, this.left);
       this.evaluate(handRuntime.right, tolerance, this.right);
-      // Hidden two-hand creatures (deer, crocodile) only exist in Free Stage; in
-      // the story they must not steal a requested bird or cup.
-      const pair = this.detectPair(Boolean(entity.getValue(ShapeRecognizer, 'freeMode')));
+      // Hidden two-hand creatures (deer, crocodile) exist in Free Stage, or when a
+      // story asks for one; otherwise they must not steal a requested bird or cup.
+      const wantsHidden =
+        isHiddenPair(entity.getValue(ShapeRecognizer, 'target')) ||
+        isHiddenPair(entity.getValue(ShapeRecognizer, 'altTarget')) ||
+        isHiddenPair(entity.getValue(ShapeRecognizer, 'target2')) ||
+        isHiddenPair(entity.getValue(ShapeRecognizer, 'altTarget2'));
+      const pair = this.detectPair(Boolean(entity.getValue(ShapeRecognizer, 'freeMode')) || wantsHidden);
       const twoHanded = pair !== null;
       if (pair) this.left.shape = this.right.shape = pair;
       this.publish(entity);
@@ -228,6 +233,10 @@ export class ShapeMatchSystem extends createSystem({
 }
 
 /** Which requested shape (if any) a hand's shape satisfies. */
+function isHiddenPair(shape: string | null | undefined): boolean {
+  return shape === ShapeIds.Deer || shape === ShapeIds.Crocodile;
+}
+
 function requested(
   shape: string,
   t1: string,

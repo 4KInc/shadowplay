@@ -1,0 +1,246 @@
+{
+  "version": "shadowplay.story.v1",
+  "title": "The Brave Little Dog",
+  "beats": [
+    {
+      "id": "brave-title",
+      "type": "chapter",
+      "chapter": "The Brave Little Dog",
+      "text": "The Brave Little Dog"
+    },
+    {
+      "id": "brave-lamp",
+      "type": "lamp",
+      "level": 1
+    },
+    {
+      "id": "brave-tonight",
+      "type": "narrate",
+      "text": "Tonight, {child|little one}, someone you love is far away. So tonight, you get to be brave for both of you."
+    },
+    {
+      "id": "brave-mo",
+      "type": "moth",
+      "mode": "arriving"
+    },
+    {
+      "id": "brave-mo-scared",
+      "type": "narrate",
+      "text": "Mo needs to get home through the dark woods. But she's scared. She needs a brave friend."
+    },
+    {
+      "id": "brave-want-dog",
+      "type": "request",
+      "shape": "dog",
+      "alt": "rabbit",
+      "text": "Make a dog: a flat hand, thumb up for an ear, and your little finger down for its mouth."
+    },
+    {
+      "id": "brave-dog-yes",
+      "type": "narrate",
+      "text": "A little dog! Small, but very brave."
+    },
+    {
+      "id": "brave-forest",
+      "type": "scenery",
+      "set": "forest"
+    },
+    {
+      "id": "brave-mo-path",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.42,
+      "restV": 0.0
+    },
+    {
+      "id": "brave-wolf-in",
+      "type": "actor",
+      "state": "blocking",
+      "u": 0.26,
+      "v": -0.26
+    },
+    {
+      "id": "brave-wolf",
+      "type": "narrate",
+      "text": "Oh! On the path, a big grey wolf. The little dog feels its heart go thump."
+    },
+    {
+      "id": "brave-be-big",
+      "type": "narrate",
+      "text": "But being brave doesn't mean not being scared. It means growing bigger than your scare."
+    },
+    {
+      "id": "brave-grow",
+      "type": "grow",
+      "factor": 1.7,
+      "minSize": 0.38,
+      "text": "Bring your hand close to the lamp. Grow, and grow, until you are huge!"
+    },
+    {
+      "id": "brave-wolf-flees",
+      "type": "actor",
+      "state": "fleeing"
+    },
+    {
+      "id": "brave-wolf-gone",
+      "type": "narrate",
+      "text": "The wolf takes one look at your great big shadow, and runs away."
+    },
+    {
+      "id": "brave-dog-bows",
+      "type": "release",
+      "text": "The little dog wags its tail. Brave dog."
+    },
+    {
+      "id": "brave-river",
+      "type": "scenery",
+      "set": "river"
+    },
+    {
+      "id": "brave-river-rest",
+      "type": "moth",
+      "mode": "resting",
+      "restU": -0.42,
+      "restV": 0.05
+    },
+    {
+      "id": "brave-river-text",
+      "type": "narrate",
+      "text": "Next, a river. And in the river, a crocodile, with a very big grin."
+    },
+    {
+      "id": "brave-croc-kind",
+      "type": "narrate",
+      "text": "Some things look scary, but they're kind inside. Shall we ask it for help?"
+    },
+    {
+      "id": "brave-want-croc",
+      "type": "request",
+      "shape": "crocodile",
+      "text": "Make a crocodile: two flat hands, one on top of the other, like a long snappy mouth."
+    },
+    {
+      "id": "brave-croc-yes",
+      "type": "narrate",
+      "text": "A friendly crocodile! Climb on its back, Mo."
+    },
+    {
+      "id": "brave-croc-ride",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "brave-croc-carry",
+      "type": "carry",
+      "toU": 0.3,
+      "text": "Swim across the river."
+    },
+    {
+      "id": "brave-croc-land",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.42,
+      "restV": 0.03
+    },
+    {
+      "id": "brave-croc-bows",
+      "type": "release",
+      "text": "The crocodile smiles its biggest smile, and sinks out of sight."
+    },
+    {
+      "id": "brave-storm",
+      "type": "scenery",
+      "set": "storm"
+    },
+    {
+      "id": "brave-storm-rest",
+      "type": "moth",
+      "mode": "buffeted",
+      "restU": -0.36,
+      "restV": 0.0
+    },
+    {
+      "id": "brave-storm-text",
+      "type": "narrate",
+      "text": "Last of all, the wind. It huffs and puffs. But you have been brave all night."
+    },
+    {
+      "id": "brave-want-bird",
+      "type": "request",
+      "shape": "bird",
+      "text": "Make a bird with two hands, side by side, thumbs together. Carry Mo home over the wind."
+    },
+    {
+      "id": "brave-bird-yes",
+      "type": "narrate",
+      "text": "A bird! Up and over."
+    },
+    {
+      "id": "brave-bird-ride",
+      "type": "moth",
+      "mode": "riding"
+    },
+    {
+      "id": "brave-bird-carry",
+      "type": "carry",
+      "toU": 0.34,
+      "minV": 0.12,
+      "text": "Fly high, all the way home."
+    },
+    {
+      "id": "brave-bird-land",
+      "type": "moth",
+      "mode": "resting",
+      "restU": 0.4,
+      "restV": 0.2
+    },
+    {
+      "id": "brave-bird-bows",
+      "type": "release",
+      "text": "Home at last."
+    },
+    {
+      "id": "brave-calm",
+      "type": "scenery",
+      "set": "none"
+    },
+    {
+      "id": "brave-dim",
+      "type": "lamp",
+      "level": 0.6
+    },
+    {
+      "id": "brave-proud",
+      "type": "narrate",
+      "text": "Someone far away would be so proud of you tonight, {child|little one}. You were brave, even when it was dark."
+    },
+    {
+      "id": "brave-finale",
+      "type": "finale",
+      "seconds": 4
+    },
+    {
+      "id": "brave-goodnight",
+      "type": "narrate",
+      "text": "Goodnight, brave one. Sleep tight."
+    },
+    {
+      "id": "brave-mo-glow",
+      "type": "moth",
+      "mode": "hovering",
+      "restU": 0.12,
+      "restV": 0.18
+    },
+    {
+      "id": "brave-the-end",
+      "type": "chapter",
+      "chapter": "The End",
+      "text": "The End"
+    },
+    {
+      "id": "brave-end",
+      "type": "end",
+      "text": "The End"
+    }
+  ]
+}
