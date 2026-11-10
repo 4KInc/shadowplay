@@ -35,6 +35,8 @@ export interface Performance {
   shareCode?: string;
   /** A goodnight back from the family: the code of the story it answers. */
   replyTo?: string;
+  /** Bundled example (first launch), so someone alone can see what families share. */
+  sample?: boolean;
   createdAt: number;
   durationMs: number;
   /** Story script the beats refer to. */

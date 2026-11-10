@@ -101,6 +101,14 @@ export async function saveFamily(names: { child: string; performer: string }): P
   await run(PROGRESS, 'readwrite', (s) => s.put(names, 'family'));
 }
 
+export async function loadSamplesSeeded(): Promise<boolean> {
+  return Boolean(await run<boolean>(PROGRESS, 'readonly', (s) => s.get('samples') as IDBRequest<boolean>));
+}
+
+export async function saveSamplesSeeded(): Promise<void> {
+  await run(PROGRESS, 'readwrite', (s) => s.put(true, 'samples'));
+}
+
 export async function loadSettings(): Promise<StoredSettings | null> {
   return run<StoredSettings>(PROGRESS, 'readonly', (s) => s.get('settings') as IDBRequest<StoredSettings>);
 }

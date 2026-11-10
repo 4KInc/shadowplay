@@ -3,6 +3,7 @@ import { AutomationSystem, automationEnabled } from './automation.js';
 import { family } from './family.js';
 import { FamilySetupSystem } from './family-ui.js';
 import { FamilyInboxSystem } from './performance/replies.js';
+import { seedSamples } from './performance/samples.js';
 import projectOptions from 'virtual:iwsdk-project';
 import { AudioSystem } from './audio.js';
 import { CameraHandsSystem } from './camera-hands.js';
@@ -65,6 +66,7 @@ World.create(
     .registerSystem(ViewerUISystem)
     .registerSystem(FamilySetupSystem);
   void family.load();
+  void seedSamples();
   if (automationEnabled) world.registerSystem(AutomationSystem);
 
   // Development only: webcam-driven hands for testing recognition without a headset.

@@ -1,7 +1,9 @@
 import { createSystem, Entity } from '@iwsdk/core';
+import { loadStoryScript, StoryBeat, storyRuntime } from '../story-script.js';
 import { listRecordings, loadRecording, saveRecording } from '../journal-store.js';
-import { FamilyInbox, PerformancePlayer } from '../shadowplay-components.js';
+import { FamilyInbox, LiveSession, PerformancePlayer, StoryState } from '../shadowplay-components.js';
 import type { Performance } from './format.js';
+import { seedSamples } from './samples.js';
 import { fetchReplies } from './sharing.js';
 
 /** Look for new goodnights this often (ms), only while the page is open. */
@@ -17,7 +19,13 @@ const MAX_AGE_MS = 30 * 86_400_000;
 export class FamilyInboxSystem extends createSystem({
   inboxes: { required: [FamilyInbox] },
   players: { required: [PerformancePlayer] },
+  stories: { required: [StoryState] },
+  sessions: { required: [LiveSession] },
 }) {
+  /** Beat types of the running story (for the waiting-goodnight cue). */
+  private beatTypes = new Map<string, StoryBeat['type']>();
+  private typesFor = '';
+  private cuedBeat = '';
   private nextPoll = 0;
   private polling = false;
   /** Goodnight ids waiting to be watched, oldest first. */
@@ -44,6 +52,7 @@ export class FamilyInboxSystem extends createSystem({
         player.setValue(PerformancePlayer, 'playing', true);
       }
     }
+    this.cue(inbox);
     // Watched to the end (or stopped): it leaves the unwatched list.
     if (this.playing && !player.getValue(PerformancePlayer, 'playing')) {
       void this.markWatched(this.playing);
@@ -53,9 +62,35 @@ export class FamilyInboxSystem extends createSystem({
     }
   }
 
+  /**
+   * At the story's natural pauses (between chapters, the end, Free Stage) tell
+   * the storyteller a goodnight is waiting, and where to find it.
+   */
+  private cue(inbox: Entity): void {
+    const story = this.queries.stories.entities.values().next().value;
+    if (!story || !this.unwatched.length || story.getValue(StoryState, 'followMode')) return;
+    if (this.queries.sessions.entities.values().next().value?.getValue(LiveSession, 'role') !== 'off') return;
+    const script = storyRuntime.script;
+    if (script && script !== this.typesFor) {
+      this.typesFor = script;
+      this.beatTypes.clear();
+      void loadStoryScript(script).then((s) => {
+        if (this.typesFor === script) for (const b of s.beats) this.beatTypes.set(b.id, b.type);
+      }).catch(() => undefined);
+    }
+    const beat = story.getValue(StoryState, 'beatId') ?? '';
+    const type = this.beatTypes.get(beat);
+    if (beat === this.cuedBeat || (type !== 'continue' && type !== 'freestage' && type !== 'end')) return;
+    this.cuedBeat = beat;
+    const from = inbox.getValue(FamilyInbox, 'latestFrom') || 'your family';
+    const caption = story.getValue(StoryState, 'caption') ?? '';
+    story.setValue(StoryState, 'caption', `${caption}  A goodnight from ${from} is waiting: pinch your Shadow Journal to watch it.`.trim());
+  }
+
   private async poll(inbox: Entity): Promise<void> {
     this.polling = true;
     try {
+      await seedSamples();
       const all = await listRecordings<Performance & { watched?: boolean }>();
       const cutoff = Date.now() - MAX_AGE_MS;
       const shared = all.filter((p) => p.shareCode && !p.replyTo && p.createdAt > cutoff);

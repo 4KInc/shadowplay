@@ -148,7 +148,10 @@ export class PerformancePlayerSystem extends createSystem({
     // Tell the story in the recording's script (it may be another story from the library).
     // A goodnight is not a story: it plays on whatever stage is here, every creature free to wake.
     if (perf.script && !perf.replyTo) story?.setValue(StoryState, 'script', perf.script);
-    if (perf.replyTo) for (const r of this.queries.recognizers.entities) r.setValue(ShapeRecognizer, 'freeMode', true);
+    if (perf.replyTo) {
+      for (const r of this.queries.recognizers.entities) r.setValue(ShapeRecognizer, 'freeMode', true);
+      story?.setValue(StoryState, 'caption', perf.title || 'A goodnight for you');
+    }
     if (perf.audio) {
       this.audioUrl = URL.createObjectURL(perf.audio);
       this.audio = new Audio(this.audioUrl);

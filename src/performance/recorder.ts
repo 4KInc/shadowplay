@@ -59,7 +59,10 @@ export class PerformanceRecorderSystem extends createSystem({
     if (!this.active || !stageRuntime.ready) return;
 
     this.elapsed += delta;
-    if (this.elapsed >= this.nextFrameAt) {
+    // One hand frame per 1/30 s of story time, whatever the render rate: a slow
+    // frame or a hitch repeats the current pose instead of shifting every later
+    // frame (which would run the replayed hands ahead of the story and the voice).
+    while (this.elapsed >= this.nextFrameAt) {
       this.nextFrameAt += 1 / FRAME_HZ;
       this.captureFrame();
     }

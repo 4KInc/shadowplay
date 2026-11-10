@@ -11,7 +11,10 @@ import {
   StoryState,
   WebcamHands,
 } from './shadowplay-components.js';
+import { loadRecording } from './journal-store.js';
 import { voiceStats } from './live/voice.js';
+import type { Performance } from './performance/format.js';
+import { toWire } from './performance/sharing.js';
 import { handOverride, handRuntime, secondHands } from './stage-runtime.js';
 
 const COMPONENTS = {
@@ -103,6 +106,11 @@ export class AutomationSystem extends createSystem({
         return out;
       },
       frames: () => this.frames,
+      /** A saved recording in its shareable (wire) form, for building bundled samples. */
+      exportRecording: async (id: string) => {
+        const perf = await loadRecording<Performance>(id);
+        return perf ? toWire(perf) : null;
+      },
       /** Peak renderer counts since the last call (then reset), and app ms per frame. */
       perf: () => {
         const peak = { ...this.peak };

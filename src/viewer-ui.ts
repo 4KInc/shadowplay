@@ -4,6 +4,7 @@ import type { Performance } from './performance/format.js';
 import { fetchStory } from './performance/sharing.js';
 import { LiveSession, PerformancePlayer, PerformanceRecorder, ShapeRecognizer, WebcamHands } from './shadowplay-components.js';
 import { ReplySheet } from './viewer-reply.js';
+import { seedSamples } from './performance/samples.js';
 import { family, FamilyNames } from './family.js';
 import { viewerMode } from './viewer-mode.js';
 
@@ -257,6 +258,7 @@ export class ViewerUISystem extends createSystem({
 
   private async refreshList(): Promise<void> {
     if (!this.list) return;
+    await seedSamples();
     // Goodnights sent back are for the storyteller's wall, not this list.
     const recordings = (await listRecordings<Performance>()).filter((r) => !r.replyTo).sort(
       (a, b) => Number(b.id === this.highlight) - Number(a.id === this.highlight) || b.createdAt - a.createdAt,
@@ -276,7 +278,9 @@ export class ViewerUISystem extends createSystem({
       card.innerHTML = `<b></b><span></span><br><small></small>`;
       card.querySelector('b')!.textContent = r.title;
       card.querySelector('span')!.textContent = r.performer ? `from ${r.performer}` : '';
-      card.querySelector('small')!.textContent = `${minutes} min · ${new Date(r.createdAt).toLocaleDateString()}`;
+      card.querySelector('small')!.textContent = r.sample
+        ? `${minutes} min · Sample story`
+        : `${minutes} min · ${new Date(r.createdAt).toLocaleDateString()}`;
       card.setAttribute('aria-label', `Watch ${r.title}${r.performer ? ` from ${r.performer}` : ''}`);
       if (r.id === this.highlight) card.classList.add('new');
       card.addEventListener('click', () => this.watch(r.id));
