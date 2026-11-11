@@ -48,3 +48,4 @@ pids/
 .data/
 shadowplay-video.mp4
 __pycache__/
+video-clips/
