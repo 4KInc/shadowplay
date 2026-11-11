@@ -68,6 +68,10 @@ World.create(
   void family.load();
   void seedSamples();
   if (automationEnabled) world.registerSystem(AutomationSystem);
+  // Device diagnostics only with ?diag (a separate chunk, never loaded otherwise).
+  if (new URLSearchParams(location.search).has('diag')) {
+    void import('./diag/diag-system.js').then(({ DiagSystem }) => world.registerSystem(DiagSystem));
+  }
 
   // Development only: webcam-driven hands for testing recognition without a headset.
   if (import.meta.env.DEV) {

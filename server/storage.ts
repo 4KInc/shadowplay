@@ -95,6 +95,13 @@ export class GcsStore implements StoryStore {
     return encodeURIComponent(`stories/${code}.json`);
   }
 
+  /** Write any object (diagnostics logs) by its full name. */
+  async putRaw(name: string, body: string, contentType = 'application/x-ndjson'): Promise<void> {
+    const url = `${this.api}/upload/storage/v1/b/${this.bucket}/o?uploadType=media&name=${encodeURIComponent(name)}`;
+    const res = await fetch(url, { method: 'POST', headers: { ...(await this.auth()), 'Content-Type': contentType }, body });
+    if (!res.ok) throw new Error(`storage put ${res.status}`);
+  }
+
   async put(code: string, json: string): Promise<void> {
     const url = `${this.api}/upload/storage/v1/b/${this.bucket}/o?uploadType=media&name=${this.object(code)}`;
     const res = await fetch(url, {
