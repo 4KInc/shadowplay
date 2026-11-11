@@ -24,6 +24,8 @@ export const stageRuntime = {
   quality: 0,
   /** The headset's answer to our 72 Hz request: '' (not asked yet), 'granted', 'refused', 'unsupported'. */
   frameRateRequest: '',
+  /** A creature just woke: the lamp light swells (1) and settles back (0) over about a second. */
+  wakeFlare: 0,
   /**
    * Automation only (emulator tests): when set, stage placement sees these
    * planes instead of the headset's detected planes.

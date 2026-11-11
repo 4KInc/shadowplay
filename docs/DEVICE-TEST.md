@@ -36,6 +36,7 @@ Run the core checks (A and B) in at least three rooms; the rest once per headset
 
 | # | Check | Pass | Notes / numbers |
 | --- | --- | --- | --- |
+| A0 | First screen (before Enter XR): **One-hand mode** and **Forgiving shapes** buttons visible at the top left and easy to tap; the choice is kept inside the headset | [ ] | |
 | A1 | Cold start: link opened to the lamp glow, and to the stage (seconds; the glow should show at once) | [ ] | |
 | A2 | Enter XR to stage placed (panel: `placed +Xs`) | [ ] | |
 | A3 | Permission prompts: which appeared, all understandable | [ ] | |
@@ -46,6 +47,8 @@ Run the core checks (A and B) in at least three rooms; the rest once per headset
 | A6 | Frame rate holds at 72 (panel line 1 stays cream, not red) | [ ] | fps / p95 |
 | A7 | Quality level after 2 minutes (`q0`..`q3`; anything above `q0` means the headset could not hold 72) | [ ] | |
 | A7b | If the level stepped down: no visible pop or flicker when it changed, and shadows still look whole (edges not clipped) | [ ] | |
+| A9 | First launch only: time from Enter XR to the first creature (the rabbit) waking (summary: `first creature: N s`, target under 60 s). The ghost hand appears about 2 s after the rabbit is asked for | [ ] | seconds |
+| A10 | The first creature waking is unmistakable: chime, the lamp light swells, "A rabbit! Quick, and kind." | [ ] | |
 | A8 | Controllers in hand: story pauses and asks to put them down; resumes with hands | [ ] | |
 
 ## B. Shapes (every room)
@@ -98,8 +101,8 @@ and whether anything woke that you did not ask for (panel: `match`).
 
 | # | Check | Pass | Notes |
 | --- | --- | --- | --- |
-| E1 | Quest menu button mid-story: narration and story pause; resume cleanly | [ ] | |
-| E2 | Headset off for 30 s and back on: story resumes | [ ] | |
+| E1 | Quest menu button mid-story: narration, sound and story pause (caption: `Paused.`); close the menu and it carries on from the same line | [ ] | |
+| E2 | Headset off for 30 s and back on: silent while off; story resumes where it was, nothing skipped. In Live, the other person's voice stops while it is off | [ ] | |
 | E3 | Recenter (hold the menu button): stage re-placed ahead | [ ] | |
 | E4 | Stand up mid-story: stage stays put, hands still cast | [ ] | |
 | E5 | Sit at 30-45 degrees to the wall: stage placement and shadows | [ ] | |
@@ -109,7 +112,7 @@ and whether anything woke that you did not ask for (panel: `match`).
 | E8b | Change Tolerance while a shape is being asked for: takes effect at once and stays after it wakes | [ ] | |
 | E9 | Captions and the journal page readable without turning the head (measured in the emulator: within 16.5 degrees either side, 11 up, 13 down) | [ ] | |
 | E9b | Settings readable and every row reachable by pinch without straining. It is the tallest thing on the stage: in the emulator it reaches 27 degrees up, 25 down and 33 to the right at a 2 m wall. Note whether the top or bottom rows are uncomfortable | [ ] | |
-| E10 | Session ended mid-story: next launch continues from that chapter | [ ] | |
+| E10 | Session ended mid-story: next launch continues from that chapter, with "Welcome back. Continuing from Chapter N..." | [ ] | |
 
 ## Optional: silhouette templates
 

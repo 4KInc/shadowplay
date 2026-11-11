@@ -60,6 +60,10 @@ for (const [id, rows] of [...sessions].sort((a, b) => a[1][0].at - b[1][0].at)) 
   const last = snaps.at(-1);
   if (last) console.log(`startup: page load to XR ${(last.xrMs / 1000).toFixed(1)}s, XR to stage placed ${(last.placedMs / 1000).toFixed(1)}s   heap ${last.heapMB} MB`);
   const triggers = ev('trigger');
+  // First five minutes: Enter XR to the first creature waking (target under 60 s).
+  const xrAt = ev('vis').find((v) => v.state !== 'non-immersive')?.t;
+  const firstWake = triggers.find((t) => xrAt !== undefined && t.t >= xrAt);
+  if (xrAt !== undefined) console.log(`first creature: ${firstWake ? `${(firstWake.t - xrAt).toFixed(0)} s after entering XR (${firstWake.shape})` : 'none woke'}   target under 60 s`);
   console.log(`recognition triggers: ${count(triggers.map((t) => `${t.shape}${t.target && t.target !== t.shape && t.target !== 'none' ? `(asked ${t.target})` : ''}${t.free ? '[free]' : ''}`))}`);
   const beats = ev('beat');
   console.log(`story: ${beats.length} beats, ${[...new Set(beats.map((b) => b.script))].join(', ') || '-'}; last ${beats.at(-1)?.beat ?? '-'}`);

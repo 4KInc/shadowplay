@@ -1,4 +1,5 @@
 import { createSystem, Entity } from '@iwsdk/core';
+import { onAway } from './away.js';
 import { LiveSession, PerformanceRecorder, Settings, StoryState, StoryStatuses } from './shadowplay-components.js';
 
 interface NarrationManifest {
@@ -35,7 +36,14 @@ export class NarrationSystem extends createSystem({
   init(): void {
     // Browsers load the voice list lazily; ask early so the first line has a voice.
     if (typeof speechSynthesis !== 'undefined') speechSynthesis.getVoices();
-    this.cleanupFuncs.push(() => this.stopLine());
+    this.cleanupFuncs.push(
+      () => this.stopLine(),
+      // Pause at once when the player steps away: a hidden session runs no frames to do it.
+      // Coming back, update() resumes the line once the story is playing again.
+      onAway((isAway) => {
+        if (isAway) this.pauseLine();
+      }),
+    );
   }
 
   update(): void {

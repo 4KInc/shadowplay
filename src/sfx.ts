@@ -5,6 +5,8 @@
  * the character on the wall, the click and hum from the lamp on the desk. The
  * context is created lazily; entering XR counts as the required user gesture.
  */
+import { away, onAway } from './away.js';
+
 export interface Point3 {
   x: number;
   y: number;
@@ -16,9 +18,16 @@ let ctx: AudioContext | null = null;
 function audio(): AudioContext | null {
   if (typeof AudioContext === 'undefined') return null;
   ctx ??= new AudioContext();
-  if (ctx.state === 'suspended') void ctx.resume();
+  if (ctx.state === 'suspended' && !away.now) void ctx.resume();
   return ctx;
 }
+
+// Silence the lamp hum and effects while the player is away (Quest menu, headset off).
+onAway((isAway) => {
+  if (!ctx) return;
+  if (isAway) void ctx.suspend().catch(() => undefined);
+  else void ctx.resume().catch(() => undefined);
+});
 
 /** True once the browser lets audio play (after a user gesture such as entering XR). */
 export function audioRunning(): boolean {
