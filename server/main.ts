@@ -3,6 +3,8 @@ import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize, sep } from 'node:path';
 import { isCode, newCode, normaliseCode } from './codes.ts';
+import { compressed, compressible, pickEncoding, warm } from './compress.ts';
+import { BucketDiagSink, checkDiag, DiskDiagSink, type DiagSink } from './diag.ts';
 import { checkPerformance, clientIp, decodeSafe, RateLimiter } from './guard.ts';
 import { attachLive, liveRoomCount } from './live.ts';
 import { DiskStore, GcsStore, type StoryStore } from './storage.ts';
@@ -16,7 +18,8 @@ import { DiskStore, GcsStore, type StoryStore } from './storage.ts';
  *   GET  /api/stories/:code  fetch a performance by family code
  *   POST /api/stories/:code/replies   a goodnight back from the family (up to MAX_REPLIES)
  *   GET  /api/stories/:code/replies   the replies to a story (for the storyteller)
- *   GET  /api/health
+ *   POST /api/diag           device diagnostics from pages opened with ?diag (numbers and ids only)
+ *   GET  /api/health, /healthz
  *   WS   /live                live rooms (see live.ts)
  */
 const PORT = Number(process.env.PORT ?? 8787);
@@ -30,14 +33,22 @@ const MAX_REPLY_BYTES = Number(process.env.MAX_REPLY_BYTES ?? 6 * 1024 * 1024);
 
 /** STORY_BUCKET (production): a Cloud Storage bucket; otherwise local disk. */
 const BUCKET = process.env.STORY_BUCKET ?? '';
-const store: StoryStore = BUCKET
-  ? new GcsStore(BUCKET, process.env.STORAGE_API ?? undefined, process.env.STORAGE_TOKEN_URL ?? undefined)
-  : new DiskStore(DATA_DIR);
+const bucket = BUCKET ? new GcsStore(BUCKET, process.env.STORAGE_API ?? undefined, process.env.STORAGE_TOKEN_URL ?? undefined) : null;
+const store: StoryStore = bucket ?? new DiskStore(DATA_DIR);
+const diagSink: DiagSink = bucket
+  ? new BucketDiagSink((name, body) => bucket.putRaw(name, body))
+  : new DiskDiagSink(process.env.DIAG_DIR ?? join(process.cwd(), '.data/diag'));
+const MAX_DIAG_BYTES = 32 * 1024;
 
 // ---------------------------------------------------------------- rate limiting
 
 /** Per client address: uploads are rare, lookups a little more frequent (this also guards the code space). */
-const limits = { upload: new RateLimiter(3600_000, 20), lookup: new RateLimiter(60_000, 30) };
+const limits = {
+  upload: new RateLimiter(3600_000, 20),
+  lookup: new RateLimiter(60_000, 30),
+  // Diagnostics: a snapshot every 5 s plus events (batched), from one headset.
+  diag: new RateLimiter(60_000, 60),
+};
 
 function allowed(kind: keyof typeof limits, req: IncomingMessage): boolean {
   const ip = clientIp(req);
@@ -187,6 +198,23 @@ async function listReplies(req: IncomingMessage, res: ServerResponse, raw: strin
   json(res, 200, { code, replies });
 }
 
+async function postDiag(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (!allowed('diag', req)) return json(res, 429, { error: 'Too many diagnostics.' });
+  const body = await readBody(req, MAX_DIAG_BYTES);
+  if (body === null) return json(res, 413, { error: 'Too large.' });
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return json(res, 400, { error: 'Not diagnostics.' });
+  }
+  const batch = checkDiag(parsed);
+  if (!batch) return json(res, 400, { error: 'Not diagnostics.' });
+  await diagSink.append(batch, new Date().toISOString().slice(0, 10));
+  res.writeHead(204, { 'Cache-Control': 'no-store' });
+  res.end();
+}
+
 // ---------------------------------------------------------------- static app
 
 const TYPES: Record<string, string> = {
@@ -214,14 +242,25 @@ async function serveStatic(req: IncomingMessage, res: ServerResponse, path: stri
   }
   try {
     const info = await stat(file);
-    const hashed = /\/assets\//.test(file);
-    res.writeHead(200, {
+    // Hashed build output never changes under its name; everything else (index.html,
+    // stories, narration, samples) is revalidated so a new deploy shows at once.
+    const hashed = /[/\\]assets[/\\]/.test(file);
+    const headers: Record<string, string | number> = {
       'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream',
-      'Content-Length': info.size,
       'Cache-Control': hashed ? 'public, max-age=31536000, immutable' : 'no-cache',
       'X-Content-Type-Options': 'nosniff',
-    });
-    createReadStream(file).pipe(res);
+    };
+    const encoding = compressible(file) ? pickEncoding(req.headers['accept-encoding']) : null;
+    if (compressible(file)) headers.Vary = 'Accept-Encoding';
+    if (encoding) {
+      const body = await compressed(file, info.mtimeMs, encoding);
+      res.writeHead(200, { ...headers, 'Content-Encoding': encoding, 'Content-Length': body.length });
+      res.end(req.method === 'HEAD' ? undefined : body);
+      return;
+    }
+    res.writeHead(200, { ...headers, 'Content-Length': info.size });
+    if (req.method === 'HEAD') res.end();
+    else createReadStream(file).pipe(res);
   } catch {
     json(res, 404, { error: 'Not found' });
   }
@@ -233,7 +272,8 @@ const server = createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://local');
   const path = url.pathname;
   const route = async () => {
-    if (path === '/api/health') return json(res, 200, { ok: true, liveRooms: liveRoomCount() });
+    if (path === '/api/health' || path === '/healthz') return json(res, 200, { ok: true, liveRooms: liveRoomCount() });
+    if (path === '/api/diag' && req.method === 'POST') return postDiag(req, res);
     if (path === '/api/stories' && req.method === 'POST') return uploadStory(req, res);
     const m = /^\/api\/stories\/([^/]+)$/.exec(path);
     if (m && req.method === 'GET') return fetchStory(req, res, m[1]);
@@ -256,9 +296,12 @@ async function sweep(): Promise<void> {
   for (const code of await store.olderThan(cutoff)) await store.remove(code);
   limits.upload.prune();
   limits.lookup.prune();
+  limits.diag.prune();
 }
 setInterval(() => void sweep(), 3600_000).unref();
 void sweep();
 
 attachLive(server);
+// Compress the app's text files in the background so the first visitor gets them ready.
+void warm(STATIC_DIR).then((n) => console.log(`[server] compressed ${n} app files`));
 server.listen(PORT, () => console.log(`[server] Shadowplay on :${PORT} (stories in ${BUCKET ? `gs://${BUCKET}` : DATA_DIR})`));

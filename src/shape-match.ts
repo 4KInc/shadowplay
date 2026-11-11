@@ -1,43 +1,18 @@
 import { createSystem, Entity, Vector3 } from '@iwsdk/core';
-import { classify, computeFeatures, MatchResult } from './hand-features.js';
+import { acceptScore, classify, computeFeatures, MatchResult, templateScore } from './hand-features.js';
 import { Hands, ShapeIds, ShapeRecognizer } from './shadowplay-components.js';
+import { classifyPair, HoldState, isHiddenPair, JointSmoother, PairHand, requested, stepHold } from './recognition-rules.js';
 import { handRuntime, HandSample, isOnStage, projectToStage, stageRuntime } from './stage-runtime.js';
 
-/** Flicker grace: brief tracking dropouts don't reset the hold timer. */
-const GRACE_SECONDS = 0.15;
-/**
- * Wrists this close together with both hands open read as a two-hand bird.
- * Side-by-side palms (not interlocked) put the wrists about a hand-width apart.
- */
-const BIRD_WRIST_GAP = 0.22;
-const BIRD_MAX_CURL = 0.35;
+/** Player tolerance plus assist never goes beyond this. */
+const MAX_TOLERANCE = 0.6;
+/** "Almost": within this much of the acceptance score... */
+const NUDGE_MARGIN = 0.12;
+/** ...for this long (s) before the nudge shows; it lingers this long after. */
+const NUDGE_AFTER = 1.2;
+const NUDGE_LINGER = 1.5;
 /** A silhouette match older than this no longer counts. */
 const SILHOUETTE_FRESH_MS = 600;
-/** Deer: hands may be further apart than the bird's (antlers either side of the head). */
-const DEER_WRIST_GAP = 0.4;
-const DEER_MIN_UP = 0.75;
-const DEER_MIN_SPREAD = 0.5;
-/** Crocodile: flat hands stacked, one wrist above the other. */
-const CROC_MIN_DY = 0.03;
-const CROC_MAX_DY = 0.2;
-const CROC_MAX_SIDEWAYS = 0.12;
-/** Fingers held together measure ~0.4 spread; an open hand ~0.7. */
-const CROC_MAX_SPREAD = 0.65;
-/** Jaws point sideways: finger direction roughly level (0.5 = level, 1 = up). */
-const CROC_LEVEL = 0.25;
-
-/** Free Stage: every shape that can be performed, mapped to its character. */
-const FREE_ACCEPT: Readonly<Record<string, string>> = {
-  [ShapeIds.Rabbit]: ShapeIds.Rabbit,
-  [ShapeIds.Ears]: ShapeIds.Rabbit,
-  [ShapeIds.Fish]: ShapeIds.Fish,
-  [ShapeIds.Dog]: ShapeIds.Dog,
-  [ShapeIds.Bird]: ShapeIds.Bird,
-  [ShapeIds.Snail]: ShapeIds.Snail,
-  [ShapeIds.Swan]: ShapeIds.Swan,
-  [ShapeIds.Deer]: ShapeIds.Deer,
-  [ShapeIds.Crocodile]: ShapeIds.Crocodile,
-};
 
 interface HandEval {
   shape: string;
@@ -61,14 +36,26 @@ export class ShapeMatchSystem extends createSystem({
   private result: MatchResult = { id: ShapeIds.None, score: 0 };
   private palm = new Vector3();
   private hit = new Vector3();
-  private sinceMatch = 0;
-  private candidate: string = ShapeIds.None;
+  private hold: HoldState = { candidate: ShapeIds.None, sinceMatch: 0 };
+  /** Per-hand smoothed joints for recognition (raw joints still drive the shadows). */
+  private smoothL = new JointSmoother();
+  private smoothR = new JointSmoother();
+  private pairL: PairHand = { joints: new Float32Array(0), features: new Float32Array(0), curl: 1, shape: ShapeIds.None, best: ShapeIds.None };
+  private pairR: PairHand = { joints: new Float32Array(0), features: new Float32Array(0), curl: 1, shape: ShapeIds.None, best: ShapeIds.None };
+  private nudgeKind = 'none';
+  private nudgeFor = 0;
+  private nudgeShownFor = 0;
+  private lastNudge = 'none';
   private left: HandEval = { shape: ShapeIds.None, inLight: false, curl: 1, score: 0, silhouette: '' };
   private right: HandEval = { shape: ShapeIds.None, inLight: false, curl: 1, score: 0, silhouette: '' };
 
   update(delta: number): void {
     for (const entity of this.queries.recognizers.entities) {
-      const tolerance = entity.getValue(ShapeRecognizer, 'tolerance') ?? 0.3;
+      // The player's setting plus the story's assist ladder (each written by its owner).
+      const tolerance = Math.min(
+        MAX_TOLERANCE,
+        (entity.getValue(ShapeRecognizer, 'tolerance') ?? 0.3) + (entity.getValue(ShapeRecognizer, 'assistTolerance') ?? 0),
+      );
       this.evaluate(handRuntime.left, tolerance, this.left);
       this.evaluate(handRuntime.right, tolerance, this.right);
       // Hidden two-hand creatures (deer, crocodile) exist in Free Stage, or when a
@@ -107,21 +94,13 @@ export class ShapeMatchSystem extends createSystem({
       const leftTarget = this.left.inLight ? this.satisfies(this.left, t1, a1, t2, a2, free, oneHand) : ShapeIds.None;
       const target = rightTarget !== ShapeIds.None ? rightTarget : leftTarget;
 
-      let held = entity.getValue(ShapeRecognizer, 'heldFor') ?? 0;
-      if (target !== ShapeIds.None) {
-        if (target !== this.candidate) held = 0;
-        this.candidate = target;
-        held += delta;
-        this.sinceMatch = 0;
-      } else {
-        this.sinceMatch += delta;
-        if (this.sinceMatch > GRACE_SECONDS) held = 0;
-      }
+      this.updateNudge(entity, t1, free, target !== ShapeIds.None, tolerance, delta);
+      const held = stepHold(this.hold, entity.getValue(ShapeRecognizer, 'heldFor') ?? 0, target, delta);
       entity.setValue(ShapeRecognizer, 'heldFor', held);
       if (held >= (entity.getValue(ShapeRecognizer, 'holdSeconds') ?? 0.5)) {
         entity.setValue(ShapeRecognizer, 'matchedHand', rightTarget !== ShapeIds.None ? Hands.Right : Hands.Left);
-        entity.setValue(ShapeRecognizer, 'matchedShape', this.candidate as never);
-        entity.setValue(ShapeRecognizer, 'twoHanded', twoHanded && this.candidate === pair);
+        entity.setValue(ShapeRecognizer, 'matchedShape', this.hold.candidate as never);
+        entity.setValue(ShapeRecognizer, 'twoHanded', twoHanded && this.hold.candidate === pair);
       }
     }
   }
@@ -133,14 +112,16 @@ export class ShapeMatchSystem extends createSystem({
     out.score = 0;
     out.silhouette = '';
     hand.jointShape = '';
-    if (!hand.tracked) return;
+    const smoother = hand === handRuntime.left ? this.smoothL : this.smoothR;
+    const joints = smoother.update(hand.tracked ? hand.joints : null);
+    if (!joints) return;
     const f = hand.features;
-    computeFeatures(hand.joints, f);
+    computeFeatures(joints, f);
     classify(f, this.result);
     hand.jointBest = this.result.id;
     hand.jointScore = this.result.score;
     out.curl = (f[1] + f[2] + f[3] + f[4]) / 4;
-    if (this.result.score >= 1 - tolerance) out.shape = this.result.id;
+    if (this.result.score >= acceptScore(this.result.id, tolerance)) out.shape = this.result.id;
     hand.jointShape = out.shape === ShapeIds.None ? '' : out.shape;
     out.score = this.result.score;
     // Method 2: any pose whose shadow matches a template counts, even when the
@@ -175,51 +156,58 @@ export class ShapeMatchSystem extends createSystem({
   }
 
   /**
-   * Two-hand shapes, both hands in the light. Most specific first:
-   * deer (open, fingers up and spread), crocodile (flat hands stacked),
-   * bird (open, wrists side by side), cup (both cupped, side by side).
+   * A gentle nudge for a requested one-hand shape that is nearly there for a
+   * moment: close but below the threshold ('almost'), or right but outside the
+   * lamplight ('light'). Never in Free Stage; cleared as soon as it matches.
    */
+  private updateNudge(entity: Entity, t1: string, free: boolean, accepted: boolean, tolerance: number, delta: number): void {
+    let kind = 'none';
+    if (!free && t1 !== ShapeIds.None && !accepted && entity.getValue(ShapeRecognizer, 'matchedHand') === Hands.None) {
+      const accept = acceptScore(t1, tolerance);
+      kind = this.handNudge(handRuntime.left, this.left, t1, accept, kind);
+      kind = this.handNudge(handRuntime.right, this.right, t1, accept, kind);
+    }
+    if (kind === this.nudgeKind && kind !== 'none') this.nudgeFor += delta;
+    else if (kind !== 'none') {
+      this.nudgeKind = kind;
+      this.nudgeFor = delta;
+    } else {
+      this.nudgeFor = 0;
+      this.nudgeKind = 'none';
+    }
+    // Shown after a steady moment, held briefly once the hand moves on (no flicker).
+    if (this.nudgeKind !== 'none' && this.nudgeFor >= NUDGE_AFTER) this.nudgeShownFor = NUDGE_LINGER;
+    else this.nudgeShownFor = Math.max(0, this.nudgeShownFor - delta);
+    if (accepted) this.nudgeShownFor = 0;
+    const show = this.nudgeShownFor > 0 ? (this.nudgeKind === 'none' ? this.lastNudge : this.nudgeKind) : 'none';
+    if (show !== 'none') this.lastNudge = show;
+    if (entity.getValue(ShapeRecognizer, 'nudge') !== show) entity.setValue(ShapeRecognizer, 'nudge', show as never);
+  }
+
+  private handNudge(hand: HandSample, ev: HandEval, t1: string, accept: number, kind: string): string {
+    if (!hand.tracked) return kind;
+    const score = templateScore(hand.features, t1);
+    if (score >= accept && !ev.inLight) return 'light';
+    if (kind === 'none' && ev.inLight && score >= accept - NUDGE_MARGIN && score < accept) return 'almost';
+    return kind;
+  }
+
+  /** Two-hand shapes (recognition-rules.ts), both hands tracked and in the light. */
   private detectPair(hidden: boolean): string | null {
     const l = handRuntime.left;
     const r = handRuntime.right;
     if (!l.tracked || !r.tracked || !this.left.inLight || !this.right.inLight) return null;
-    const dx = l.joints[0] - r.joints[0];
-    const dy = l.joints[1] - r.joints[1];
-    const dz = l.joints[2] - r.joints[2];
-    const gap = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    const sideways = Math.sqrt(dx * dx + dz * dz);
-    const lf = l.features;
-    const rf = r.features;
-    const open = this.left.curl <= BIRD_MAX_CURL && this.right.curl <= BIRD_MAX_CURL;
-    if (
-      hidden &&
-      open &&
-      gap < DEER_WRIST_GAP &&
-      lf[8] >= DEER_MIN_UP &&
-      rf[8] >= DEER_MIN_UP &&
-      lf[5] >= DEER_MIN_SPREAD &&
-      rf[5] >= DEER_MIN_SPREAD
-    ) {
-      return ShapeIds.Deer;
-    }
-    if (
-      hidden &&
-      open &&
-      Math.abs(dy) >= CROC_MIN_DY &&
-      Math.abs(dy) <= CROC_MAX_DY &&
-      sideways <= CROC_MAX_SIDEWAYS &&
-      lf[5] <= CROC_MAX_SPREAD &&
-      rf[5] <= CROC_MAX_SPREAD &&
-      Math.abs(lf[8] - 0.5) <= CROC_LEVEL &&
-      Math.abs(rf[8] - 0.5) <= CROC_LEVEL
-    ) {
-      return ShapeIds.Crocodile;
-    }
-    if (gap >= BIRD_WRIST_GAP) return null;
-    // Wings sit side by side: stacked hands are not a bird.
-    if (open && sideways >= Math.abs(dy)) return ShapeIds.Bird;
-    if (this.left.shape === ShapeIds.Cup && this.right.shape === ShapeIds.Cup) return ShapeIds.Cup;
-    return null;
+    this.pairL.joints = this.smoothL.joints;
+    this.pairL.features = l.features;
+    this.pairL.curl = this.left.curl;
+    this.pairL.shape = this.left.shape;
+    this.pairL.best = l.jointBest;
+    this.pairR.joints = this.smoothR.joints;
+    this.pairR.features = r.features;
+    this.pairR.curl = this.right.curl;
+    this.pairR.shape = this.right.shape;
+    this.pairR.best = r.jointBest;
+    return classifyPair(this.pairL, this.pairR, hidden);
   }
 
   private publish(entity: Entity): void {
@@ -230,26 +218,4 @@ export class ShapeMatchSystem extends createSystem({
     entity.setValue(ShapeRecognizer, 'rightScore', this.right.score);
     entity.setValue(ShapeRecognizer, 'rightInLight', this.right.inLight);
   }
-}
-
-/** Which requested shape (if any) a hand's shape satisfies. */
-function isHiddenPair(shape: string | null | undefined): boolean {
-  return shape === ShapeIds.Deer || shape === ShapeIds.Crocodile;
-}
-
-function requested(
-  shape: string,
-  t1: string,
-  a1: string,
-  t2: string,
-  a2: string,
-  free: boolean,
-  oneHand: boolean,
-): string {
-  if (shape === ShapeIds.None) return ShapeIds.None;
-  if (shape === t1 || (a1 !== ShapeIds.None && shape === a1)) return t1;
-  if (shape === t2 || (a2 !== ShapeIds.None && shape === a2)) return t2;
-  if (!free) return ShapeIds.None;
-  if (oneHand && shape === ShapeIds.Open) return ShapeIds.Bird;
-  return FREE_ACCEPT[shape] ?? ShapeIds.None;
 }

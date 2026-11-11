@@ -92,6 +92,13 @@ export const ShapeRecognizer = createComponent('ShapeRecognizer', {
     label: 'Tolerance (strict -> forgiving)',
   },
   holdSeconds: { type: Types.Float32, default: 0.5, min: 0.1, max: 2 },
+  /** Extra tolerance from the story's assist ladder, added to the player's own setting. */
+  assistTolerance: { type: Types.Float32, default: 0, min: 0, max: 0.4 },
+  /**
+   * A gentle nudge while a requested shape is nearly there: 'almost' (close but
+   * not quite), 'light' (the right shape, outside the lamplight).
+   */
+  nudge: { type: Types.Enum, enum: { None: 'none', Almost: 'almost', Light: 'light' }, default: 'none' },
   leftShape: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
   rightShape: { type: Types.Enum, enum: ShapeIds, default: ShapeIds.None },
   leftScore: { type: Types.Float32, default: 0 },

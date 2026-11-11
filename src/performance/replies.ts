@@ -90,7 +90,7 @@ export class FamilyInboxSystem extends createSystem({
   private async poll(inbox: Entity): Promise<void> {
     this.polling = true;
     try {
-      await seedSamples();
+      await seedSamples('headset');
       const all = await listRecordings<Performance & { watched?: boolean }>();
       const cutoff = Date.now() - MAX_AGE_MS;
       const shared = all.filter((p) => p.shareCode && !p.replyTo && p.createdAt > cutoff);

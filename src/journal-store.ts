@@ -101,12 +101,15 @@ export async function saveFamily(names: { child: string; performer: string }): P
   await run(PROGRESS, 'readwrite', (s) => s.put(names, 'family'));
 }
 
-export async function loadSamplesSeeded(): Promise<boolean> {
-  return Boolean(await run<boolean>(PROGRESS, 'readonly', (s) => s.get('samples') as IDBRequest<boolean>));
+/** Whether a bundled sample was added (per sample; 'samples' alone marks devices seeded before that). */
+export async function loadSampleSeeded(name: string): Promise<boolean> {
+  const one = await run<boolean>(PROGRESS, 'readonly', (s) => s.get(`samples:${name}`) as IDBRequest<boolean>);
+  const all = await run<boolean>(PROGRESS, 'readonly', (s) => s.get('samples') as IDBRequest<boolean>);
+  return Boolean(one || all);
 }
 
-export async function saveSamplesSeeded(): Promise<void> {
-  await run(PROGRESS, 'readwrite', (s) => s.put(true, 'samples'));
+export async function saveSampleSeeded(name: string): Promise<void> {
+  await run(PROGRESS, 'readwrite', (s) => s.put(true, `samples:${name}`));
 }
 
 export async function loadSettings(): Promise<StoredSettings | null> {
