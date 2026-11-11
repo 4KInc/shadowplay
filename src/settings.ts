@@ -10,7 +10,7 @@ import {
   ToleranceLevels,
 } from './shadowplay-components.js';
 import { playClick } from './sfx.js';
-import { stageRuntime } from './stage-runtime.js';
+import { stageRuntime, uiPresses } from './stage-runtime.js';
 
 const PANEL_NODE = 'settings-panel';
 /** Authored panel width in metres (UIKit cm / 100). */
@@ -184,6 +184,8 @@ export class SettingsSystem extends createSystem({
       this.buttons.set(id, el);
       const click = () => {
         playClick(settings.object3D?.position);
+        uiPresses.push(id);
+        if (uiPresses.length > 50) uiPresses.shift();
         handler();
       };
       el.addEventListener('click', click);

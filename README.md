@@ -86,6 +86,24 @@ Quest (WebXR, IWSDK)                                  Phone / tablet (same web a
   (Apache-2.0), locally, by `scripts/narration/generate.py`; recorded clips can
   replace it at any time.
 
+## Credits and licences
+
+The stories, characters, shadow puppets, lamp, scenery and sound effects are
+original to Shadowplay (the sound is synthesised in the browser; the models are
+built in code). It uses:
+
+| Work | Used for | Licence |
+| --- | --- | --- |
+| [Kokoro-82M](https://github.com/hexgrad/kokoro) (hexgrad) | the storyteller voice, generated offline into `public/narration/` | Apache-2.0 |
+| [MediaPipe Hand Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker) (Google) | camera hands in the family viewer, on the device; see `public/models/NOTICE.md` | Apache-2.0 |
+| [Inter](https://rsms.me/inter/) (The Inter Project Authors) | typeface of the headset panels (via `@pmndrs/msdfonts`) | SIL OFL 1.1 |
+| [Lucide](https://lucide.dev) (Lucide Contributors) | two interface icons | ISC |
+| [three.js](https://threejs.org) | 3D rendering | MIT |
+| [Immersive Web SDK](https://github.com/facebook/immersive-web-sdk) (Meta Platforms, Inc.) | WebXR framework | MIT |
+| [uikit](https://github.com/pmndrs/uikit) (Bela Bohlender) | headset user interface | MIT |
+
+The same list is in the app: **Credits** on the first screen and in the family viewer.
+
 ## Develop
 
 ```sh

@@ -81,5 +81,5 @@ World.create(
   console.error('[shadowplay] start failed', error);
   const el = document.getElementById('sp-loading');
   const line = el?.lastElementChild;
-  if (line) line.textContent = 'Shadowplay could not start here. Try reloading, or open it in the Meta Quest browser.';
+  if (line) line.textContent = 'Shadowplay could not start here. Try reloading, or open it in the browser on your headset.';
 });

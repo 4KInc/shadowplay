@@ -1,4 +1,5 @@
 import { createSystem, Entity } from '@iwsdk/core';
+import { openCredits } from './credits.js';
 import { listRecordings, loadRecording } from './journal-store.js';
 import type { Performance } from './performance/format.js';
 import { fetchStory } from './performance/sharing.js';
@@ -11,6 +12,8 @@ import { viewerMode } from './viewer-mode.js';
 const CONSENT_KEY = 'shadowplay.cameraConsent';
 
 const CSS = `
+.sp-credits-btn { align-self: flex-start; min-height: 36px; margin: 2px 0 6px; padding: 0 12px; border-radius: 18px; border: 1px solid #4a3d5c;
+  background: transparent; color: #bfae8e; font: 13px Georgia, 'Times New Roman', serif; cursor: pointer; }
 .sp-viewer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px));
   font: 16px/1.35 Georgia, 'Times New Roman', serif; color: #f6e3bd; pointer-events: none; }
 .sp-viewer * { box-sizing: border-box; }
@@ -150,6 +153,7 @@ export class ViewerUISystem extends createSystem({
           <button class="sp-btn" type="button" data-act="live">Join live</button>
         </form>
         <div class="sp-note" aria-live="polite"></div>
+        <button class="sp-credits-btn" type="button" data-act="credits">Credits</button>
         <div class="sp-row sp-controls" hidden>
           <button class="sp-btn" data-act="pause" aria-label="Pause">Pause</button>
           <button class="sp-btn" data-act="join" aria-label="Join in with your hands">Join in</button>
@@ -176,6 +180,7 @@ export class ViewerUISystem extends createSystem({
       p?.setValue(PerformancePlayer, 'paused', !p.getValue(PerformancePlayer, 'paused'));
     });
     this.joinBtn?.addEventListener('click', () => this.toggleJoin());
+    root.querySelector('[data-act="credits"]')?.addEventListener('click', openCredits);
     this.liveControls = root.querySelector('.sp-live');
     this.liveStatus = root.querySelector('.sp-live-status');
     this.talkBtn = root.querySelector('[data-act="talk"]');

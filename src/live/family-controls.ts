@@ -1,6 +1,7 @@
 import { createSystem, Entity, UIKit, UIKitMLAsset } from '@iwsdk/core';
 import { FamilyInbox, LiveSession, PerformanceRecorder } from '../shadowplay-components.js';
 import { playClick } from '../sfx.js';
+import { uiPresses } from '../stage-runtime.js';
 
 const PANEL_NODE = 'settings-panel';
 const ON = { backgroundColor: '#e0a24a', borderColor: '#f2c47a' };
@@ -56,6 +57,8 @@ export class FamilyControlsSystem extends createSystem({
       this.controls.set(id, { button, label });
       const click = () => {
         playClick(rec.object3D?.position);
+        uiPresses.push(id);
+        if (uiPresses.length > 50) uiPresses.shift();
         handler();
       };
       button.addEventListener('click', click);
