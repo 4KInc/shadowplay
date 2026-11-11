@@ -228,10 +228,11 @@ export class SettingsSystem extends createSystem({
     this.storyStart = panel.getElementById<UIKit.Text>('story-start-label') ?? undefined;
     if (!this.library.length) this.loadLibrary();
     on('replace-stage-button', () => {
-      // Close the journal so the stage can be found again, then re-place it.
+      // "Move stage here": close the journal and place the stage again, ahead of
+      // wherever the player looks a moment from now (time to turn toward the spot).
       for (const j of this.queries.journals.entities) j.setValue(ShadowJournal, 'open', false);
       for (const s of this.queries.stages.entities) s.setValue(Stage, 'replaceRequested', true);
-      this.status?.setProperties({ text: 'Looking for the wall ahead of you...' });
+      this.status?.setProperties({ text: 'Look where you want the stage...' });
     });
     on('replay-button', () => {
       settings.setValue(Settings, 'replayRequested', true);

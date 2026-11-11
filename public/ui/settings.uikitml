@@ -230,8 +230,9 @@
 
   <div class="label">Stage</div>
   <button id="replace-stage-button" class="toggle">
-    <span class="toggle-text">Re-place stage on the wall ahead</span>
+    <span class="toggle-text">Move stage here</span>
   </button>
+  <div class="story-blurb">Pinch, then look where you want the stage.</div>
 
   <button id="replay-button" class="replay">Replay story from the beginning</button>
   <div id="status-text" class="status">Pinch an option to choose it.</div>
