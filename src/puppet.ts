@@ -104,7 +104,10 @@ export class PuppetSystem extends createSystem({
       if (state !== rt.lastState) {
         // Entering Releasing from anywhere (e.g. the story's bow) starts the fade.
         if (state === PuppetStates.Releasing) rt.fade = Math.max(rt.fade, rt.fill.opacity / 0.92);
-        if (state === PuppetStates.Alive) playChime(obj.position);
+        if (state === PuppetStates.Alive) {
+          playChime(obj.position);
+          stageRuntime.wakeFlare = 1;
+        }
         rt.lastState = state;
       }
       let features: Float32Array | null = null;

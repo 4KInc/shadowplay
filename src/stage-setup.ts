@@ -39,6 +39,9 @@ const MOVE_DELAY_SECONDS = 1.5;
 const CLOSE_WALL = 1.0;
 const EYE_TO_DESK = 0.45;
 const DIM_FADE_SECONDS = 2.5;
+/** The light swell when a creature wakes: peak gain over normal, and how fast it settles (per second). */
+const WAKE_FLARE_GAIN = 0.8;
+const WAKE_FLARE_DECAY = 1.1;
 /** Sliding the lamp sideways sweeps its aim across the wall this many times further. */
 const SWEEP_GAIN = 3.5;
 
@@ -481,13 +484,16 @@ export class StageSetupSystem extends createSystem({
 
     const intensity = lamp.getValue(DeskLamp, 'intensity') ?? 6;
     const angleDeg = lamp.getValue(DeskLamp, 'angleDeg') ?? 38;
-    this.spot.intensity = this.placed ? intensity * level * (1 + finale) : 0;
+    // A creature waking makes the light swell warmly, then settle.
+    stageRuntime.wakeFlare = Math.max(0, stageRuntime.wakeFlare - delta * WAKE_FLARE_DECAY);
+    const flare = 1 + WAKE_FLARE_GAIN * stageRuntime.wakeFlare * stageRuntime.wakeFlare;
+    this.spot.intensity = this.placed ? intensity * level * (1 + finale) * flare : 0;
     this.spot.angle = ((angleDeg + (70 - angleDeg) * finale) * Math.PI) / 180;
 
     const warm = targetDim > 0 ? Math.min(1, this.dimLevel / targetDim) : 1;
     this.pool.scale.set(stageRuntime.width * 1.5 * (1 + 2.5 * finale), stageRuntime.height * 1.7 * (1 + 2.5 * finale), 1);
     const poolGain = this.paper.visible ? 0.18 : 0.4;
-    this.pool.material.uniforms.uIntensity.value = this.placed ? (poolGain + 0.5 * finale) * warm * level : 0;
+    this.pool.material.uniforms.uIntensity.value = this.placed ? (poolGain + 0.5 * finale) * warm * level * flare : 0;
     this.surface.visible = this.placed && level > 0.02;
     if (this.placed) this.sizeSurface(this.paper.visible, finale);
 
