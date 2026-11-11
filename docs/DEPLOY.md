@@ -69,8 +69,30 @@ own address, so they work on the deployed URL without configuration.
 
 ## Judging configuration (freeze, then leave running)
 
-Run these yourself on freeze day (17 Nov). Judging uses the build as it stands
-at 18 Nov 12:00 PT and runs until about 11 Dec, so after this **do not deploy**.
+Run these yourself on freeze day: **17 Nov, by 6:00 PM CT**. Judging uses the
+build as it stands at 18 Nov 12:00 PT and runs until about 11 Dec, so after this
+**do not deploy**.
+
+### 0. Before the freeze (on `main`, everything merged)
+
+```sh
+gcloud auth login            # if the deploy asks for it
+git checkout main && git pull --ff-only
+npm ci && npm test && npm run build
+# The simulations need the dev server (npm run dev) on https://localhost:8082 and port
+# 8787 free (live-family runs its own API server there).
+node scripts/sim/playtest.mjs --gpu                      # six bot children, budget check
+node scripts/sim/live-family.mjs --seconds-per-phase 45  # parent and child, Live
+node scripts/sim/rooms.mjs --gpu                         # 17 room cases
+node scripts/sim/session-life.mjs --gpu                  # pause/resume, first screen, welcome back
+node scripts/sim/hands-only.mjs --gpu                    # every interaction by hand
+node scripts/sim/narration-stall.mjs --gpu               # a stalled clip never stalls the story
+```
+
+All must pass. The local submission pack (`submission/`), raw footage and the
+video are never uploaded (`.gcloudignore`).
+
+### 1-4. Freeze, deploy, pin, watch
 
 ```sh
 PROJECT=quick-catcher-470218-b0
@@ -93,23 +115,24 @@ gcloud run deploy shadowplay --project $PROJECT --region $REGION --source . \
 gcloud run services update-traffic shadowplay --project $PROJECT --region $REGION \
   --to-revisions shadowplay-competition=100
 
-# 3. Uptime check on /healthz every 5 minutes, emailing you when it fails.
+# 3. Uptime check on /api/health every 5 minutes, emailing you when it fails.
+#    (Not /healthz: Cloud Run reserves URL paths ending in 'z', so that one only works locally.)
 gcloud beta monitoring channels create --project $PROJECT \
   --display-name="Shadowplay alerts" --type=email --channel-labels=email_address=YOU@example.com
 CHANNEL=$(gcloud beta monitoring channels list --project $PROJECT \
   --filter='displayName="Shadowplay alerts"' --format='value(name)')
-gcloud monitoring uptime create shadowplay-healthz --project $PROJECT \
+gcloud monitoring uptime create shadowplay-health --project $PROJECT \
   --resource-type=uptime-url \
   --resource-labels=host=shadowplay-1031148889398.us-central1.run.app,project_id=$PROJECT \
-  --path=/healthz --protocol=https --period=5 --timeout=10
+  --path=/api/health --protocol=https --period=5 --timeout=10
 CHECK=$(gcloud monitoring uptime list-configs --project $PROJECT \
-  --filter='displayName="shadowplay-healthz"' --format='value(name.basename())')
+  --filter='displayName="shadowplay-health"' --format='value(name.basename())')
 cat > /tmp/shadowplay-uptime-policy.json <<JSON
 {
   "displayName": "Shadowplay is down",
   "combiner": "OR",
   "conditions": [{
-    "displayName": "healthz failing",
+    "displayName": "health check failing",
     "conditionThreshold": {
       "filter": "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.type=\"uptime_url\" AND metric.label.check_id=\"$CHECK\"",
       "aggregations": [{ "alignmentPeriod": "600s", "perSeriesAligner": "ALIGN_FRACTION_TRUE" }],
@@ -121,9 +144,35 @@ cat > /tmp/shadowplay-uptime-policy.json <<JSON
 JSON
 gcloud monitoring policies create --project $PROJECT --policy-from-file=/tmp/shadowplay-uptime-policy.json
 
-# 4. Check it.
+# 4. Check it: the smoke test, the health endpoint, the judged revision serving.
 node scripts/sim/smoke.mjs https://shadowplay-1031148889398.us-central1.run.app
+curl -s https://shadowplay-1031148889398.us-central1.run.app/api/health
+gcloud run services describe shadowplay --project $PROJECT --region $REGION \
+  --format='value(status.traffic)'   # expect shadowplay-competition at 100
 ```
+
+`--revision-suffix competition` names the revision `shadowplay-competition`; a
+name can be used once. If a fix has to go in before the deadline, deploy it with
+`--revision-suffix competition-2` (and pin traffic to `shadowplay-competition-2`),
+then move the tag: `git tag -f v1.0-competition && git push -f origin v1.0-competition`.
+
+### Rollback
+
+Traffic can go back to any earlier revision in seconds (nothing is rebuilt):
+
+```sh
+gcloud run revisions list --service shadowplay --project $PROJECT --region $REGION
+gcloud run services update-traffic shadowplay --project $PROJECT --region $REGION \
+  --to-revisions REVISION_NAME=100
+```
+
+### After the deadline (18 Nov 12:00 PT to about 11 Dec)
+
+- Do not deploy, and do not change traffic, except to restore the judged
+  revision if something external breaks it.
+- Keep the project and its billing active until the winners are announced.
+- Watching: the uptime alert emails you; logs with
+  `gcloud run services logs read shadowplay --project $PROJECT --region $REGION --limit 100`.
 
 Why these settings:
 

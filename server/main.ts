@@ -19,7 +19,7 @@ import { DiskStore, GcsStore, type StoryStore } from './storage.ts';
  *   POST /api/stories/:code/replies   a goodnight back from the family (up to MAX_REPLIES)
  *   GET  /api/stories/:code/replies   the replies to a story (for the storyteller)
  *   POST /api/diag           device diagnostics from pages opened with ?diag (numbers and ids only)
- *   GET  /api/health, /healthz
+ *   GET  /api/health (and /healthz locally: Cloud Run reserves paths ending in 'z')
  *   WS   /live                live rooms (see live.ts)
  */
 const PORT = Number(process.env.PORT ?? 8787);
