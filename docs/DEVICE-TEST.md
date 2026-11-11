@@ -40,6 +40,8 @@ Run the core checks (A and B) in at least three rooms; the rest once per headset
 | A2 | Enter XR to stage placed (panel: `placed +Xs`) | [ ] | |
 | A3 | Permission prompts: which appeared, all understandable | [ ] | |
 | A4 | Stage on the wall straight ahead (panel: `wall`), or floating screen (`screen`) in R3 | [ ] | |
+| A4b | Write down the plane labels from the summary's `placed:` line (for example `wall:4,door frame:1`). If the walls carry a label other than `wall` or `wall face`, the stage will always fall back to the paper screen: tell me the label | [ ] | labels |
+| A4c | Facing a window or a door: the stage slides beside it (if it is off to one side), or a paper screen stands just in front of it (if it is straight ahead). Never shadows on the glass | [ ] | |
 | A5 | Stage size feels right; not inside furniture | [ ] | |
 | A6 | Frame rate holds at 72 (panel line 1 stays cream, not red) | [ ] | fps / p95 |
 | A7 | Quality level after 2 minutes (`q0`..`q3`; anything above `q0` means the headset could not hold 72) | [ ] | |
@@ -101,11 +103,12 @@ and whether anything woke that you did not ask for (panel: `match`).
 | E3 | Recenter (hold the menu button): stage re-placed ahead | [ ] | |
 | E4 | Stand up mid-story: stage stays put, hands still cast | [ ] | |
 | E5 | Sit at 30-45 degrees to the wall: stage placement and shadows | [ ] | |
-| E6 | Settings: Re-place stage on the wall ahead works by pinch | [ ] | |
+| E6 | Settings: **Move stage here** works by pinch: pinch, look at another wall within about 1.5 s, the stage appears there | [ ] | |
 | E7 | One-hand mode: bird and cup with one hand | [ ] | |
 | E8 | Tolerance Very forgiving: shapes wake sooner, no false wakes | [ ] | |
 | E8b | Change Tolerance while a shape is being asked for: takes effect at once and stays after it wakes | [ ] | |
-| E9 | Captions, journal and settings readable without turning the head | [ ] | |
+| E9 | Captions and the journal page readable without turning the head (measured in the emulator: within 16.5 degrees either side, 11 up, 13 down) | [ ] | |
+| E9b | Settings readable and every row reachable by pinch without straining. It is the tallest thing on the stage: in the emulator it reaches 27 degrees up, 25 down and 33 to the right at a 2 m wall. Note whether the top or bottom rows are uncomfortable | [ ] | |
 | E10 | Session ended mid-story: next launch continues from that chapter | [ ] | |
 
 ## Optional: silhouette templates
@@ -128,3 +131,6 @@ a second opinion, it is not required.
   dropouts; summarize.mjs counts triggers by shape and what was asked).
 - How the capsule hand shadows look on a real wall compared with a real hand.
 - Plane detection timing in each room (`placed +Xs`) and the fallback in R3.
+- The semantic labels Quest Browser gives walls, doors and windows (summary:
+  `placed: ... vertical N: labels`). Walls are accepted as `wall`, `wall face`
+  or no label; doors and windows are recognised by the words door and window.

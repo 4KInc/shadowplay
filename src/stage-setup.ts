@@ -20,24 +20,24 @@ import {
   createPaperScreen,
   createShadowSurface,
 } from './stage-visuals.js';
+import { chooseWall, SCREEN_DISTANCE, screenDistance, WIDTH_PER_METER, type RoomPlane, type WallChoice } from './wall-choice.js';
 
-const MIN_WALL = 0.6;
-const MAX_WALL = 4;
-const CLOSE_WALL = 1.0;
-const SCREEN_DISTANCE = 2;
-const FRONT_COS = Math.cos((40 * Math.PI) / 180);
 /** Behind the stage in a browser (no passthrough): a deep night blue. */
 const BROWSER_BACKGROUND = new Color(0x0d0a14);
 
-/** Stage subtends ~33 degrees: width = 2 * d * tan(16.5deg). */
-const WIDTH_PER_METER = 2 * Math.tan((16.5 * Math.PI) / 180);
 const SCAN_MIN_SECONDS = 1.2;
 const SCAN_TIMEOUT_SECONDS = 4;
+/**
+ * A wall that turns up after the paper-screen fallback (room data arriving
+ * late) still takes the stage, but only this soon after the scan began: later
+ * the story is under way and the stage must not jump.
+ */
+const LATE_WALL_SECONDS = 12;
+/** "Move stage here": time to turn toward the new spot before the scan starts. */
+const MOVE_DELAY_SECONDS = 1.5;
+/** A close wall (usually behind a monitor) lifts the stage above it. */
+const CLOSE_WALL = 1.0;
 const EYE_TO_DESK = 0.45;
-/** How far outside a detected wall's outline the point straight ahead may fall. */
-const WALL_MARGIN = 0.25;
-/** Narrowest stage we will build on a small wall. */
-const MIN_STAGE_WIDTH = 0.35;
 const DIM_FADE_SECONDS = 2.5;
 /** Sliding the lamp sideways sweeps its aim across the wall this many times further. */
 const SWEEP_GAIN = 3.5;
@@ -73,16 +73,18 @@ export class StageSetupSystem extends createSystem({
   private tmpA = new Vector3();
   private tmpB = new Vector3();
   private normal = new Vector3();
-  private bestNormal = new Vector3();
-  private bestPoint = new Vector3();
   private basis = new Matrix4();
   private right = new Vector3();
   private corner = new Vector3();
+  /** Detected planes in the shape wall-choice takes; objects reused frame to frame. */
+  private room: RoomPlane[] = [];
+  private roomPool: RoomPlane[] = [];
+  private wall: WallChoice | null = null;
+  private planeNormal = new Vector3();
+  private lateCheck = 0;
   /** Chosen wall's horizontal extent, relative to the point straight ahead. */
-  private bestUMin = 0;
-  private bestUMax = 0;
   private watchedRef: XRReferenceSpace | null = null;
-  private onReset = () => this.resetPlacement();
+  private onReset = () => this.resetPlacement(0);
   private lampMeshes: Mesh[] = [];
   /** Where the lamp was placed; dragging away from here sweeps the light. */
   private lampHome = new Vector3();
@@ -108,7 +110,7 @@ export class StageSetupSystem extends createSystem({
       (() => {
         // Phones rotate and browsers resize: re-fit the screen outside XR.
         const onResize = () => {
-          if (!this.inXR) this.resetPlacement();
+          if (!this.inXR) this.resetPlacement(0);
         };
         window.addEventListener('resize', onResize);
         return () => window.removeEventListener('resize', onResize);
@@ -117,7 +119,7 @@ export class StageSetupSystem extends createSystem({
         const inXR = state !== VisibilityState.NonImmersive;
         if (inXR !== this.inXR) {
           this.inXR = inXR;
-          this.resetPlacement();
+          this.resetPlacement(0);
           this.applyBrowserLook();
           // Fixed foveation (lower resolution at the edges of the view) where the
           // browser supports it: the dimming layer and shadow surface are fill-rate bound.
@@ -152,9 +154,10 @@ export class StageSetupSystem extends createSystem({
     );
   }
 
-  private resetPlacement(): void {
+  /** Forget the placement and scan again, after `delay` seconds (time to turn toward a new spot). */
+  private resetPlacement(delay: number): void {
     this.placed = false;
-    this.scanTime = 0;
+    this.scanTime = -delay;
     this.dimLevel = 0;
     stageRuntime.ready = false;
     if (this.stageEntity) this.stageEntity.setValue(Stage, 'mode', StageModes.Pending);
@@ -210,7 +213,7 @@ export class StageSetupSystem extends createSystem({
     // Re-place on request (Settings) or when the headset recenters the space.
     if (stage.getValue(Stage, 'replaceRequested')) {
       stage.setValue(Stage, 'replaceRequested', false);
-      this.resetPlacement();
+      this.resetPlacement(this.inXR ? MOVE_DELAY_SECONDS : 0);
     }
     const ref = this.world.xrReferenceSpace;
     if (ref !== this.watchedRef) {
@@ -239,105 +242,84 @@ export class StageSetupSystem extends createSystem({
         if (this.findWall()) this.placeOnWall(stage, lamp);
         else if (this.scanTime >= SCAN_TIMEOUT_SECONDS) this.placeScreen(stage, lamp);
       }
+    } else if (this.inXR && this.scanTime < LATE_WALL_SECONDS && stage.getValue(Stage, 'mode') === StageModes.Screen) {
+      // On the paper screen for now: a wall whose room data arrives late still wins, for a few seconds.
+      this.scanTime += delta;
+      this.lateCheck += delta;
+      if (this.lateCheck >= 0.5) {
+        this.lateCheck = 0;
+        if (this.findWall()) this.placeOnWall(stage, lamp);
+      }
     }
 
     this.updateLighting(stage, lamp, delta);
   }
 
-  /** Pick the vertical plane most directly in front of the player. */
-  private findWall(): boolean {
-    let bestScore = -Infinity;
+  /** The detected planes (or an emulator test's fake ones) as wall-choice geometry. */
+  private readRoom(): readonly RoomPlane[] {
+    if (stageRuntime.testPlanes) return stageRuntime.testPlanes;
+    this.room.length = 0;
     for (const entity of this.queries.planes.entities) {
       const plane = entity.getValue(XRPlane, '_plane') as XRPlane | undefined;
       const obj = entity.object3D;
-      if (!plane || !obj || plane.orientation !== 'vertical') continue;
-      const label = (plane as XRPlane & { semanticLabel?: string }).semanticLabel;
-      if (label && label !== 'wall') continue;
-      this.normal.set(0, 1, 0).applyQuaternion(obj.quaternion);
-      this.tmpA.subVectors(this.head, obj.position);
-      let dist = this.tmpA.dot(this.normal);
-      if (dist < 0) {
-        this.normal.negate();
-        dist = -dist;
+      if (!plane || !obj) continue;
+      const r = this.roomPool[this.room.length] ?? { orientation: '', point: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 0, z: 0 }, corners: [] };
+      this.roomPool[this.room.length] = r;
+      obj.updateMatrixWorld();
+      r.orientation = plane.orientation;
+      r.label = (plane as XRPlane & { semanticLabel?: string }).semanticLabel;
+      r.point.x = obj.position.x;
+      r.point.y = obj.position.y;
+      r.point.z = obj.position.z;
+      this.planeNormal.set(0, 1, 0).applyQuaternion(obj.quaternion);
+      r.normal.x = this.planeNormal.x;
+      r.normal.y = this.planeNormal.y;
+      r.normal.z = this.planeNormal.z;
+      const polygon = plane.polygon;
+      r.corners.length = polygon.length;
+      for (let i = 0; i < polygon.length; i++) {
+        this.corner.set(polygon[i].x, polygon[i].y, polygon[i].z).applyMatrix4(obj.matrixWorld);
+        const c = r.corners[i] ?? { x: 0, y: 0, z: 0 };
+        c.x = this.corner.x;
+        c.y = this.corner.y;
+        c.z = this.corner.z;
+        r.corners[i] = c;
       }
-      if (dist < MIN_WALL || dist > MAX_WALL) continue;
-      const facing = -(this.normal.x * this.forward.x + this.normal.z * this.forward.z);
-      if (facing < FRONT_COS) continue;
-      // The point straight ahead must lie on this wall's detected outline.
-      if (!this.measureWall(plane, obj, dist, facing)) continue;
-      const score = facing - dist * 0.05;
-      if (score > bestScore) {
-        bestScore = score;
-        this.bestNormal.copy(this.normal);
-        this.bestPoint.copy(obj.position);
-        this.bestUMin = this.uMin;
-        this.bestUMax = this.uMax;
-      }
+      this.room.push(r);
     }
-    return bestScore > -Infinity;
+    return this.room;
   }
 
-  private uMin = 0;
-  private uMax = 0;
-
-  /**
-   * Project the wall outline onto the wall's horizontal axis, relative to the
-   * point straight ahead of the player; reject the wall if that point (or the
-   * player's eye height) falls outside the outline by more than the margin.
-   */
-  private measureWall(plane: XRPlane, obj: Object3D, dist: number, facing: number): boolean {
-    const n = this.normal;
-    this.right.set(n.z, 0, -n.x).normalize();
-    this.tmpB.copy(this.head).addScaledVector(this.forward, dist / Math.max(0.2, facing));
-    obj.updateMatrixWorld();
-    let uMin = Infinity;
-    let uMax = -Infinity;
-    let vMin = Infinity;
-    let vMax = -Infinity;
-    for (const p of plane.polygon) {
-      this.corner.set(p.x, p.y, p.z).applyMatrix4(obj.matrixWorld);
-      const u = (this.corner.x - this.tmpB.x) * this.right.x + (this.corner.z - this.tmpB.z) * this.right.z;
-      const v = this.corner.y - this.head.y;
-      if (u < uMin) uMin = u;
-      if (u > uMax) uMax = u;
-      if (v < vMin) vMin = v;
-      if (v > vMax) vMax = v;
-    }
-    this.uMin = uMin;
-    this.uMax = uMax;
-    return uMin - WALL_MARGIN <= 0 && uMax + WALL_MARGIN >= 0 && vMin - 0.5 <= 0 && vMax + 0.5 >= 0;
+  /** Pick the wall most directly in front of the player (see wall-choice.ts for the rules). */
+  private findWall(): boolean {
+    this.wall = chooseWall(this.head, this.forward, this.readRoom());
+    return this.wall !== null;
   }
 
   private placeOnWall(stage: Entity, lamp: Entity): void {
-    const n = this.bestNormal;
-    n.y = 0;
-    n.normalize();
-    const dist = this.tmpA.subVectors(this.head, this.bestPoint).dot(n);
+    const w = this.wall!;
+    const n = this.normal.set(w.nx, 0, w.nz);
     // Ray from the head along its horizontal forward to the wall plane.
-    const along = dist / Math.max(0.2, -this.forward.dot(n));
-    const close = dist < CLOSE_WALL;
-    // Fit the stage to the wall: shrink for narrow walls, slide it to stay on them.
-    const wallWidth = this.bestUMax - this.bestUMin;
-    const width = Math.max(MIN_STAGE_WIDTH, Math.min(1.5, Math.max(0.45, dist * WIDTH_PER_METER), wallWidth * 0.9));
-    const half = width / 2;
-    const shift =
-      wallWidth <= width ? (this.bestUMin + this.bestUMax) / 2 : Math.min(this.bestUMax - half, Math.max(this.bestUMin + half, 0));
+    const along = w.dist / Math.max(0.2, -this.forward.dot(n));
+    const close = w.dist < CLOSE_WALL;
     this.right.set(n.z, 0, -n.x).normalize();
     this.tmpB
       .copy(this.head)
       .addScaledVector(this.forward, along)
-      .addScaledVector(this.right, shift)
+      .addScaledVector(this.right, w.shift)
       .addScaledVector(n, 0.004);
-    stage.setValue(Stage, 'wallWidth', wallWidth);
+    stage.setValue(Stage, 'wallWidth', w.wallWidth);
     // Close walls usually sit behind a monitor: lift the stage above it.
     this.tmpB.y = this.head.y + (close ? 0.28 : 0.05);
-    this.applyStage(stage, lamp, this.tmpB, n, width, dist, StageModes.Wall, close);
+    this.applyStage(stage, lamp, this.tmpB, this.tmpA.copy(n), w.width, w.dist, StageModes.Wall, close);
   }
 
   private placeScreen(stage: Entity, lamp: Entity): void {
     stage.setValue(Stage, 'wallWidth', 0);
     this.normal.copy(this.forward).negate();
-    this.tmpB.copy(this.head).addScaledVector(this.forward, SCREEN_DISTANCE);
+    // Two metres ahead, or just in front of a nearer surface (a wall too close to use, a window).
+    const dist = this.inXR ? screenDistance(this.head, this.forward, this.readRoom()) : SCREEN_DISTANCE;
+    this.tmpB.copy(this.head).addScaledVector(this.forward, dist);
     this.tmpB.y = this.head.y + 0.05;
     if (!this.inXR) {
       // Browser (desktop link, phone or tablet viewer): centre the screen in the
@@ -345,8 +327,8 @@ export class StageSetupSystem extends createSystem({
       this.world.camera.getWorldDirection(this.tmpA);
       this.tmpB.copy(this.head).addScaledVector(this.tmpA, this.fitDistance(SCREEN_DISTANCE * WIDTH_PER_METER));
     }
-    const width = SCREEN_DISTANCE * WIDTH_PER_METER;
-    this.applyStage(stage, lamp, this.tmpB, this.normal, width, SCREEN_DISTANCE, StageModes.Screen, false);
+    const width = dist * WIDTH_PER_METER;
+    this.applyStage(stage, lamp, this.tmpB, this.normal, width, dist, StageModes.Screen, false);
   }
 
   private applyStage(
