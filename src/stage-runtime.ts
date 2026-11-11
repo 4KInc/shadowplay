@@ -19,6 +19,10 @@ export const stageRuntime = {
   /** Centre of the lamp's light pool on the stage (moves as the lamp is dragged). */
   poolCenter: new Vector3(),
   lampOn: true,
+  /** Adaptive quality level (Stage.quality), for visuals outside the stage system. */
+  quality: 0,
+  /** The headset's answer to our 72 Hz request: '' (not asked yet), 'granted', 'refused', 'unsupported'. */
+  frameRateRequest: '',
 };
 
 export const JOINT_COUNT = 25;

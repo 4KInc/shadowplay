@@ -56,8 +56,12 @@ export const Stage = createComponent('Stage', {
   replaceRequested: { type: Types.Boolean, default: false },
   /** Width of the chosen wall (0 for the floating screen). */
   wallWidth: { type: Types.Float32, default: 0 },
-  /** Adaptive quality: 0 full, 1 smaller shadow map, 2 also no room-dimming layer. */
-  quality: { type: Types.Int8, default: 0, min: 0, max: 2 },
+  /**
+   * Adaptive quality (steps down only, see quality.ts): 0 full; 1 512 px shadow
+   * map and the shadow surface trimmed to the lit area; 2 also no room-dimming
+   * layer and slower silhouette readbacks; 3 a 256 px shadow map and simpler scenery.
+   */
+  quality: { type: Types.Int8, default: 0, min: 0, max: 3 },
 });
 
 /** The desk lamp; its bulb throws every shadow. */

@@ -44,6 +44,7 @@ async function play(persona) {
   const start = Date.now();
   const samples = [];
   const perf = [];
+  const casters = [];
   const last = script.beats[script.beats.length - 1].id;
   while (Date.now() - start < SECONDS * 1000) {
     await sleep(1000);
@@ -55,7 +56,10 @@ async function play(persona) {
       caption: __sp.get('StoryState', 'caption'),
     })).catch(() => null);
     if (s) samples.push({ t: Date.now() - start, ...s });
-    if (samples.length % 5 === 0) perf.push(await page.evaluate(() => __sp.perf()).catch(() => null));
+    if (samples.length % 5 === 0) {
+      perf.push(await page.evaluate(() => __sp.perf()).catch(() => null));
+      casters.push(await page.evaluate(() => __sp.audit().casters.length).catch(() => 0));
+    }
     if (samples.length === 90) await page.screenshot({ path: join(OUT, `${persona}.png`) }).catch(() => undefined);
     // Finished the story: no need to wait out the clock.
     if (s?.beat === last) break;
@@ -84,6 +88,7 @@ async function play(persona) {
     fps: +(frames / finishedAfter).toFixed(1),
     peakDrawCalls: Math.max(0, ...peaks.map((p) => p.peak.calls)),
     peakTriangles: Math.max(0, ...peaks.map((p) => p.peak.triangles)),
+    peakCasters: Math.max(0, ...casters),
     appMsMedian: peaks.at(-1)?.appMs?.median?.toFixed(2),
     appMsP95: peaks.at(-1)?.appMs?.p95?.toFixed(2),
     errors: errors.slice(0, 3),
@@ -97,6 +102,17 @@ for (const persona of PERSONAS) {
   results.push(r);
   console.log(JSON.stringify(r));
 }
+// Performance budget: the peaks measured when WS2 landed (full quality, all six
+// personas: 72 draw calls, 41,002 triangles, 2 shadow casters, one per hand),
+// plus 10%. A story or scenery change that blows through it fails the run.
+const BUDGET = { peakDrawCalls: 79, peakTriangles: 45100, peakCasters: 2 };
+const over = results.flatMap((r) =>
+  Object.entries(BUDGET).filter(([k, max]) => r[k] > max).map(([k, max]) => `${r.persona}: ${k} ${r[k]} > ${max}`),
+);
 writeFileSync(join(OUT, 'report.json'), JSON.stringify(results, null, 2));
 console.table(results.map(({ shapeMoments, errors, ...r }) => ({ ...r, errors: errors.length })));
 console.log('screenshots and report:', OUT);
+if (over.length) {
+  console.error('PERFORMANCE BUDGET EXCEEDED:\n  ' + over.join('\n  '));
+  process.exitCode = 1;
+} else console.log('performance budget: ok', BUDGET);

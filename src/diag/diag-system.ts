@@ -12,7 +12,7 @@ import {
   XRPlane,
 } from '@iwsdk/core';
 import { ShapeRecognizer, Stage, StoryState } from '../shadowplay-components.js';
-import { handRuntime } from '../stage-runtime.js';
+import { handRuntime, stageRuntime } from '../stage-runtime.js';
 import { FrameStats } from './frame-stats.js';
 
 /** Snapshot to the server every SNAPSHOT_MS; events within EVENT_FLUSH_MS. */
@@ -76,7 +76,8 @@ export class DiagSystem extends createSystem({
   private ctx = this.canvas.getContext('2d')!;
   private texture = new CanvasTexture(this.canvas);
   private panel!: Mesh;
-  private rateRequested = false;
+  /** The stage asks for 72 Hz on XR entry; its answer is reported once. */
+  private rateReported = false;
 
   init(): void {
     this.canvas.width = W;
@@ -111,7 +112,6 @@ export class DiagSystem extends createSystem({
         this.visibility = state;
         if (state !== VisibilityState.NonImmersive && !this.xrAt) this.xrAt = performance.now();
         this.event({ e: 'vis', state });
-        if (state !== VisibilityState.NonImmersive) this.requestFrameRate();
       }),
       () => {
         this.panel.removeFromParent();
@@ -122,6 +122,10 @@ export class DiagSystem extends createSystem({
   }
 
   update(delta: number): void {
+    if (!this.rateReported && stageRuntime.frameRateRequest) {
+      this.rateReported = true;
+      this.event({ e: 'rate', requested: 72, result: stageRuntime.frameRateRequest });
+    }
     this.stats.push(delta * 1000);
     const now = performance.now();
     this.watch(now);
@@ -223,7 +227,7 @@ export class DiagSystem extends createSystem({
       p95Ms: round(r.p95, 2),
       worstMs: round(r.worst, 2),
       quality,
-      shadowMap: quality >= 1 ? 512 : 1024,
+      shadowMap: quality >= 3 ? 256 : quality >= 1 ? 512 : 1024,
       lt: l.t, ls: l.shape, lsc: l.score, lsil: l.sil,
       rt: rt.t, rs: rt.shape, rsc: rt.score, rsil: rt.sil,
       ...(stage ? this.placement(stage) : {}),
@@ -250,19 +254,6 @@ export class DiagSystem extends createSystem({
     const body = JSON.stringify({ v: 1, session: this.session, device: this.device, gpu: this.gpu, seq: this.seq++, items });
     void fetch(`${import.meta.env.BASE_URL}api/diag`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(
       () => undefined,
-    );
-  }
-
-  /** Ask the headset for 72 Hz (the comfort floor); what it actually runs at shows in the snapshots. */
-  private requestFrameRate(): void {
-    const session = this.world.xrSession as (XRSession & { updateTargetFrameRate?: (r: number) => Promise<void>; supportedFrameRates?: Float32Array }) | null;
-    if (this.rateRequested || !session?.updateTargetFrameRate) return;
-    this.rateRequested = true;
-    const rates = session.supportedFrameRates ? Array.from(session.supportedFrameRates) : [];
-    if (rates.length && !rates.includes(72)) return;
-    session.updateTargetFrameRate(72).then(
-      () => this.event({ e: 'rate', requested: 72, ok: true }),
-      () => this.event({ e: 'rate', requested: 72, ok: false }),
     );
   }
 

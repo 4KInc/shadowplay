@@ -216,6 +216,8 @@ export class HandCasterSystem extends createSystem(
     if (!tracked) {
       caster.joints.count = 0;
       caster.bones.count = 0;
+      // Out of every pass (shadow, depth, silhouette) while there is nothing to draw.
+      caster.joints.visible = caster.bones.visible = false;
       return;
     }
     const casting = !caster.sample.hideCasters;
@@ -244,6 +246,7 @@ export class HandCasterSystem extends createSystem(
     }
     caster.joints.count = JOINT_COUNT;
     caster.bones.count = BONES.length;
+    caster.joints.visible = caster.bones.visible = true;
     caster.joints.instanceMatrix.needsUpdate = true;
     caster.bones.instanceMatrix.needsUpdate = true;
   }

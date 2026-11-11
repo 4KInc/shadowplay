@@ -42,7 +42,8 @@ Run the core checks (A and B) in at least three rooms; the rest once per headset
 | A4 | Stage on the wall straight ahead (panel: `wall`), or floating screen (`screen`) in R3 | [ ] | |
 | A5 | Stage size feels right; not inside furniture | [ ] | |
 | A6 | Frame rate holds at 72 (panel line 1 stays cream, not red) | [ ] | fps / p95 |
-| A7 | Quality level after 2 minutes (`q0`..`q2`) | [ ] | |
+| A7 | Quality level after 2 minutes (`q0`..`q3`; anything above `q0` means the headset could not hold 72) | [ ] | |
+| A7b | If the level stepped down: no visible pop or flicker when it changed, and shadows still look whole (edges not clipped) | [ ] | |
 | A8 | Controllers in hand: story pauses and asks to put them down; resumes with hands | [ ] | |
 
 ## B. Shapes (every room)
@@ -118,7 +119,10 @@ a second opinion, it is not required.
 ## Open questions only a device can answer
 
 - Real frame rate and GPU cost on Quest 3 vs 3S (the panel and the summary).
-- Whether Quest Browser grants 72 Hz (summary: `requested 72 Hz`).
+- Whether Quest Browser grants 72 Hz (summary: `requested 72 Hz: granted`, `refused` or `unsupported`).
+- Whether the stage holds `q0` through The Moth's storm and finale on Quest 3S;
+  if not, which level it settles at (summary: `quality` events with the fps
+  that triggered them).
 - Recognition accuracy with real hand tracking noise, per shape, per room light
   (the synthetic sweep models +/-5 mm jitter, an occluded finger and 100 ms
   dropouts; summarize.mjs counts triggers by shape and what was asked).
