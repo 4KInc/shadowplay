@@ -9,3 +9,8 @@ docs
 *.log
 .claude
 server/*.test.ts
+
+# Local only: the submission pack, raw headset footage, the assembled video.
+submission/
+video-clips/
+shadowplay-video.mp4

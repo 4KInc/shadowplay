@@ -1,5 +1,6 @@
 import { createSystem, Entity } from '@iwsdk/core';
 import { onAway } from './away.js';
+import { StallWatch } from './narration-watch.js';
 import { LiveSession, PerformanceRecorder, Settings, StoryState, StoryStatuses } from './shadowplay-components.js';
 
 interface NarrationManifest {
@@ -32,6 +33,8 @@ export class NarrationSystem extends createSystem({
   private paused = false;
   /** Bumped per line so callbacks from a stopped line are ignored. */
   private line = 0;
+  /** Notices a clip that stopped making progress (see narration-watch.ts). */
+  private watch = new StallWatch();
 
   init(): void {
     // Browsers load the voice list lazily; ask early so the first line has a voice.
@@ -46,7 +49,7 @@ export class NarrationSystem extends createSystem({
     );
   }
 
-  update(): void {
+  update(delta: number): void {
     const story = first(this.queries.stories.entities);
     if (!story) return;
     if (!this.loaded && !this.loading) this.load();
@@ -70,6 +73,7 @@ export class NarrationSystem extends createSystem({
       return;
     }
     this.resumeLine();
+    if (this.audio) this.watchClip(story, delta);
 
     const beat = story.getValue(StoryState, 'beatId') ?? '';
     if (beat === this.lastBeat) return;
@@ -114,10 +118,15 @@ export class NarrationSystem extends createSystem({
     if (clip) {
       const audio = new Audio(`${import.meta.env.BASE_URL}${clip.replace(/^\/+/u, '')}`);
       this.audio = audio;
+      this.watch.reset();
       audio.addEventListener('ended', done, { once: true });
       audio.addEventListener('error', done, { once: true });
       story.setValue(StoryState, 'voiceSource', 'clip');
-      void audio.play().catch(done);
+      // An AbortError only means a pause or a reload (the stall watch's retry) interrupted
+      // this attempt; the line is not over. Any other failure ends it.
+      void audio.play().catch((e: unknown) => {
+        if ((e as Error)?.name !== 'AbortError') done();
+      });
       return;
     }
 
@@ -145,6 +154,24 @@ export class NarrationSystem extends createSystem({
     story.setValue(StoryState, 'voiceBeat', beat);
     story.setValue(StoryState, 'voiceSource', source);
     story.setValue(StoryState, 'voiceDone', true);
+  }
+
+  /**
+   * A clip that should be playing but has not moved: reload it and try once
+   * more; if it is still stuck, stop it and let the line end on its caption
+   * (the story then paces it by reading time), rather than wait on silence.
+   */
+  private watchClip(story: Entity, delta: number): void {
+    const audio = this.audio!;
+    const action = this.watch.step(delta, audio.currentTime);
+    if (action === 'retry') {
+      audio.load();
+      void audio.play().catch(() => undefined);
+    } else if (action === 'give-up') {
+      this.line++;
+      audio.pause();
+      this.finish(story, story.getValue(StoryState, 'voiceBeat') ?? '', 'clip');
+    }
   }
 
   private pauseLine(): void {
