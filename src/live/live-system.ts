@@ -1,4 +1,5 @@
 import { createSystem, Entity } from '@iwsdk/core';
+import { onAway } from '../away.js';
 import { family } from '../family.js';
 import { applyEvent, ApplyTargets, applyTargets } from '../performance/apply.js';
 import { FRAME_STRIDE, readFrame, writeFrame } from '../performance/format.js';
@@ -120,7 +121,10 @@ export class LiveSystem extends createSystem({
   init(): void {
     this.targets = applyTargets(this.queries);
     new Uint8Array(this.handsPacket)[0] = KIND_HANDS;
-    this.cleanupFuncs.push(() => this.leave(null, ''));
+    this.cleanupFuncs.push(
+      () => this.leave(null, ''),
+      onAway((isAway) => this.voice.setAway(isAway)),
+    );
   }
 
   update(delta: number): void {

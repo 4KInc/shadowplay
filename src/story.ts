@@ -1,4 +1,5 @@
 import { createSystem, Entity, Vector3, VisibilityState } from '@iwsdk/core';
+import { away, setAway } from './away.js';
 import { personalise } from './family.js';
 import { loadProgress, loadUnlocks, saveProgress, saveUnlocks } from './journal-store.js';
 import {
@@ -22,11 +23,19 @@ import { viewerMode } from './viewer-mode.js';
 
 const CHAPTER_SECONDS = 3.2;
 const LAMP_SECONDS = 1.8;
+/**
+ * The first shape a session asks for is taught by showing it: the ghost hand
+ * appears this soon (later requests use the player's hint setting, 15 s by
+ * default; "Off" is still respected).
+ */
+const FIRST_HINT_SECONDS = 2;
 const GROW_HOLD_SECONDS = 0.6;
 const CONTINUE_HOLD_SECONDS = 1.0;
 const REVEAL_HOLD_SECONDS = 0.8;
 const LETGO_HOLD_SECONDS = 0.5;
 const PAUSED_CAPTION = 'Paused. Pinch the lamp switch to continue.';
+/** Behind the Quest menu, or with the headset off: it carries on by itself on return. */
+const AWAY_CAPTION = 'Paused.';
 const JOURNAL_CAPTION = 'Your Shadow Journal. Pinch the book to close it.';
 const TITLE_CAPTION =
   'Shadowplay. A lamp on your desk, a story on your wall. Put on your Meta Quest and press Enter XR to begin.';
@@ -55,6 +64,9 @@ function flicker(t: number): number {
   if (t < 0.82) return 0.25;
   return Math.min(1, 0.5 + (t - 0.82) / 1.2);
 }
+
+/** Longest story step per frame (seconds). */
+const MAX_STEP_SECONDS = 0.25;
 
 /**
  * Plays the beat script: captions, lamp, moth, scenery, actors, shape requests
@@ -98,16 +110,24 @@ export class StorySystem extends createSystem({
   private scriptPath = '';
   private resumeAt = -1;
   private lastAliveShape: string = ShapeIds.None;
+  /** A creature has woken this session (until then the hint comes early). */
+  private firstWoken = false;
+  /** The chapter card now showing is a returning player's resume point. */
+  private welcomeBack = false;
   /** Puppet size when the current grow beat began. */
   private growFrom = 0;
 
   init(): void {
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe((state) => {
-        this.blurred = state === VisibilityState.VisibleBlurred;
+        this.blurred = state === VisibilityState.VisibleBlurred || state === VisibilityState.Hidden;
         this.inXR = state !== VisibilityState.NonImmersive;
+        setAway(this.blurred || document.hidden);
       }),
     );
+    const onPageVisibility = () => setAway(this.blurred || document.hidden);
+    document.addEventListener('visibilitychange', onPageVisibility);
+    this.cleanupFuncs.push(() => document.removeEventListener('visibilitychange', onPageVisibility));
   }
 
   /** Index of the chapter beat at or before `index` (0 if none). */
@@ -206,7 +226,10 @@ export class StorySystem extends createSystem({
       .catch((error: unknown) => console.error('[shadowplay] story load failed', error));
   }
 
-  update(delta: number): void {
+  update(frameDelta: number): void {
+    // After a hidden session (headset off) the first frame's delta spans the whole
+    // absence; the story must pick up where it paused, not skip ahead.
+    const delta = Math.min(frameDelta, MAX_STEP_SECONDS);
     const story = first(this.queries.stories.entities);
     const stage = first(this.queries.stages.entities);
     if (story && !this.script && !this.loading) this.load(story);
@@ -290,10 +313,10 @@ export class StorySystem extends createSystem({
 
     const journalOpen = Boolean(first(this.queries.journals.entities)?.getValue(ShadowJournal, 'open'));
     if (story.getValue(StoryState, 'journalOpen') !== journalOpen) story.setValue(StoryState, 'journalOpen', journalOpen);
-    const paused = !stage.getValue(Stage, 'lampOn') || this.blurred || journalOpen || needHands;
+    const paused = !stage.getValue(Stage, 'lampOn') || away.now || journalOpen || needHands;
     if (paused) {
       setIfChanged(story, 'status', StoryStatuses.Paused);
-      setIfChanged(story, 'caption', needHands ? HANDS_CAPTION : journalOpen ? JOURNAL_CAPTION : PAUSED_CAPTION);
+      setIfChanged(story, 'caption', needHands ? HANDS_CAPTION : journalOpen ? JOURNAL_CAPTION : away.now ? AWAY_CAPTION : PAUSED_CAPTION);
       return;
     }
     if (status === StoryStatuses.Paused) story.setValue(StoryState, 'caption', this.beatCaption);
@@ -302,9 +325,14 @@ export class StorySystem extends createSystem({
     let index = story.getValue(StoryState, 'beatIndex') ?? -1;
     if (index < 0) {
       if (this.resumeAt > 0) {
-        // Returning player: the lamp is already lit; start at their chapter.
+        // Returning player: the lamp is already lit; start at their chapter, and say so.
         stage.setValue(Stage, 'lampLevel', 1);
         index = this.enter(story, stage, this.resumeAt);
+        const resumed = this.script.beats[index];
+        if (resumed?.type === 'chapter') {
+          this.welcomeBack = true;
+          this.setCaption(story, `Welcome back. Continuing from ${resumed.text}. To start again, open the Shadow Journal.`);
+        }
         this.resumeAt = -1;
       } else {
         index = this.enter(story, stage, 0);
@@ -388,6 +416,7 @@ export class StorySystem extends createSystem({
   private enter(story: Entity, stage: Entity, index: number): number {
     const beat = this.script!.beats[index];
     this.beatTime = 0;
+    this.welcomeBack = false;
     this.holdTime = 0;
     this.growFrom = 0;
     this.endAssist(story, stage);
@@ -495,7 +524,7 @@ export class StorySystem extends createSystem({
     const done = index + 1;
     switch (beat.type) {
       case 'chapter':
-        return this.lineFinished(story, beat.id, t, CHAPTER_SECONDS) ? done : null;
+        return this.lineFinished(story, beat.id, t, this.welcomeBack ? readingSeconds(this.beatCaption) : CHAPTER_SECONDS) ? done : null;
       case 'narrate':
         return this.lineFinished(story, beat.id, t, beat.seconds ?? readingSeconds(beat.text)) ? done : null;
       case 'release':
@@ -653,9 +682,11 @@ export class StorySystem extends createSystem({
   /** Waits for one of the shapes to come alive; shows the hint when stuck. */
   private awaitAlive(story: Entity, shapes: string[], t: number): string | null {
     const alive = shapes.find((s) => this.puppetFor(s)?.getValue(ShadowPuppet, 'state') === PuppetStates.Alive);
-    const hintAfter = story.getValue(StoryState, 'hintAfterSeconds') ?? 15;
+    const setting = story.getValue(StoryState, 'hintAfterSeconds') ?? 15;
+    const hintAfter = this.firstWoken || setting < 0 ? setting : Math.min(setting, FIRST_HINT_SECONDS);
     story.setValue(StoryState, 'hintVisible', alive === undefined && hintAfter >= 0 && t >= hintAfter);
     if (alive === undefined || t <= 0.3) return null;
+    this.firstWoken = true;
     this.lastAliveShape = alive;
     return alive;
   }
