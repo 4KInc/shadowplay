@@ -117,6 +117,8 @@ export class LiveVoice {
   private capture: AudioWorkletNode | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
   private mic: MediaStream | null = null;
+  /** The player stepped away (Quest menu, headset off): no talking or listening until they return. */
+  private away = false;
   hearing = false;
 
   private async context(): Promise<AudioContext> {
@@ -126,7 +128,7 @@ export class LiveVoice {
       this.ready = this.ctx.audioWorklet.addModule(url).finally(() => URL.revokeObjectURL(url));
     }
     await this.ready;
-    if (this.ctx.state === 'suspended') await this.ctx.resume().catch(() => undefined);
+    if (this.ctx.state === 'suspended' && !this.away) await this.ctx.resume().catch(() => undefined);
     return this.ctx;
   }
 
@@ -166,9 +168,22 @@ export class LiveVoice {
     return this.mic !== null;
   }
 
+  /**
+   * Pause both directions while the player is away: the suspended context stops
+   * the microphone being sent and the other voice being played. What the other
+   * person says meanwhile is dropped, not saved up.
+   */
+  setAway(isAway: boolean): void {
+    this.away = isAway;
+    if (!this.ctx) return;
+    if (isAway) void this.ctx.suspend().catch(() => undefined);
+    else void this.ctx.resume().catch(() => undefined);
+  }
+
   /** Queue the other person's voice. */
   play(pcm: Int16Array): void {
     voiceStats.received++;
+    if (this.away) return;
     if (this.playback) {
       this.playback.port.postMessage(pcm);
       return;
