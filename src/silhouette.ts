@@ -98,7 +98,14 @@ export class SilhouetteSystem extends createSystem({
     if (!this.loaded || !matcher.getValue(SilhouetteMatcher, 'enabled') || !stageRuntime.ready) return;
 
     // Dev: '!clear' wipes the templates recorded on this device.
-    if (matcher.getValue(SilhouetteMatcher, 'recordShape') === '!clear') this.clearRecorded(matcher);
+    const recordShape = matcher.getValue(SilhouetteMatcher, 'recordShape') ?? '';
+    if (recordShape === '!clear') this.clearRecorded(matcher);
+    // Nothing to compare against (the shipped state: no templates yet) and nothing to record:
+    // skip the offscreen shadow renders and readbacks entirely.
+    if (this.templates.length === 0 && !recordShape) {
+      handRuntime.left.silhouetteShape = handRuntime.right.silhouetteShape = '';
+      return;
+    }
 
     this.timer += delta;
     const rate = matcher.getValue(SilhouetteMatcher, 'rateHz') ?? 5;
