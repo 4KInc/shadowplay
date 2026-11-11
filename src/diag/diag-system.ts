@@ -192,8 +192,21 @@ export class DiagSystem extends createSystem({
       stageW: round(stage.getValue(Stage, 'width') ?? 0, 2),
       planes: this.queries.planes.entities.size,
       vplanes: this.verticalPlanes(),
+      vlabels: this.verticalLabels(),
       meshes: this.queries.meshes.entities.size,
     };
+  }
+
+  /** What the headset calls its vertical planes ("wall:4,door frame:1,-:2"), so label handling can be checked. */
+  private verticalLabels(): string {
+    const counts = new Map<string, number>();
+    for (const p of this.queries.planes.entities) {
+      const plane = p.getValue(XRPlane, '_plane') as (XRPlane & { semanticLabel?: string }) | undefined;
+      if (plane?.orientation !== 'vertical') continue;
+      const label = (plane.semanticLabel ?? '').toLowerCase().replace(/[^a-z0-9 _-]/g, '').slice(0, 20) || '-';
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+    return [...counts].map(([l, n]) => `${l}:${n}`).join(',').slice(0, 64);
   }
 
   private verticalPlanes(): number {
