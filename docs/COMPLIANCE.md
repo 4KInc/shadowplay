@@ -16,8 +16,8 @@ already compliant; items only a headset can confirm are in
 | Division: New Experience, conceived and built in the window (from 24 Sep 2026) | First commit 29 Sep 2026 (`git log --reverse`); no earlier codebase | OK |
 | IWSDK submission: a link judges can open | https://shadowplay-1031148889398.us-central1.run.app (Cloud Run, one instance kept warm for judging, see [DEPLOY.md](DEPLOY.md)) | OK |
 | Free, available until the winner announcement | No payment, no account, no sign-in | OK |
-| Video under 3:00, public on YouTube or Vimeo, footage on a Quest or an emulator | Workstream 8 ([VIDEO.md](VIDEO.md)) | To do (WS8) |
-| Text: inspiration, how it was built, future plans, target launch date | Workstream 8 ([DEVPOST.md](DEVPOST.md)) | To do (WS8) |
+| Video under 3:00, public on YouTube or Vimeo, footage on a Quest or an emulator | Video plan in the local submission pack (`submission/VIDEO.md`, not in the repo) | Planned (WS8) |
+| Text: inspiration, how it was built, future plans, target launch date | Text in the local submission pack (`submission/DEVPOST.md`, not in the repo) | Written (WS8) |
 | Permitted tools (public SDKs only) | IWSDK 1.0.0-rc.2 (public npm), three.js, uikit, MediaPipe, Kokoro; no unreleased Meta APIs | OK |
 | Not a wrapper around a third-party service | Everything runs in the app or on our own small server; no external AI or media service at runtime | OK |
 | No Meta funding | None | OK (entrant to confirm) |
@@ -38,7 +38,7 @@ controllers down and let the headset see your hands." Every interaction:
 | Move the light | Pinch the lamp and drag it along the desk | `hands-only.mjs` |
 | Open / close the Shadow Journal (and with it Settings) | Pinch the book on the desk | `hands-only.mjs` |
 | All Settings and family buttons (story picker, chapters, recognition tolerance, hints, one-hand mode, Move stage here, Replay, Goodnights, Take turns, Record, Send, Go live, Talk) | Hand ray and pinch on the panel | `hands-only.mjs`: 22 of 26 pressed in the emulator; Record, Send, Go live and Talk are the same buttons, not pressed in automation because they open the microphone or a Live room |
-| Story: follow (Mo follows a fingertip), shape requests (rabbit, fish, dog, bird, cup, snail, swan, deer, crocodile), choices, grow (move toward the lamp), carry, reveal, release, let go | Hand tracking: joint-angle recognition, both hands or one (one-hand mode) | `npm run test:recognition`, `scripts/sim/playtest.mjs` |
+| Story: follow (Mo follows a fingertip), shape requests (rabbit, fish, dog, bird, cup, snail, swan, deer, crocodile), choices, grow (move toward the lamp), carry, reveal, release, let go | Hand tracking: joint-angle recognition. Two-hand shapes: the bird also with one hand (one-hand mode), the cup with one cupped hand; for the deer and crocodile, any steady hand wakes them after 60 s (assist ladder) | `npm run test:recognition`, `scripts/sim/playtest.mjs` |
 | Live: talk, take turns | Panel buttons (above); turns pass by making shapes | `scripts/sim/live-family.mjs` |
 | Free Stage | Any shape wakes its creature | `playtest.mjs` (finishes in Free Stage) |
 
