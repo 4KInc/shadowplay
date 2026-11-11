@@ -87,9 +87,13 @@ page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 await page.goto(APP + '/', { waitUntil: 'load' });
 await page.waitForFunction(() => window.__sp, null, { timeout: 60000 });
 await page.getByRole('button', { name: /Enter XR/i }).click();
-await page.waitForFunction(() => window.__sp.view().ready, null, { timeout: 30000 });
+// The stage is already 'ready' in the 2D view before the session starts: wait for the XR session itself.
+await page.waitForFunction(() => window.IWER_DEVICE?.activeSession && window.__sp.view().ready, null, { timeout: 30000 });
+await sleep(1000);
 
 const eye = (await page.evaluate(() => __sp.view())).head[1];
+console.log(`emulated eye height ${eye} m`);
+if (!(eye > 1)) throw new Error(`eye height ${eye}: not in the XR session yet`);
 const lift = (planes) =>
   // Planes are authored for eyes at 1.2 m; shift them to the emulated head height (floors stay at 0).
   planes.map((p) =>
