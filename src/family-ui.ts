@@ -1,4 +1,5 @@
 import { createSystem, Entity, VisibilityState } from '@iwsdk/core';
+import { openCredits } from './credits.js';
 import { family } from './family.js';
 import { Settings, ToleranceLevels } from './shadowplay-components.js';
 import { viewerMode } from './viewer-mode.js';
@@ -17,6 +18,9 @@ const CSS = `
   .sp-family-chip { top: calc(64px + env(safe-area-inset-top, 0px)); }
   .sp-access { top: calc(118px + env(safe-area-inset-top, 0px)); }
 }
+.sp-credits-link { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 880; min-height: 44px;
+  padding: 0 16px; border-radius: 22px; border: 1px solid #4a3d5c; background: rgba(18, 13, 26, 0.7); color: #bfae8e;
+  font: 14px Georgia, 'Times New Roman', serif; cursor: pointer; }
 .sp-family-sheet { position: fixed; inset: 0; z-index: 960; display: flex; align-items: center; justify-content: center;
   background: rgba(8, 6, 12, 0.6); padding: 16px; font: 16px/1.4 Georgia, 'Times New Roman', serif; color: #f6e3bd; }
 .sp-family-sheet form { width: min(440px, 100%); background: #17121f; border: 1px solid #b8863b; border-radius: 18px; padding: 18px; }
@@ -44,6 +48,7 @@ export class FamilySetupSystem extends createSystem({
   private access: HTMLDivElement | null = null;
   private oneHand: HTMLButtonElement | null = null;
   private forgiving: HTMLButtonElement | null = null;
+  private credits: HTMLButtonElement | null = null;
   private style: HTMLStyleElement | null = null;
   private shownLabel = '';
 
@@ -51,6 +56,7 @@ export class FamilySetupSystem extends createSystem({
     this.cleanupFuncs.push(() => {
       this.chip?.remove();
       this.access?.remove();
+      this.credits?.remove();
       this.style?.remove();
       document.querySelector('.sp-family-sheet')?.remove();
     });
@@ -60,7 +66,7 @@ export class FamilySetupSystem extends createSystem({
     const show = !viewerMode.on && this.world.visibilityState.peek() === VisibilityState.NonImmersive;
     if (show && !this.chip) this.build();
     if (!this.chip) return;
-    if (this.chip.hidden === show) this.chip.hidden = this.access!.hidden = !show;
+    if (this.chip.hidden === show) this.chip.hidden = this.access!.hidden = this.credits!.hidden = !show;
     const settings = this.settingsEntity();
     if (settings && show) {
       setPressed(this.oneHand!, Boolean(settings.getValue(Settings, 'oneHand')));
@@ -101,6 +107,13 @@ export class FamilySetupSystem extends createSystem({
     });
     this.access.append(this.oneHand, this.forgiving);
     document.body.appendChild(this.access);
+
+    this.credits = document.createElement('button');
+    this.credits.type = 'button';
+    this.credits.className = 'sp-credits-link';
+    this.credits.textContent = 'Credits';
+    this.credits.addEventListener('click', openCredits);
+    document.body.appendChild(this.credits);
   }
 
   private settingsEntity(): Entity | undefined {

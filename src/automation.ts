@@ -1,6 +1,7 @@
 import { Box3, createSystem, Entity, Object3D, Vector3 } from '@iwsdk/core';
 import {
   DemoDirector,
+  DeskLamp,
   FamilyInbox,
   LiveSession,
   PerformancePlayer,
@@ -17,11 +18,12 @@ import { loadRecording } from './journal-store.js';
 import { voiceStats } from './live/voice.js';
 import type { Performance } from './performance/format.js';
 import { toWire } from './performance/sharing.js';
-import { handOverride, handRuntime, secondHands, stageRuntime } from './stage-runtime.js';
+import { handOverride, handRuntime, secondHands, stageRuntime, uiPresses } from './stage-runtime.js';
 import type { RoomPlane } from './wall-choice.js';
 
 const COMPONENTS = {
   DemoDirector,
+  DeskLamp,
   FamilyInbox,
   LiveSession,
   PerformancePlayer,
@@ -47,6 +49,7 @@ export const automationEnabled =
  */
 export class AutomationSystem extends createSystem({
   DemoDirector: { required: [DemoDirector] },
+  DeskLamp: { required: [DeskLamp] },
   FamilyInbox: { required: [FamilyInbox] },
   LiveSession: { required: [LiveSession] },
   PerformancePlayer: { required: [PerformancePlayer] },
@@ -217,6 +220,23 @@ export class AutomationSystem extends createSystem({
       },
       beats: () => [...this.beatLog],
       voice: () => ({ ...voiceStats, sentEdges: [...voiceStats.sentEdges], heardEdges: [...voiceStats.heardEdges] }),
+      /** A hand's pointing ray (target-ray space) in world space: origin and unit direction. */
+      ray: (side: 'left' | 'right') => {
+        const space = this.player.raySpaces[side];
+        space.updateWorldMatrix(true, false);
+        const origin = new Vector3().setFromMatrixPosition(space.matrixWorld);
+        const dir = new Vector3(0, 0, -1).transformDirection(space.matrixWorld);
+        return { origin: origin.toArray(), dir: dir.toArray() };
+      },
+      /** Headset panel buttons pressed so far (ids). */
+      presses: () => [...uiPresses],
+      /** World midpoint of thumb tip and index tip (where a direct pinch acts), or null when untracked. */
+      pinchPoint: (side: 'left' | 'right') => {
+        const h = handRuntime[side];
+        if (!h.tracked) return null;
+        const j = h.joints;
+        return [0, 1, 2].map((k) => (j[4 * 3 + k] + j[9 * 3 + k]) / 2);
+      },
       hands: () => ({
         left: handRuntime.left.tracked,
         right: handRuntime.right.tracked,

@@ -38,7 +38,7 @@ const PAUSED_CAPTION = 'Paused. Pinch the lamp switch to continue.';
 const AWAY_CAPTION = 'Paused.';
 const JOURNAL_CAPTION = 'Your Shadow Journal. Pinch the book to close it.';
 const TITLE_CAPTION =
-  'Shadowplay. A lamp on your desk, a story on your wall. Put on your Meta Quest and press Enter XR to begin.';
+  'Shadowplay. A lamp on your desk, a story on your wall. Put on your headset and press Enter XR to begin.';
 const OUTSIDE_XR_CAPTION = 'Paused. Press Enter XR to return to the story.';
 /** Family viewer (phone / tablet): no headset needed. */
 const VIEWER_CAPTION = 'A bedtime story is waiting. Pick one below to watch.';
