@@ -106,14 +106,6 @@ export class ViewerUISystem extends createSystem({
   private style: HTMLStyleElement | null = null;
 
   init(): void {
-    if (import.meta.env.DEV) {
-      const onKey = (e: KeyboardEvent) => {
-        if (e.repeat || e.metaKey || e.ctrlKey || e.key.toLowerCase() !== 'v') return;
-        viewerMode.on = !viewerMode.on;
-      };
-      window.addEventListener('keydown', onKey);
-      this.cleanupFuncs.push(() => window.removeEventListener('keydown', onKey));
-    }
     this.cleanupFuncs.push(() => this.teardownUI());
   }
 
@@ -272,7 +264,7 @@ export class ViewerUISystem extends createSystem({
 
   private async refreshList(): Promise<void> {
     if (!this.list) return;
-    await seedSamples();
+    await seedSamples('viewer');
     // Goodnights sent back are for the storyteller's wall, not this list.
     const recordings = (await listRecordings<Performance>()).filter((r) => !r.replyTo).sort(
       (a, b) => Number(b.id === this.highlight) - Number(a.id === this.highlight) || b.createdAt - a.createdAt,

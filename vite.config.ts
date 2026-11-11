@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -62,6 +63,9 @@ export default defineConfig({
   // (three@0.185 vs app super-three@0.181). Duplicate Component classes break
   // instanceof checks → "Only pmndrs/uikit components can be added as children".
   resolve: {
+    // Only the Lucide icons the app uses (see src/vendor/lucide-subset.ts): the
+    // full set is 4.1 MB. Exact match, so the subset's deep imports still resolve.
+    alias: [{ find: /^@pmndrs\/uikit-lucide$/, replacement: fileURLToPath(new URL('./src/vendor/lucide-subset.ts', import.meta.url)) }],
     dedupe: [
       'three',
       '@pmndrs/uikit',
