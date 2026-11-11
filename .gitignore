@@ -48,3 +48,6 @@ pids/
 .data/
 shadowplay-video.mp4
 __pycache__/
+video-clips/
+# Local submission pack (Devpost text, video plan, screenshots): never committed.
+/submission/
