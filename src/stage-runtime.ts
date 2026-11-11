@@ -33,6 +33,9 @@ export const stageRuntime = {
   testPlanes: null as RoomPlane[] | null,
 };
 
+/** The headset panel's last button presses (ids, newest last), for the hands-only test. */
+export const uiPresses: string[] = [];
+
 export const JOINT_COUNT = 25;
 
 /** Render layers that isolate each hand's shadow casters for silhouette matching. */
