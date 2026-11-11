@@ -6,8 +6,11 @@
 // then the phone's goodnight card and "Send a goodnight back", and Mia's goodnight on the wall.
 // Frames (JPEG) and timing go to node_modules/.cache/shadowplay-video/. Step 2: assemble.py.
 //   node scripts/video/capture.mjs     (dev server running; starts its own API server on :8787)
+//   node scripts/video/capture.mjs --stills
+//     six clean 1920x1080 stills instead (docs/submission/): the emulated headset with no
+//     emulator panels or input models, and the family viewer.
 import { spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
 
@@ -38,7 +41,7 @@ async function view(name, url, context) {
   await page.goto(APP + url, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__sp, null, { timeout: 60000 });
   // No page chrome in the footage (the family chip; the emulator's Enter XR button stays until used).
-  await page.addStyleTag({ content: '.sp-family-chip { display: none !important; }' });
+  await page.addStyleTag({ content: '.sp-family-chip, .sp-access, .sp-credits-link, .sp-credits-btn { display: none !important; }' });
   const dir = join(OUT, name);
   mkdirSync(dir, { recursive: true });
   const frames = [];
@@ -65,6 +68,86 @@ async function clockStart(page) {
     await sleep(100);
   }
   return samples.sort((a, b) => a - b)[5]; // median (position is rounded to 0.1 s)
+}
+
+if (process.argv.includes('--stills')) {
+  await stills();
+  await browser.close();
+  server.kill();
+  process.exit(0);
+}
+
+/**
+ * Stills for the submission page. The headset shots are the emulated Quest in
+ * XR with its developer panels hidden and no controller or hand models: the
+ * demo director's hands cast the shadows, as real hands would.
+ */
+async function stills() {
+  const dir = join(process.cwd(), 'docs/submission');
+  mkdirSync(dir, { recursive: true });
+  const shot = async (page, name, folder = dir) => {
+    // The emulator's toolbar and device panels: the one HTML layer among its canvases. Tag it and hide it.
+    await page.evaluate(() => {
+      const layer = [...document.body.children].find((e) => getComputedStyle(e).zIndex === '999');
+      for (const e of layer?.children ?? []) if (e.tagName === 'DIV') e.classList.add('sp-emulator-ui');
+    });
+    await page.addStyleTag({ content: '.sp-emulator-ui { display: none !important; }' });
+    await sleep(100);
+    await page.screenshot({ path: join(folder, `${name}.png`) });
+    log('still', name);
+  };
+  // ?clean: as judges see it (no development-only rows).
+  const headset = (await view('stills-headset', '/?clean', { viewport: { width: 1920, height: 1080 } })).page;
+  await headset.getByRole('button', { name: /Enter XR/i }).click();
+  await headset.waitForFunction(() => window.IWER_DEVICE?.activeSession && __sp.view().ready, null, { timeout: 30000 });
+  await headset.evaluate(() => {
+    for (const side of ['left', 'right']) {
+      IWER_DEVICE.controllers[side].connected = false;
+      IWER_DEVICE.hands[side].connected = false;
+    }
+    // A camera-like view: the emulator's full headset field of view makes the stage small.
+    IWER_DEVICE.fovy = (52 * Math.PI) / 180;
+    __sp.set('StoryState', 'script', 'story/the-moth.story.json');
+    __sp.set('DemoDirector', 'persona', 'perfect');
+    __sp.set('DemoDirector', 'playing', true);
+  });
+  const family = (await view('stills-family', `/?viewer&watch=${code}`, { viewport: { width: 1920, height: 1080 }, hasTouch: true })).page;
+  await family.getByRole('button', { name: /Watch A story from far away from Dad/ }).first().click({ timeout: 30000 });
+
+  /** Shot once the story has moved past `beat` (the creature it asked for is awake). */
+  const after = async (beat, name, settle = 1500) => {
+    await headset.waitForFunction((b) => __sp.get('StoryState', 'beatId') === b, beat, { timeout: 300000, polling: 100 });
+    await headset.waitForFunction((b) => __sp.get('StoryState', 'beatId') !== b, beat, { timeout: 120000, polling: 100 });
+    await sleep(settle);
+    await shot(headset, name);
+  };
+  const familyStory = (async () => {
+    // Candidates through the story, kept in the cache to choose from.
+    const candidates = join(OUT, 'family-candidates');
+    mkdirSync(candidates, { recursive: true });
+    for (const at of [20, 35, 50, 65, 80, 95]) {
+      await family.waitForFunction((t) => __sp.get('PerformancePlayer', 'position') > t, at, { timeout: 200000, polling: 100 });
+      await shot(family, `family-${at}s`, candidates);
+      // The bird in the rain (a different creature from the headset stills).
+      if (at === 80) copyFileSync(join(candidates, 'family-80s.png'), join(dir, '4-family-viewer.png'));
+    }
+    await family.waitForFunction(() => !__sp.get('PerformancePlayer', 'playing'), null, { timeout: 300000, polling: 200 });
+    await family.getByRole('button', { name: /Send a goodnight back/ }).waitFor({ timeout: 15000 });
+    await sleep(1200);
+    await shot(family, '5-goodnight-card');
+  })();
+  await after('want-rabbit', '1-headset-rabbit', 3500);
+  await after('want-wings', '2-headset-bird', 400);
+  await after('want-cup', '3-headset-cupped-hands', 2500);
+  await headset.evaluate(() => {
+    __sp.set('DemoDirector', 'playing', false);
+    __sp.set('ShadowJournal', 'open', true);
+    // Wider, so the whole Settings panel beside the stage fits.
+    IWER_DEVICE.fovy = (78 * Math.PI) / 180;
+  });
+  await sleep(2500);
+  await shot(headset, '6-headset-journal-settings');
+  await familyStory;
 }
 
 const wall = await view('wall', '/', { viewport: { width: 1920, height: 1080 } });
