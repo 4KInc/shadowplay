@@ -14,6 +14,7 @@ import {
 import { ShapeRecognizer, Stage, StoryState } from '../shadowplay-components.js';
 import { handRuntime, stageRuntime } from '../stage-runtime.js';
 import { FrameStats } from './frame-stats.js';
+import { shadowMapSize } from '../quality-levels.js';
 import { formatSessionId, newSessionId } from './session-id.js';
 
 /** Snapshot to the server every SNAPSHOT_MS; events within EVENT_FLUSH_MS. */
@@ -251,7 +252,7 @@ export class DiagSystem extends createSystem({
       p95Ms: round(r.p95, 2),
       worstMs: round(r.worst, 2),
       quality,
-      shadowMap: quality >= 3 ? 256 : quality >= 1 ? 512 : 1024,
+      shadowMap: shadowMapSize(quality),
       lt: l.t, ls: l.shape, lsc: l.score, lsil: l.sil,
       rt: rt.t, rs: rt.shape, rsc: rt.score, rsil: rt.sil,
       ...(stage ? this.placement(stage) : {}),
@@ -316,7 +317,7 @@ export class DiagSystem extends createSystem({
     const hand = (h: typeof handRuntime.left, name: string) =>
       `${name} ${h.tracked ? 'on ' : 'off'} ${(h.jointShape || '-').padEnd(9)} ${h.jointScore.toFixed(2)} sil ${(h.silhouetteShape || '-').padEnd(8)} ${h.silhouetteOverlap.toFixed(2)}`;
     const lines = [
-      `${r.fps.toFixed(1)} fps  avg ${r.avg.toFixed(1)}  p95 ${r.p95.toFixed(1)}  worst ${r.worst.toFixed(1)} ms   q${quality} shadow ${quality >= 1 ? 512 : 1024}   rate ${session?.frameRate ?? '-'}`,
+      `${r.fps.toFixed(1)} fps  avg ${r.avg.toFixed(1)}  p95 ${r.p95.toFixed(1)}  worst ${r.worst.toFixed(1)} ms   q${quality} shadow ${shadowMapSize(quality)}   rate ${session?.frameRate ?? '-'}`,
       hand(handRuntime.left, 'L'),
       hand(handRuntime.right, 'R'),
       `match ${rec?.getValue(ShapeRecognizer, 'matchedShape') ?? '-'}  target ${rec?.getValue(ShapeRecognizer, 'target') ?? '-'}  held ${(rec?.getValue(ShapeRecognizer, 'heldFor') ?? 0).toFixed(1)}s`,
