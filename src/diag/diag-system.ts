@@ -14,13 +14,16 @@ import {
 import { ShapeRecognizer, Stage, StoryState } from '../shadowplay-components.js';
 import { handRuntime, stageRuntime } from '../stage-runtime.js';
 import { FrameStats } from './frame-stats.js';
+import { formatSessionId, newSessionId } from './session-id.js';
 
 /** Snapshot to the server every SNAPSHOT_MS; events within EVENT_FLUSH_MS. */
 const SNAPSHOT_MS = 5000;
 const EVENT_FLUSH_MS = 1000;
 const OVERLAY_MS = 500;
 const W = 1024;
-const H = 300;
+/** 6 lines of readings under a band with the session id in large type. */
+const BAND = 84;
+const H = 300 + BAND;
 
 type Item = Record<string, string | number | boolean | number[] | null>;
 
@@ -35,10 +38,6 @@ function deviceClass(): string {
   return /Mobi|Android|iPhone|iPad/i.test(ua) ? 'mobile' : 'desktop';
 }
 
-function sessionId(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(10));
-  return Array.from(bytes, (b) => (b % 36).toString(36)).join('');
-}
 
 const round = (n: number, d = 1) => Math.round(n * 10 ** d) / 10 ** d;
 
@@ -60,7 +59,7 @@ export class DiagSystem extends createSystem({
 }) {
   private stats = new FrameStats(5000);
   private read = { avg: 0, p95: 0, worst: 0, fps: 0, frames: 0 };
-  private session = sessionId();
+  private session = newSessionId();
   private device = deviceClass();
   private gpu = '';
   private seq = 0;
@@ -89,6 +88,18 @@ export class DiagSystem extends createSystem({
     );
     this.panel.name = 'diag-panel';
     this.panel.renderOrder = 30;
+    // The same id on the page itself, to note down before entering XR (and after leaving it).
+    const badge = document.createElement('div');
+    badge.className = 'sp-diag-badge';
+    badge.textContent = `Diagnostics session ${formatSessionId(this.session)}`;
+    badge.style.cssText =
+      'position:fixed;right:16px;bottom:16px;z-index:990;padding:10px 16px;border-radius:12px;background:rgba(10,8,16,0.88);' +
+      "color:#f2c47a;font:bold 22px ui-monospace,Menlo,Consolas,monospace;border:1px solid #b8863b;pointer-events:none";
+    document.body.appendChild(badge);
+    this.cleanupFuncs.push(
+      () => badge.remove(),
+      this.world.visibilityState.subscribe((state) => (badge.hidden = state !== VisibilityState.NonImmersive)),
+    );
     this.gpu = this.rendererName();
 
     const onError = (e: ErrorEvent) =>
@@ -315,11 +326,15 @@ export class DiagSystem extends createSystem({
     g.clearRect(0, 0, W, H);
     g.fillStyle = 'rgba(10, 8, 16, 0.78)';
     g.fillRect(0, 0, W, H);
-    g.font = '26px ui-monospace, Menlo, Consolas, monospace';
     g.textBaseline = 'top';
+    // The session id, large enough to read out from inside the headset.
+    g.fillStyle = '#f2c47a';
+    g.font = 'bold 56px ui-monospace, Menlo, Consolas, monospace';
+    g.fillText(`SESSION ${formatSessionId(this.session)}`, 14, 14, W - 28);
+    g.font = '26px ui-monospace, Menlo, Consolas, monospace';
     lines.forEach((line, i) => {
       g.fillStyle = i === 0 && r.fps > 0 && r.fps < 66 ? '#ff8a6a' : '#f6e3bd';
-      g.fillText(line, 14, 14 + i * 46, W - 28);
+      g.fillText(line, 14, BAND + 14 + i * 46, W - 28);
     });
     this.texture.needsUpdate = true;
   }
