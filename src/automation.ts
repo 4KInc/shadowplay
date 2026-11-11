@@ -178,6 +178,7 @@ export class AutomationSystem extends createSystem({
           caption: boxOf(scene.getObjectByName('story-caption')),
           journalPage: boxOf(scene.getObjectByName('journal-overlay')),
           settings: boxOf(entity('Settings')?.object3D),
+          flare: Math.round(r.wakeFlare * 100) / 100,
         };
       },
       /** What the GPU draws: shadow casters, transparent layers, shadow map setup (performance audit). */
