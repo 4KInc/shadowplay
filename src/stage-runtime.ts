@@ -1,4 +1,5 @@
 import { Vector3 } from '@iwsdk/core';
+import type { RoomPlane } from './wall-choice.js';
 
 /**
  * Per-frame shared stage geometry, written by StageSetupSystem and read by the
@@ -23,6 +24,11 @@ export const stageRuntime = {
   quality: 0,
   /** The headset's answer to our 72 Hz request: '' (not asked yet), 'granted', 'refused', 'unsupported'. */
   frameRateRequest: '',
+  /**
+   * Automation only (emulator tests): when set, stage placement sees these
+   * planes instead of the headset's detected planes.
+   */
+  testPlanes: null as RoomPlane[] | null,
 };
 
 export const JOINT_COUNT = 25;

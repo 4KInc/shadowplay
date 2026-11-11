@@ -55,7 +55,7 @@ for (const [id, rows] of [...sessions].sort((a, b) => a[1][0].at - b[1][0].at)) 
   const q = ev('quality');
   console.log(`quality: ${q.length ? q.map((e) => `-> ${e.level} at ${e.t}s (${e.fps} fps)`).join(', ') : 'stayed at 0'}   final shadow map ${snaps.at(-1)?.shadowMap ?? '-'}`);
   for (const p of ev('placed')) {
-    console.log(`placed: ${p.place}  wall ${p.wallW} m wide at ${p.wallD} m  stage ${p.stageW} m  planes ${p.planes} (vertical ${p.vplanes})  meshes ${p.meshes}  at ${p.t}s`);
+    console.log(`placed: ${p.place}  wall ${p.wallW} m wide at ${p.wallD} m  stage ${p.stageW} m  planes ${p.planes} (vertical ${p.vplanes}${p.vlabels ? ': ' + p.vlabels : ''})  meshes ${p.meshes}  at ${p.t}s`);
   }
   const last = snaps.at(-1);
   if (last) console.log(`startup: page load to XR ${(last.xrMs / 1000).toFixed(1)}s, XR to stage placed ${(last.placedMs / 1000).toFixed(1)}s   heap ${last.heapMB} MB`);

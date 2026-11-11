@@ -1,4 +1,4 @@
-import { createSystem, Entity } from '@iwsdk/core';
+import { Box3, createSystem, Entity, Object3D, Vector3 } from '@iwsdk/core';
 import {
   DemoDirector,
   FamilyInbox,
@@ -7,6 +7,7 @@ import {
   PerformanceRecorder,
   RecognitionLab,
   Settings,
+  ShadowJournal,
   ShapeRecognizer,
   Stage,
   StoryState,
@@ -16,7 +17,8 @@ import { loadRecording } from './journal-store.js';
 import { voiceStats } from './live/voice.js';
 import type { Performance } from './performance/format.js';
 import { toWire } from './performance/sharing.js';
-import { handOverride, handRuntime, secondHands } from './stage-runtime.js';
+import { handOverride, handRuntime, secondHands, stageRuntime } from './stage-runtime.js';
+import type { RoomPlane } from './wall-choice.js';
 
 const COMPONENTS = {
   DemoDirector,
@@ -26,6 +28,7 @@ const COMPONENTS = {
   PerformanceRecorder,
   RecognitionLab,
   Settings,
+  ShadowJournal,
   ShapeRecognizer,
   Stage,
   StoryState,
@@ -50,6 +53,7 @@ export class AutomationSystem extends createSystem({
   PerformanceRecorder: { required: [PerformanceRecorder] },
   RecognitionLab: { required: [RecognitionLab] },
   Settings: { required: [Settings] },
+  ShadowJournal: { required: [ShadowJournal] },
   ShapeRecognizer: { required: [ShapeRecognizer] },
   Stage: { required: [Stage] },
   StoryState: { required: [StoryState] },
@@ -109,6 +113,73 @@ export class AutomationSystem extends createSystem({
         return out;
       },
       frames: () => this.frames,
+      /** World position of a named object (UI elements are named by their id), or null. */
+      where: (name: string) => {
+        const o = this.world.scene.getObjectByName(name);
+        return o ? o.getWorldPosition(new Vector3()).toArray() : null;
+      },
+      /** Room tests: stage placement sees these planes instead of the headset's (null restores them). */
+      room: (planes: RoomPlane[] | null) => {
+        stageRuntime.testPlanes = planes;
+      },
+      /**
+       * Where the stage is and how far its essential UI sits from straight ahead:
+       * degrees left/right of the horizontal view direction and up/down from eye level.
+       */
+      view: () => {
+        const head = new Vector3();
+        const fwd = new Vector3();
+        const cam = this.player.head;
+        cam.updateWorldMatrix(true, false);
+        head.setFromMatrixPosition(cam.matrixWorld);
+        cam.getWorldDirection(fwd).negate();
+        fwd.y = 0;
+        fwd.normalize();
+        const angles = (points: Vector3[]) => {
+          const out = { left: -Infinity, right: -Infinity, up: -Infinity, down: -Infinity };
+          for (const p of points) {
+            const d = p.clone().sub(head);
+            const ahead = d.x * fwd.x + d.z * fwd.z;
+            const side = d.x * -fwd.z + d.z * fwd.x;
+            const yaw = (Math.atan2(side, ahead) * 180) / Math.PI;
+            const pitch = (Math.atan2(d.y, Math.hypot(ahead, side)) * 180) / Math.PI;
+            out.right = Math.max(out.right, yaw);
+            out.left = Math.max(out.left, -yaw);
+            out.up = Math.max(out.up, pitch);
+            out.down = Math.max(out.down, -pitch);
+          }
+          for (const k of Object.keys(out) as (keyof typeof out)[]) out[k] = Math.round(out[k] * 10) / 10;
+          return out;
+        };
+        const boxOf = (o: Object3D | undefined | null) => {
+          if (!o) return null;
+          let shown = o.visible;
+          o.traverseAncestors((a) => (shown &&= a.visible));
+          if (!shown) return null;
+          const b = new Box3().setFromObject(o);
+          if (b.isEmpty()) return null;
+          const pts: Vector3[] = [];
+          for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) pts.push(new Vector3(x, y, z));
+          return angles(pts);
+        };
+        const r = stageRuntime;
+        const corners = [-1, 1].flatMap((sx) =>
+          [-1, 1].map((sy) => r.center.clone().addScaledVector(r.right, (sx * r.width) / 2).addScaledVector(r.up, (sy * r.height) / 2)),
+        );
+        const scene = this.world.scene;
+        const stage = entity('Stage');
+        return {
+          head: head.toArray().map((v) => Math.round(v * 100) / 100),
+          mode: stage?.getValue(Stage, 'mode'),
+          ready: r.ready,
+          distance: stage?.getValue(Stage, 'distance'),
+          width: Math.round(r.width * 100) / 100,
+          stage: r.ready ? angles(corners) : null,
+          caption: boxOf(scene.getObjectByName('story-caption')),
+          journalPage: boxOf(scene.getObjectByName('journal-overlay')),
+          settings: boxOf(entity('Settings')?.object3D),
+        };
+      },
       /** What the GPU draws: shadow casters, transparent layers, shadow map setup (performance audit). */
       audit: () => {
         const casters: string[] = [];
