@@ -67,6 +67,58 @@ gcloud storage buckets add-iam-policy-binding gs://$BUCKET \
 WebXR needs HTTPS, which Cloud Run provides. Family viewer links use the page's
 own address, so they work on the deployed URL without configuration.
 
+## Device-test deploys (before the freeze)
+
+A test build for headset sessions, beside the public one: a new revision with
+**no traffic** and its own tagged URL, so the public URL never changes.
+
+```sh
+PROJECT=quick-catcher-470218-b0
+REGION=us-central1
+SA=shadowplay-run@$PROJECT.iam.gserviceaccount.com
+BUCKET=$PROJECT-shadowplay-stories
+N=1   # next devtest number: gcloud run revisions list --service shadowplay --project $PROJECT --region $REGION
+
+git checkout main && git pull --ff-only
+gcloud run deploy shadowplay --project $PROJECT --region $REGION --source . \
+  --service-account $SA --allow-unauthenticated \
+  --set-env-vars STORY_BUCKET=$BUCKET,TRUSTED_PROXY_HOPS=1 \
+  --min-instances 0 --max-instances 1 --timeout 3600 --session-affinity \
+  --memory 512Mi --cpu 1 \
+  --revision-suffix devtest-$N --tag devtest --no-traffic
+
+# Check it (diagnostics beacon must land in the bucket):
+node scripts/sim/smoke.mjs https://devtest---shadowplay-1031148889398.us-central1.run.app \
+  --diag-bucket gs://$BUCKET
+```
+
+- **Headset URL:** `https://devtest---shadowplay-1031148889398.us-central1.run.app/?diag`
+  (phone: the same address with `?viewer`; a Live session must use the devtest
+  URL on both devices, since rooms live in that revision's memory).
+- Same service account, bucket and settings as production, with
+  `--min-instances 0` (a cold start of a few seconds on the first request).
+- `--no-traffic` pins the public traffic to the revision that was serving, so
+  from then on a plain `gcloud run deploy` no longer goes live by itself. To put
+  a build live, use the freeze procedure below, or
+  `gcloud run services update-traffic shadowplay --project $PROJECT --region $REGION --to-latest`.
+- After a session: `scripts/diag/pull.sh` (today and yesterday, UTC) or
+  `scripts/diag/pull.sh <UTC date> <session id>`.
+
+Delete old devtest revisions (a tagged revision can't be deleted; the newest
+devtest deploy carries the tag, so the older ones are free):
+
+```sh
+gcloud run revisions list --service shadowplay --project $PROJECT --region $REGION \
+  --filter='metadata.name~devtest' --format='value(metadata.name)'
+gcloud run revisions delete shadowplay-devtest-1 --project $PROJECT --region $REGION --quiet
+# All devtest builds at once, the tag first:
+gcloud run services update-traffic shadowplay --project $PROJECT --region $REGION --remove-tags devtest
+for r in $(gcloud run revisions list --service shadowplay --project $PROJECT --region $REGION \
+    --filter='metadata.name~devtest' --format='value(metadata.name)'); do
+  gcloud run revisions delete "$r" --project $PROJECT --region $REGION --quiet
+done
+```
+
 ## Judging configuration (freeze, then leave running)
 
 Run these yourself on freeze day: **17 Nov, by 6:00 PM CT**. Judging uses the

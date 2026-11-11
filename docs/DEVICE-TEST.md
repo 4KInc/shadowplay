@@ -1,21 +1,20 @@
 # Device test checklist (Quest 3 and Quest 3S)
 
-Every session uses the diagnostics build so it leaves data behind:
+Every session uses the device-test build with diagnostics, so it leaves data behind:
 
-**https://shadowplay-1031148889398.us-central1.run.app/?diag**
+**https://devtest---shadowplay-1031148889398.us-central1.run.app/?diag**
 
-(or the local dev server, `https://<your-mac-ip>:8082/?diag`). A small panel
-appears under the stage with frame times, quality, hands and recognition, room
-detection and startup timings. The last item on its bottom line is the
-**session id**: write it in the table so the data can be found.
+(the public URL with `?diag` works too; see DEPLOY.md "Device-test deploys").
+A panel appears under the stage with frame times, quality, hands and
+recognition, room detection and startup timings. Its top line is the
+**session id** in large type (also shown on the page before Enter XR): write it
+in the table so the data can be found.
 
-After a session, summarize it:
+After a session (wait 15 s after taking the headset off), one command:
 
 ```sh
-# deployed: diagnostics land in the stories bucket under diag/<date>/
-gcloud storage cat 'gs://quick-catcher-470218-b0-shadowplay-stories/diag/2026-11-12/*.jsonl' | node scripts/diag/summarize.mjs -
-# local dev server
-node scripts/diag/summarize.mjs .data/diag
+scripts/diag/pull.sh                          # every session today and yesterday (UTC)
+scripts/diag/pull.sh 2026-11-12 "k3x9q m2p7a"   # one session (UTC date)
 ```
 
 Send me the summary (or the session ids) and the boxes you ticked.
