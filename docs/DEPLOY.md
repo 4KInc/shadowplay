@@ -93,23 +93,24 @@ gcloud run deploy shadowplay --project $PROJECT --region $REGION --source . \
 gcloud run services update-traffic shadowplay --project $PROJECT --region $REGION \
   --to-revisions shadowplay-competition=100
 
-# 3. Uptime check on /healthz every 5 minutes, emailing you when it fails.
+# 3. Uptime check on /api/health every 5 minutes, emailing you when it fails.
+#    (Not /healthz: Cloud Run reserves URL paths ending in 'z', so that one only works locally.)
 gcloud beta monitoring channels create --project $PROJECT \
   --display-name="Shadowplay alerts" --type=email --channel-labels=email_address=YOU@example.com
 CHANNEL=$(gcloud beta monitoring channels list --project $PROJECT \
   --filter='displayName="Shadowplay alerts"' --format='value(name)')
-gcloud monitoring uptime create shadowplay-healthz --project $PROJECT \
+gcloud monitoring uptime create shadowplay-health --project $PROJECT \
   --resource-type=uptime-url \
   --resource-labels=host=shadowplay-1031148889398.us-central1.run.app,project_id=$PROJECT \
-  --path=/healthz --protocol=https --period=5 --timeout=10
+  --path=/api/health --protocol=https --period=5 --timeout=10
 CHECK=$(gcloud monitoring uptime list-configs --project $PROJECT \
-  --filter='displayName="shadowplay-healthz"' --format='value(name.basename())')
+  --filter='displayName="shadowplay-health"' --format='value(name.basename())')
 cat > /tmp/shadowplay-uptime-policy.json <<JSON
 {
   "displayName": "Shadowplay is down",
   "combiner": "OR",
   "conditions": [{
-    "displayName": "healthz failing",
+    "displayName": "health check failing",
     "conditionThreshold": {
       "filter": "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.type=\"uptime_url\" AND metric.label.check_id=\"$CHECK\"",
       "aggregations": [{ "alignmentPeriod": "600s", "perSeriesAligner": "ALIGN_FRACTION_TRUE" }],

@@ -15,7 +15,8 @@ const get = (p, init) => fetch(base + p, init);
 
 const h = await (await get('/api/health')).json();
 ok('health', h.ok, JSON.stringify(h));
-ok('/healthz', (await get('/healthz')).ok);
+// /healthz serves locally; Cloud Run reserves paths ending in 'z', so only /api/health counts there.
+if (!/\.run\.app$/.test(new URL(base).hostname)) ok('/healthz', (await get('/healthz')).ok);
 
 /** Bytes on the wire for one request with Accept-Encoding: br, gzip (fetch would decode them). */
 function wire(path) {
