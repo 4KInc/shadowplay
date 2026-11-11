@@ -38,7 +38,7 @@ controllers down and let the headset see your hands." Every interaction:
 | Move the light | Pinch the lamp and drag it along the desk | `hands-only.mjs` |
 | Open / close the Shadow Journal (and with it Settings) | Pinch the book on the desk | `hands-only.mjs` |
 | All Settings and family buttons (story picker, chapters, recognition tolerance, hints, one-hand mode, Move stage here, Replay, Goodnights, Take turns, Record, Send, Go live, Talk) | Hand ray and pinch on the panel | `hands-only.mjs`: 22 of 26 pressed in the emulator; Record, Send, Go live and Talk are the same buttons, not pressed in automation because they open the microphone or a Live room |
-| Story: follow (Mo follows a fingertip), shape requests (rabbit, fish, dog, bird, cup, snail, swan, deer, crocodile), choices, grow (move toward the lamp), carry, reveal, release, let go | Hand tracking: joint-angle recognition, both hands or one (one-hand mode) | `npm run test:recognition`, `scripts/sim/playtest.mjs` |
+| Story: follow (Mo follows a fingertip), shape requests (rabbit, fish, dog, bird, cup, snail, swan, deer, crocodile), choices, grow (move toward the lamp), carry, reveal, release, let go | Hand tracking: joint-angle recognition. Two-hand shapes: the bird also with one hand (one-hand mode), the cup with one cupped hand; for the deer and crocodile, any steady hand wakes them after 60 s (assist ladder) | `npm run test:recognition`, `scripts/sim/playtest.mjs` |
 | Live: talk, take turns | Panel buttons (above); turns pass by making shapes | `scripts/sim/live-family.mjs` |
 | Free Stage | Any shape wakes its creature | `playtest.mjs` (finishes in Free Stage) |
 

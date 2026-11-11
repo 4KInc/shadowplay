@@ -93,7 +93,7 @@ export class FamilySetupSystem extends createSystem({
     this.access.className = 'sp-access';
     this.access.setAttribute('role', 'group');
     this.access.setAttribute('aria-label', 'Accessibility');
-    this.oneHand = toggle('One-hand mode', 'Every shape can be made with one hand');
+    this.oneHand = toggle('One-hand mode', 'The two-hand bird works with one open hand');
     this.forgiving = toggle('Forgiving shapes', 'Shapes count even when they are not quite right');
     this.oneHand.addEventListener('click', () => {
       const s = this.settingsEntity();
