@@ -84,8 +84,7 @@ export class StorySystem extends createSystem({
   private attract = false;
   private controllerTime = 0;
   private unlocked = new Set<string>();
-  /** Player's tolerance when the current beat began (restored after assist). */
-  private baseTolerance = -1;
+
   private assistLevel = 0;
   private stillTime = { left: 0, right: 0 };
   private lastWrist = { left: new Vector3(), right: new Vector3() };
@@ -618,11 +617,10 @@ export class StorySystem extends createSystem({
     const t = this.beatTime;
     const level = t >= ASSIST_AFTER[2] ? 3 : t >= ASSIST_AFTER[1] ? 2 : t >= ASSIST_AFTER[0] ? 1 : 0;
     if (level !== this.assistLevel) {
-      if (this.baseTolerance < 0) this.baseTolerance = stage.getValue(ShapeRecognizer, 'tolerance') ?? 0.3;
       this.assistLevel = level;
       story.setValue(StoryState, 'assist', level);
-      const extra = ASSIST_TOLERANCE[Math.min(level, 2)];
-      stage.setValue(ShapeRecognizer, 'tolerance', Math.min(0.6, this.baseTolerance + extra));
+      // Added to the player's own setting by the matcher, so Settings changes apply at once.
+      stage.setValue(ShapeRecognizer, 'assistTolerance', ASSIST_TOLERANCE[Math.min(level, 2)]);
     }
     if (level < 3 || (beat.type !== 'request' && beat.type !== 'choice')) return;
     if (stage.getValue(ShapeRecognizer, 'matchedHand') !== 'none') return;
@@ -644,10 +642,9 @@ export class StorySystem extends createSystem({
     }
   }
 
-  /** Restore the player's own tolerance when a beat ends. */
+  /** Back to the player's own tolerance when a beat ends. */
   private endAssist(story: Entity, stage: Entity): void {
-    if (this.baseTolerance >= 0) stage.setValue(ShapeRecognizer, 'tolerance', this.baseTolerance);
-    this.baseTolerance = -1;
+    if ((stage.getValue(ShapeRecognizer, 'assistTolerance') ?? 0) !== 0) stage.setValue(ShapeRecognizer, 'assistTolerance', 0);
     this.assistLevel = 0;
     this.stillTime.left = this.stillTime.right = 0;
     if (story.getValue(StoryState, 'assist') !== 0) story.setValue(StoryState, 'assist', 0);
