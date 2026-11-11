@@ -51,7 +51,7 @@ for (const [id, rows] of [...sessions].sort((a, b) => a[1][0].at - b[1][0].at)) 
   const below = fps.filter((f) => f < 60).length;
   console.log(`windows under 60 fps: ${below}/${fps.length}   session frame rate: ${[...new Set(xrSnaps.map((s) => s.rate))].join('/') || '-'}  supported: ${(xrSnaps.at(-1)?.rates ?? []).join(',') || '-'}`);
   const rate = ev('rate')[0];
-  if (rate) console.log(`requested 72 Hz: ${rate.ok ? 'ok' : 'refused'}`);
+  if (rate) console.log(`requested 72 Hz: ${rate.result ?? (rate.ok ? 'granted' : 'refused')}`);
   const q = ev('quality');
   console.log(`quality: ${q.length ? q.map((e) => `-> ${e.level} at ${e.t}s (${e.fps} fps)`).join(', ') : 'stayed at 0'}   final shadow map ${snaps.at(-1)?.shadowMap ?? '-'}`);
   for (const p of ev('placed')) {

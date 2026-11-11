@@ -121,9 +121,34 @@ export class StageSetupSystem extends createSystem({
           this.applyBrowserLook();
           // Fixed foveation (lower resolution at the edges of the view) where the
           // browser supports it: the dimming layer and shadow surface are fill-rate bound.
-          if (inXR) this.world.renderer.xr.setFoveation(1);
+          if (inXR) {
+            this.world.renderer.xr.setFoveation(1);
+            this.requestFrameRate();
+          }
         }
       }),
+    );
+  }
+
+  /**
+   * Ask the headset for 72 Hz, the comfort floor the app is budgeted for (13.9 ms
+   * a frame); Quest Browser may otherwise run at 90. The answer is recorded for
+   * diagnostics (stageRuntime.frameRateRequest).
+   */
+  private requestFrameRate(): void {
+    const session = this.world.xrSession as (XRSession & { updateTargetFrameRate?: (rate: number) => Promise<void>; supportedFrameRates?: Float32Array }) | null;
+    if (!session?.updateTargetFrameRate) {
+      stageRuntime.frameRateRequest = 'unsupported';
+      return;
+    }
+    const rates = session.supportedFrameRates ? Array.from(session.supportedFrameRates) : [];
+    if (rates.length && !rates.includes(72)) {
+      stageRuntime.frameRateRequest = 'unsupported';
+      return;
+    }
+    session.updateTargetFrameRate(72).then(
+      () => (stageRuntime.frameRateRequest = 'granted'),
+      () => (stageRuntime.frameRateRequest = 'refused'),
     );
   }
 
@@ -353,8 +378,7 @@ export class StageSetupSystem extends createSystem({
     this.paper.visible = screen;
     this.paper.scale.set(width * 1.25, height * 1.35, 1);
     this.pool.scale.set(width * 1.5, height * 1.7, 1);
-    if (screen) this.surface.scale.set(width * 1.25, height * 1.35, 1);
-    else this.surface.scale.set(width * 2.6, height * 3, 1);
+    this.sizeSurface(screen, 0);
 
     // Dimming shell is centred on the viewer, with its opening toward the stage.
     stageObj.worldToLocal(this.shell.position.copy(this.head));
@@ -425,11 +449,35 @@ export class StageSetupSystem extends createSystem({
 
   private appliedQuality = 0;
 
-  /** Quality level 1+: a 512 px shadow map instead of 1024 (re-allocated once). */
+  /**
+   * The shadow-receiving surface is the main GPU cost (every pixel of it samples
+   * the shadow map, in both eyes). At full quality it spans the spotlight's whole
+   * footprint on the wall; from quality 1 it covers the lit area around the light
+   * pool (where shadows read anyway; the dimmed wall hides the rest), about half
+   * the pixels, growing with the finale's flood of light.
+   */
+  private sizeSurface(screen: boolean, finale: number): void {
+    const w = stageRuntime.width;
+    const h = stageRuntime.height;
+    if (screen) {
+      this.surface.scale.set(w * 1.25, h * 1.35, 1);
+      this.surface.position.x = 0;
+    } else if (this.appliedQuality >= 1) {
+      const grow = 1 + 1.2 * finale;
+      this.surface.scale.set(Math.min(w * 2.6, w * 1.9 * grow), Math.min(h * 3, h * 2.2 * grow), 1);
+      this.surface.position.x = this.pool.position.x;
+    } else {
+      this.surface.scale.set(w * 2.6, h * 3, 1);
+      this.surface.position.x = 0;
+    }
+  }
+
+  /** Quality 1-2: a 512 px shadow map instead of 1024; 3: 256 (re-allocated once per change). */
   private applyQuality(quality: number): void {
     if (quality === this.appliedQuality) return;
     this.appliedQuality = quality;
-    const size = quality >= 1 ? 512 : 1024;
+    stageRuntime.quality = quality;
+    const size = quality >= 3 ? 256 : quality >= 1 ? 512 : 1024;
     this.spot.shadow.mapSize.set(size, size);
     this.spot.shadow.map?.dispose();
     (this.spot.shadow as { map: unknown }).map = null;
@@ -459,6 +507,7 @@ export class StageSetupSystem extends createSystem({
     const poolGain = this.paper.visible ? 0.18 : 0.4;
     this.pool.material.uniforms.uIntensity.value = this.placed ? (poolGain + 0.5 * finale) * warm * level : 0;
     this.surface.visible = this.placed && level > 0.02;
+    if (this.placed) this.sizeSurface(this.paper.visible, finale);
 
     this.spot.getWorldPosition(stageRuntime.bulb);
     stageRuntime.lampOn = level > 0.3;

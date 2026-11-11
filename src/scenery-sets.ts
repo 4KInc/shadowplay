@@ -14,6 +14,7 @@ import {
   Vector3,
   ZeroFactor,
 } from '@iwsdk/core';
+import { stageRuntime } from './stage-runtime.js';
 
 /**
  * Chapter Four and Five scenery. Built in stage units (x in stage widths,
@@ -91,7 +92,10 @@ export function buildStorm(ink: MeshBasicMaterial): ScenerySet {
     group,
     update(time, level) {
       rainMat.opacity = 0.55 * level;
-      for (let i = 0; i < DROPS; i++) {
+      // Quality 3 (last resort): half the raindrops.
+      const drops = stageRuntime.quality >= 3 ? DROPS >> 1 : DROPS;
+      rain.count = drops;
+      for (let i = 0; i < drops; i++) {
         const d = seeds[i];
         const y = 1 - ((d.y + time * d.speed) % 1);
         const x = ((d.x + 0.6 - (1 - y) * 0.3) % 1.2 + 1.2) % 1.2 - 0.6;

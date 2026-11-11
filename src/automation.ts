@@ -109,6 +109,28 @@ export class AutomationSystem extends createSystem({
         return out;
       },
       frames: () => this.frames,
+      /** What the GPU draws: shadow casters, transparent layers, shadow map setup (performance audit). */
+      audit: () => {
+        const casters: string[] = [];
+        const transparent: string[] = [];
+        let meshes = 0;
+        this.world.scene.traverseVisible((o) => {
+          const m = o as import('@iwsdk/core').Mesh & { count?: number; isMesh?: boolean };
+          if (!m.isMesh) return;
+          meshes++;
+          const instances = (m as { isInstancedMesh?: boolean }).isInstancedMesh ? ` x${m.count}` : '';
+          if (m.castShadow) casters.push(`${m.name || m.type}${instances}`);
+          const mat = Array.isArray(m.material) ? m.material[0] : m.material;
+          if (mat?.transparent) transparent.push(`${m.name || m.type}${mat.depthTest === false ? ' (no depth test)' : ''}`);
+        });
+        const renderer = this.world.renderer;
+        let mapSize = 0;
+        this.world.scene.traverse((o) => {
+          const l = o as { isSpotLight?: boolean; castShadow?: boolean; shadow?: { mapSize: { x: number } } };
+          if (l.isSpotLight && l.castShadow && l.shadow) mapSize = l.shadow.mapSize.x;
+        });
+        return { meshes, casters, transparent, shadowType: renderer.shadowMap.type, shadowMap: mapSize, pixelRatio: renderer.getPixelRatio() };
+      },
       /** A saved recording in its shareable (wire) form, for building bundled samples. */
       exportRecording: async (id: string) => {
         const perf = await loadRecording<Performance>(id);
