@@ -1,11 +1,17 @@
 // Smoke test a deployed Shadowplay: app, assets, samples, narration, sharing, replies,
-// security checks and live rooms. Cleans nothing up itself: test stories expire with the bucket rule.
-//   node scripts/sim/smoke.mjs https://<service-url>
+// security checks and live rooms, plus two pages in a headless browser: the family viewer
+// (?viewer) and device diagnostics (?diag), whose beacons the server must accept.
+// Cleans nothing up itself: test stories expire with the bucket rule.
+//   node scripts/sim/smoke.mjs https://<service-url> [--diag-bucket gs://<bucket>]
+// --diag-bucket also waits (up to 40 s; the server writes every 15 s) for the ?diag session's
+// file to land in gs://<bucket>/diag/<UTC date>/ (needs gcloud signed in).
+import { execFileSync } from 'node:child_process';
 import { request } from 'node:https';
 import { request as httpRequest } from 'node:http';
 import { WebSocket } from 'ws';
 
 const base = process.argv[2].replace(/\/$/, '');
+const diagBucket = process.argv.includes('--diag-bucket') ? process.argv[process.argv.indexOf('--diag-bucket') + 1] : '';
 let failed = 0;
 const ok = (name, cond, extra = '') => {
   if (!cond) failed++;
@@ -112,5 +118,48 @@ await new Promise((resolve) => {
     }
   });
 });
+// In a browser: the family viewer, and ?diag reporting to this server.
+{
+  const { chromium } = await import('playwright');
+  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  try {
+    const viewer = await (await browser.newContext({ viewport: { width: 400, height: 820 } })).newPage();
+    const viewerErrors = [];
+    viewer.on('pageerror', (e) => viewerErrors.push(String(e)));
+    await viewer.goto(base + '/?viewer', { waitUntil: 'load' });
+    const shown = await viewer.waitForSelector('.sp-viewer', { timeout: 60000 }).then(() => true, () => false);
+    ok('?viewer loads (family viewer UI)', shown && viewerErrors.length === 0, viewerErrors[0] ?? '');
+
+    const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
+    const beacons = [];
+    let session = '';
+    page.on('response', (r) => {
+      if (!r.url().includes('/api/diag')) return;
+      beacons.push(r.status());
+      try {
+        session ||= JSON.parse(r.request().postData() ?? '{}').session ?? '';
+      } catch {}
+    });
+    await page.goto(base + '/?diag', { waitUntil: 'load' });
+    for (let i = 0; i < 30 && !beacons.length; i++) await new Promise((r) => setTimeout(r, 500));
+    ok('?diag reports a session', /^[a-z0-9]{8,32}$/.test(session), session);
+    ok('?diag beacons accepted', beacons.length > 0 && beacons.every((s) => s === 204), beacons.join(','));
+    if (diagBucket && session) {
+      const object = `${diagBucket.replace(/\/$/, '')}/diag/${new Date().toISOString().slice(0, 10)}/${session}.jsonl`;
+      let landed = false;
+      for (let i = 0; i < 20 && !landed; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        try {
+          execFileSync('gcloud', ['storage', 'ls', object], { stdio: 'ignore' });
+          landed = true;
+        } catch {}
+      }
+      ok('diag line landed in the bucket', landed, object);
+    }
+  } finally {
+    await browser.close();
+  }
+}
+
 console.log(failed ? `${failed} FAILED` : 'all passed');
 process.exit(failed ? 1 : 0);
