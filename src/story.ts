@@ -122,12 +122,22 @@ export class StorySystem extends createSystem({
       this.world.visibilityState.subscribe((state) => {
         this.blurred = state === VisibilityState.VisibleBlurred || state === VisibilityState.Hidden;
         this.inXR = state !== VisibilityState.NonImmersive;
-        setAway(this.blurred || document.hidden);
+        this.updateAway();
       }),
     );
-    const onPageVisibility = () => setAway(this.blurred || document.hidden);
+    const onPageVisibility = () => this.updateAway();
     document.addEventListener('visibilitychange', onPageVisibility);
     this.cleanupFuncs.push(() => document.removeEventListener('visibilitychange', onPageVisibility));
+  }
+
+  /**
+   * In XR the session's own visibility decides (the Quest menu: visible-blurred;
+   * headset off: hidden). The page's visibility counts only outside XR (a phone
+   * or desktop tab in the background): a headset browser may report its 2D page
+   * as hidden for the whole immersive session, which must not pause the story.
+   */
+  private updateAway(): void {
+    setAway(this.inXR ? this.blurred : document.hidden);
   }
 
   /** Index of the chapter beat at or before `index` (0 if none). */
