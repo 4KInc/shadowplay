@@ -126,9 +126,27 @@ test('a labelled wall wins over an unlabelled plane at the same distance', () =>
   assert.ok(Math.abs(w.dist - 2.05) < 1e-9);
 });
 
-test('invisible wall faces and wall art are not walls', () => {
-  assert.equal(chooseWall(head, ahead, [wall({ label: 'invisible wall face' })]), null);
-  assert.equal(chooseWall(head, ahead, [wall({ label: 'wall art' })]), null);
+test('an unexpected vertical label still holds the stage (open-plan rooms: invisible wall faces)', () => {
+  for (const label of ['invisible wall face', 'INVISIBLE_WALL_FACE', 'wall art', 'other', 'something new']) {
+    const w = chooseWall(head, ahead, [wall({ label })]);
+    assert.ok(w, label);
+    assert.ok(Math.abs(w.dist - 2) < 1e-9, label);
+  }
+});
+
+test('a real wall wins over an unexpected label at the same spot (a TV or picture on the wall)', () => {
+  const tv = wall({ dist: 1.95, width: 1.4, height: 0.8, y0: 0.9, label: 'screen' });
+  const w = chooseWall(head, ahead, [tv, wall({ dist: 2 })]);
+  assert.ok(Math.abs(w.dist - 2) < 1e-9);
+});
+
+test('an unlabelled plane wins over an unexpected label at equal footing', () => {
+  const w = chooseWall(head, ahead, [wall({ dist: 2, label: 'storage' }), wall({ dist: 2.02, label: '' })]);
+  assert.ok(Math.abs(w.dist - 2.02) < 1e-9);
+});
+
+test('horizontal surfaces are never walls, whatever their label', () => {
+  for (const label of ['table', 'desk', 'wall', '']) assert.equal(chooseWall(head, ahead, [floor(0.75, label)]), null, label);
 });
 
 test('a wall off to the side (not straight ahead) is not used', () => {

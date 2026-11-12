@@ -40,7 +40,7 @@ Run the core checks (A and B) in at least three rooms; the rest once per headset
 | A2 | Enter XR to stage placed (panel: `placed +Xs`) | [ ] | |
 | A3 | Permission prompts: which appeared, all understandable | [ ] | |
 | A4 | Stage on the wall straight ahead (panel: `wall`), or floating screen (`screen`) in R3 | [ ] | |
-| A4b | Write down the plane labels from the summary's `placed:` line (for example `wall:4,door frame:1`). If the walls carry a label other than `wall` or `wall face`, the stage will always fall back to the paper screen: tell me the label | [ ] | labels |
+| A4b | Write down the plane labels from the summary's `placed:` line (for example `v wall 4, v door frame 1, h table 1`). Walls with an unexpected label still hold the stage (ranked after labelled walls), so note which plane it chose and whether it was the wall you faced | [ ] | labels |
 | A4c | Facing a window or a door: the stage slides beside it (if it is off to one side), or a paper screen stands just in front of it (if it is straight ahead). Never shadows on the glass | [ ] | |
 | A5 | Stage size feels right; not inside furniture | [ ] | |
 | A6 | Frame rate holds at 72 (panel line 1 stays cream, not red) | [ ] | fps / p95 |
@@ -136,5 +136,6 @@ a second opinion, it is not required.
 - How the capsule hand shadows look on a real wall compared with a real hand.
 - Plane detection timing in each room (`placed +Xs`) and the fallback in R3.
 - The semantic labels Quest Browser gives walls, doors and windows (summary:
-  `placed: ... vertical N: labels`). Walls are accepted as `wall`, `wall face`
-  or no label; doors and windows are recognised by the words door and window.
+  `placed: ... labels: ...`). Labelled walls (`wall`, `wall face`) are preferred,
+  then unlabelled planes, then any other vertical label; doors and windows
+  (recognised by those words) are kept clear.
