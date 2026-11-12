@@ -1,12 +1,12 @@
 // Submission text checks: the Devpost tagline (140 characters at most), the
 // "about" text (500 words at most) and the video shot list (2:55 at most,
 // shots back to back). The submission pack is local only (submission/, gitignored);
-// run this after editing submission/DEVPOST.md or submission/VIDEO.md.
+// run this after editing submission/devpost.md or submission/video-script.md.
 //   node scripts/submission/check.mjs
 import { readFileSync } from 'node:fs';
 
-const devpost = readFileSync('submission/DEVPOST.md', 'utf8');
-const video = readFileSync('submission/VIDEO.md', 'utf8');
+const devpost = readFileSync('submission/devpost.md', 'utf8');
+const video = readFileSync('submission/video-script.md', 'utf8');
 const block = (text, name) => {
   const m = text.match(new RegExp(`<!-- ${name} -->([\\s\\S]*?)<!-- /${name} -->`));
   if (!m) throw new Error(`missing <!-- ${name} --> block`);
