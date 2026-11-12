@@ -21,6 +21,7 @@ import {
   createShadowSurface,
 } from './stage-visuals.js';
 import { chooseWall, SCREEN_DISTANCE, screenDistance, WIDTH_PER_METER, type RoomPlane, type WallChoice } from './wall-choice.js';
+import { shadowMapSize } from './quality-levels.js';
 
 /** Behind the stage in a browser (no passthrough): a deep night blue. */
 const BROWSER_BACKGROUND = new Color(0x0d0a14);
@@ -462,7 +463,7 @@ export class StageSetupSystem extends createSystem({
     if (quality === this.appliedQuality) return;
     this.appliedQuality = quality;
     stageRuntime.quality = quality;
-    const size = quality >= 3 ? 256 : quality >= 1 ? 512 : 1024;
+    const size = shadowMapSize(quality);
     this.spot.shadow.mapSize.set(size, size);
     this.spot.shadow.map?.dispose();
     (this.spot.shadow as { map: unknown }).map = null;
