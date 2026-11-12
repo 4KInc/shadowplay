@@ -12,8 +12,7 @@ For the soldier on deployment, the parent working in another country, the
 grandparent across an ocean.
 
 Built with [IWSDK](https://iwsdk.dev) (WebXR) for the Meta VR Start Developer
-Competition 2026 (Entertainment track). The full concept and build notes are in
-[docs/shadowplay-idea-brief.pdf](docs/shadowplay-idea-brief.pdf).
+Competition 2026 (Entertainment track, New Experience division).
 
 ## Try it
 
@@ -30,19 +29,26 @@ then **Goodnights**).
 ## What it does
 
 **In the headset (the storyteller)**
-- A stage on your real wall, found from the room's detected planes, with the room
-  dimmed like a theatre and a lamp you can drag to sweep the light.
-- Two narrated stories: *The Moth Who Borrowed Light* (five chapters, a branching
-  wolf encounter, a lighthouse finale) and *Goodnight Across the Sea* (six
-  minutes, written for families apart). Eleven hand shapes, from a rabbit to a
-  two-handed crocodile; the story never fails, it waits and helps.
+- A stage on your real wall, found from the room's detected planes (a floating
+  paper screen when there is no usable wall, and **Move stage here** to put it
+  where you look), with the room dimmed like a theatre and a lamp you can drag
+  to sweep the light.
+- Five narrated stories, picked from the journal: *The Moth Who Borrowed Light*
+  (twenty minutes in chapters, a branching wolf encounter, a lighthouse finale),
+  *Goodnight Across the Sea*, *The Letter That Took the Slow Way*, *The Brave
+  Little Dog* and *Counting Stars* (three minutes, for the littlest ones).
+  Eleven hand shapes, from a rabbit to a two-handed crocodile; the story never
+  fails: it shows a ghost hand, waits, and becomes more forgiving.
 - **Record a story** (hands, story and your voice) and **Send to family**: a
   private three-word family code, no accounts.
 - **Go live**: your family joins with the code and sees your shadows on their
   screen in real time; talk to each other; **Take turns** so the child makes
   every other creature.
 - **Goodnights**: what your family sent back plays on your wall.
-- Accessibility: recognition tolerance, show-me hints, one-hand mode.
+- Accessibility: recognition tolerance, show-me hints, one-hand mode (one-hand
+  mode and forgiving shapes are also on the first screen, before entering XR).
+- Pauses when you open the Quest menu or take the headset off, and picks up on
+  the same line; a story left mid-way continues from its chapter next time.
 
 **On the phone or tablet (the family)**
 - Watch a story someone recorded for you, in their voice, with your name in it.
@@ -68,11 +74,18 @@ then **Goodnights**).
 ```
 Quest (WebXR, IWSDK)                                  Phone / tablet (same web app, ?viewer)
   hand joints -> capsule shadow casters                  recorded or live hands -> the same stage
-  joint-angle + silhouette shape recognition             MediaPipe hands (camera, on device)
+  joint-angle shape recognition                          MediaPipe hands (camera, on device)
   story engine (JSON beats)  --story tap-->  recorder ----> /api/stories (family code)
                                          \-> Live -------> /live WebSocket room <---- Live
 ```
 
+- **Stage** (`src/stage-setup.ts`, `src/wall-choice.ts`): picks the wall straight
+  ahead (labelled walls first, clear of doors and windows) or a paper screen;
+  adaptive quality steps down in four levels if frames are missed, judged
+  against the headset's refresh rate.
+- **Recognition** (`src/hand-features.ts`, `src/recognition-rules.ts`): smoothed
+  joint angles matched to per-shape templates, with pair rules for two-hand
+  shapes and a resting-hand reject; a shape must be held half a second.
 - **Performance stream** (`src/performance/`): both hands at 30 Hz in
   stage-relative millimetres, story beats, creature wakes and releases, lamp and
   staging events, plus voice. It replays on any stage, any size.
@@ -110,7 +123,7 @@ The same list is in the app: **Credits** on the first screen and in the family v
 npm install
 npm run dev        # IWSDK dev server + managed browser with the Quest emulator (https://localhost:8082)
 npm run server     # sharing API and Live rooms on :8787 (the dev server proxies /api and /live)
-npm test           # typecheck, server tests, recognition sweep
+npm test           # typecheck, unit tests, server tests, recognition sweep
 ```
 
 `iwsdk.config.json` is the project authority (scene, assets, XR features);
@@ -126,13 +139,32 @@ headless browsers, the IWSDK emulator and Chrome's fake camera and microphone
 | --- | --- |
 | `node scripts/sim/live-family.mjs` | A parent and a child in two browsers through a degraded network (delay, jitter, a dropout): story sync, hands, voice both ways, duet turns, reconnects |
 | `node scripts/sim/voice-lab.mjs` | Mouth-to-ear voice delay per network condition (56 ms on a clean line) |
-| `node scripts/sim/playtest.mjs` | Bot children (perfect, small hands, shaky, wrong shape first, slow, wanderer) play the whole story: no stalls, help arrives, render and CPU budgets |
-| `node scripts/sim/smoke.mjs <url>` | A deployed site end to end |
+| `node scripts/sim/playtest.mjs` | Bot children (perfect, small hands, shaky, wrong shape first, slow, wanderer) play the whole story: no stalls, help arrives; fails if draw calls, triangles or shadow casters exceed the budget |
+| `node scripts/sim/rooms.mjs` | 17 room cases with fake planes: no planes, floor only, walls too close, too far or at a steep angle, doors and windows, late room data, recenter, Move stage here by pinch |
+| `node scripts/sim/session-life.mjs` | First-screen options, Quest menu and headset off mid-line, the first ghost hand, continuing next launch |
+| `node scripts/sim/hands-only.mjs` | Every interaction with emulated hands and no controllers: journal and lamp by pinch, every panel button by hand ray |
+| `node scripts/sim/narration-stall.mjs` | A narration clip whose download stalls does not stall the story |
+| `node scripts/sim/first-minutes.mjs` | Time from Enter XR to the first creature on a first launch |
+| `node scripts/sim/smoke.mjs <url>` | A deployed site end to end, including the family viewer and diagnostics in a browser |
 
-Peak load measured through a whole story: 70 draw calls, 39k triangles, about
-0.6 ms of app work per frame (desktop), far inside Quest budgets.
+Peak load measured through a whole story at full quality: 72 draw calls, 41k
+triangles, about 0.6 ms of app work per frame (desktop), with a budget enforced
+by the playtest.
+
+### Device testing
+
+Open the app with `?diag` for an overlay under the stage (frame times, quality
+level, hands and recognition, room detection) and diagnostics sent to the
+server: numbers and short identifiers only, never audio, video or names. Without
+`?diag` none of it loads. After a session, `scripts/diag/pull.sh` fetches and
+summarizes it. Builds for headset sessions deploy beside the public one with
+their own URL (see [docs/DEPLOY.md](docs/DEPLOY.md)); the checklist is
+[docs/DEVICE-TEST.md](docs/DEVICE-TEST.md).
 
 ## Status
 
-Complete and deployed; tested in the IWSDK Quest emulator and in simulation.
+Complete and deployed, and hardened for the competition: diagnostics,
+performance, cold start (about 560 KB to first render), recognition, untested
+rooms, the first five minutes, and compliance with the rules. Tested in the IWSDK
+Quest emulator and in simulation.
 Not yet run on a physical Quest.
