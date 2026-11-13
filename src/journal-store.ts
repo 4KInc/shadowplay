@@ -91,6 +91,7 @@ export interface StoredSettings {
   hints: string;
   oneHand: boolean;
   highContrast?: boolean;
+  gazeDwell?: boolean;
   placeholderVoice?: boolean;
 }
 

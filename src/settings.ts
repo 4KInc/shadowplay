@@ -11,7 +11,7 @@ import {
 } from './shadowplay-components.js';
 import { playClick } from './sfx.js';
 import { palette } from './panel-palette.js';
-import { accessRuntime, stageRuntime, uiPresses } from './stage-runtime.js';
+import { accessRuntime, gazeTargets, stageRuntime, uiPresses } from './stage-runtime.js';
 
 const PANEL_NODE = 'settings-panel';
 /** Authored panel width in metres (UIKit cm / 100). */
@@ -88,6 +88,7 @@ export class SettingsSystem extends createSystem({
   private buttons = new Map<string, UIKit.Container>();
   private oneHandLabel: UIKit.Text | undefined;
   private contrastLabel: UIKit.Text | undefined;
+  private gazeLabel: UIKit.Text | undefined;
   private voiceLabel: UIKit.Text | undefined;
   private status: UIKit.Text | undefined;
   private loaded = false;
@@ -118,12 +119,14 @@ export class SettingsSystem extends createSystem({
     const oneHand = Boolean(settings.getValue(Settings, 'oneHand'));
     const voice = Boolean(settings.getValue(Settings, 'placeholderVoice'));
     const highContrast = Boolean(settings.getValue(Settings, 'highContrast'));
-    const key = `${tolerance}|${hints}|${oneHand}|${voice}|${highContrast}`;
+    const gazeDwell = Boolean(settings.getValue(Settings, 'gazeDwell'));
+    const key = `${tolerance}|${hints}|${oneHand}|${voice}|${highContrast}|${gazeDwell}`;
     if (key !== this.applied) {
       accessRuntime.highContrast = highContrast;
+      accessRuntime.gazeDwell = gazeDwell;
       this.restyle();
-      this.apply(tolerance, hints, oneHand, voice, highContrast);
-      if (this.applied) void saveSettings({ tolerance, hints, oneHand, highContrast, placeholderVoice: voice });
+      this.apply(tolerance, hints, oneHand, voice, highContrast, gazeDwell);
+      if (this.applied) void saveSettings({ tolerance, hints, oneHand, highContrast, gazeDwell, placeholderVoice: voice });
       this.applied = key;
     }
     this.refreshStories();
@@ -181,6 +184,7 @@ export class SettingsSystem extends createSystem({
         settings.setValue(Settings, 'hints', stored.hints as never);
         settings.setValue(Settings, 'oneHand', stored.oneHand);
         settings.setValue(Settings, 'highContrast', Boolean(stored.highContrast));
+        settings.setValue(Settings, 'gazeDwell', Boolean(stored.gazeDwell));
         settings.setValue(Settings, 'placeholderVoice', Boolean(stored.placeholderVoice));
       }
       this.loaded = true;
@@ -203,12 +207,17 @@ export class SettingsSystem extends createSystem({
         handler();
       };
       el.addEventListener('click', click);
-      this.cleanupFuncs.push(() => el.removeEventListener('click', click));
+      gazeTargets.set(id, { object: el, press: click });
+      this.cleanupFuncs.push(() => {
+        el.removeEventListener('click', click);
+        gazeTargets.delete(id);
+      });
     };
     for (const [id, value] of TOLERANCE_BUTTONS) on(id, () => settings.setValue(Settings, 'tolerance', value as never));
     for (const [id, value] of HINT_BUTTONS) on(id, () => settings.setValue(Settings, 'hints', value as never));
     on('one-hand-toggle', () => settings.setValue(Settings, 'oneHand', !settings.getValue(Settings, 'oneHand')));
     on('contrast-toggle', () => settings.setValue(Settings, 'highContrast', !settings.getValue(Settings, 'highContrast')));
+    on('gaze-toggle', () => settings.setValue(Settings, 'gazeDwell', !settings.getValue(Settings, 'gazeDwell')));
     on('voice-toggle', () =>
       settings.setValue(Settings, 'placeholderVoice', !settings.getValue(Settings, 'placeholderVoice')),
     );
@@ -260,6 +269,8 @@ export class SettingsSystem extends createSystem({
     if (this.oneHandLabel) this.oneHandLabel.name = 'one-hand-label';
     this.contrastLabel = panel.getElementById<UIKit.Text>('contrast-label') ?? undefined;
     if (this.contrastLabel) this.contrastLabel.name = 'contrast-label';
+    this.gazeLabel = panel.getElementById<UIKit.Text>('gaze-label') ?? undefined;
+    if (this.gazeLabel) this.gazeLabel.name = 'gaze-label';
     this.voiceLabel = panel.getElementById<UIKit.Text>('voice-label') ?? undefined;
     if (this.voiceLabel) this.voiceLabel.name = 'voice-label';
     // The placeholder voice is a development aid only; production builds hide it.
@@ -284,13 +295,14 @@ export class SettingsSystem extends createSystem({
     this.shownUnlocks = null;
   }
 
-  private apply(tolerance: string, hints: string, oneHand: boolean, voice: boolean, highContrast: boolean): void {
+  private apply(tolerance: string, hints: string, oneHand: boolean, voice: boolean, highContrast: boolean, gazeDwell: boolean): void {
     for (const r of this.queries.recognizers.entities) {
       r.setValue(ShapeRecognizer, 'tolerance', TOLERANCE_VALUE[tolerance] ?? 0.3);
       r.setValue(ShapeRecognizer, 'oneHand', oneHand);
     }
     for (const s of this.queries.stories.entities) {
-      s.setValue(StoryState, 'hintAfterSeconds', HINT_AFTER[hints] ?? 15);
+      // Look to press: the ghost hand is what you look at to make a shape, so it shows at once.
+      s.setValue(StoryState, 'hintAfterSeconds', gazeDwell ? 0 : (HINT_AFTER[hints] ?? 15));
     }
     const p = palette();
     const pick = (on: boolean) => (on ? p.selected : p.unselected);
@@ -298,6 +310,8 @@ export class SettingsSystem extends createSystem({
     for (const [id, value] of HINT_BUTTONS) this.buttons.get(id)?.setProperties(pick(value === hints));
     this.buttons.get('one-hand-toggle')?.setProperties(pick(oneHand));
     this.buttons.get('contrast-toggle')?.setProperties(pick(highContrast));
+    this.buttons.get('gaze-toggle')?.setProperties(pick(gazeDwell));
+    this.gazeLabel?.setProperties({ text: `Look to press: ${gazeDwell ? 'On' : 'Off'}`, color: gazeDwell ? p.ink : p.cream });
     this.buttons.get('voice-toggle')?.setProperties(pick(voice));
     this.voiceLabel?.setProperties({ text: `Placeholder voice: ${voice ? 'On' : 'Off'}`, color: voice ? p.ink : p.cream });
     this.oneHandLabel?.setProperties({ text: `One-hand mode: ${oneHand ? 'On' : 'Off'}`, color: oneHand ? p.ink : p.cream });

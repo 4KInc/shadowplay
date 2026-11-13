@@ -2,7 +2,7 @@ import { createSystem, Entity, UIKit, UIKitMLAsset } from '@iwsdk/core';
 import { FamilyInbox, LiveSession, PerformanceRecorder } from '../shadowplay-components.js';
 import { playClick } from '../sfx.js';
 import { palette } from '../panel-palette.js';
-import { accessRuntime, uiPresses } from '../stage-runtime.js';
+import { accessRuntime, gazeTargets, uiPresses } from '../stage-runtime.js';
 
 const PANEL_NODE = 'settings-panel';
 
@@ -57,6 +57,8 @@ export class FamilyControlsSystem extends createSystem({
         handler();
       };
       button.addEventListener('click', click);
+      gazeTargets.set(id, { object: button, press: click });
+      this.cleanupFuncs.push(() => gazeTargets.delete(id));
       this.cleanupFuncs.push(() => button.removeEventListener('click', click));
     };
     on('record-button', 'record-label', () => {

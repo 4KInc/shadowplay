@@ -52,7 +52,19 @@ export const stageRuntime = {
 export const trackingRuntime = { lightHint: false };
 
 /** Accessibility modes that several systems draw differently (written by SettingsSystem). */
-export const accessRuntime = { highContrast: false };
+export const accessRuntime = {
+  highContrast: false,
+  /** Look to press: head-gaze dwell presses buttons and stands in for shapes. */
+  gazeDwell: false,
+  /** Look to press: the centre of the view is on the stage right now. */
+  gazeOnStage: false,
+};
+
+/**
+ * Everything "Look to press" can press, by name: panel buttons register here
+ * (with the same handler a pinch runs). Written by the panel systems.
+ */
+export const gazeTargets = new Map<string, { object: import('@iwsdk/core').Object3D; press: () => void }>();
 
 /** The headset panel's last button presses (ids, newest last), for the hands-only test. */
 export const uiPresses: string[] = [];

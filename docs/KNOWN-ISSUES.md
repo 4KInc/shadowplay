@@ -35,6 +35,9 @@ with the session that showed them.
   supports anchors (Quest Browser does), and comes back to it on the next
   launch when that wall is still in front of the seat; otherwise the room is
   scanned as usual. Tested with the emulator's anchors, not yet on a headset.
+- **Look to press uses head gaze**, the centre of the view, not eye tracking
+  (Quest 3 and 3S have none). Its Settings toggle adds a row: the panel is
+  about one degree taller at each end. Tested in the emulator only.
 - **Live is one storyteller and one family member**, and Live rooms run on a
   single server instance (in memory). That is plenty for judging; a larger
   launch would need a shared room service.
