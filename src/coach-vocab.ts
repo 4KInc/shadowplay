@@ -32,10 +32,35 @@ export const FACTS: Readonly<Record<string, string>> = {
 export const COACHED_SHAPES = ['rabbit', 'dog', 'fish', 'bird', 'cup', 'snail', 'swan'] as const;
 
 /** Mo's words without AI: a short, kind line from the facts (the fallback, and the line when offline). */
+/** Mo's own words for each fact: one plain instruction (used when no AI words the tip). */
+const LOCAL_TIPS: Readonly<Record<string, string>> = {
+  ...Object.fromEntries(FINGERS.flatMap((f) => {
+    const name = f === 'thumb' ? 'thumb' : f === 'pinky' ? 'little finger' : `${f} finger`;
+    return [
+      [`${f}-straighten`, `straighten your ${name}.`],
+      [`${f}-curl`, `curl your ${name} down.`],
+    ];
+  })),
+  'fingers-together': 'hold your fingers together.',
+  'fingers-apart': 'spread your fingers apart.',
+  'thumb-touch': 'touch your thumb tip to your middle or ring finger.',
+  'thumb-off': 'keep your thumb away from your fingertips.',
+  'thumb-out': 'let your thumb stick out.',
+  'thumb-tuck': 'tuck your thumb along the side of your hand.',
+  'point-up': 'point your fingers up.',
+  'point-level': 'keep your hand level, fingers pointing forward.',
+  'point-down': 'point your fingers down.',
+  'one-hand-seen': 'it needs both hands. Bring the other one in!',
+  'hands-apart': 'bring your wrists close, almost touching.',
+  'hands-stacked': 'put your hands side by side, not one on top.',
+  'fingers-curled': 'straighten your fingers, like wings.',
+};
+
+/** Mo's words without AI: a short, kind line from the facts (the fallback, and the line when offline). */
 export function localLine(shape: string, facts: readonly string[]): string {
   const first = facts[0];
   if (!first || first === 'almost') return `So close! Hold your ${shape} very still for me.`;
   if (first === 'no-hands') return 'I cannot see your hands. Lift them into the lamplight!';
-  const tip = (FACTS[first] ?? '').replace(/^the /, 'your ').replace(/ should be /, ' wants to be ').replace(/ should /, ' wants to ');
-  return tip ? `Psst! For the ${shape}, ${tip}.` : `Let's try the ${shape} together. Watch the ghost hand.`;
+  const tip = LOCAL_TIPS[first];
+  return tip ? `Psst! For the ${shape}, ${tip}` : `Let's try the ${shape} together. Watch the ghost hand.`;
 }
