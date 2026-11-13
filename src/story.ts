@@ -230,7 +230,9 @@ export class StorySystem extends createSystem({
         for (const c of unlocks.chapters) this.unlocked.add(c);
         for (const e of unlocks.endings) this.endings.add(e);
         this.publishUnlocks(story);
-        if (progress && progress.beatIndex > 0 && progress.beatIndex < script.beats.length) {
+        // Resume at the saved chapter, unless it is the closing card right before the end.
+        const finished = script.beats[(progress?.beatIndex ?? 0) + 1]?.type === 'end';
+        if (progress && progress.beatIndex > 0 && progress.beatIndex < script.beats.length && !finished) {
           this.resumeAt = progress.beatIndex;
           story.setValue(StoryState, 'branch', progress.branch ?? '');
         }
@@ -506,6 +508,10 @@ export class StorySystem extends createSystem({
       }
       case 'end':
         this.setTargets(stage, ShapeIds.None, ShapeIds.None, ShapeIds.None, ShapeIds.None);
+        // A finished story starts from the beginning next time (not "Continuing from The End").
+        if (!story.getValue(StoryState, 'followMode')) {
+          void saveProgress({ beatIndex: 0, chapter: '', branch: '', savedAt: Date.now(), script: this.scriptPath });
+        }
         break;
       case 'prop':
         for (const p of this.queries.props.entities) {
