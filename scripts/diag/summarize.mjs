@@ -65,6 +65,11 @@ for (const [id, rows] of [...sessions].sort((a, b) => a[1][0].at - b[1][0].at)) 
   const firstWake = triggers.find((t) => xrAt !== undefined && t.t >= xrAt);
   if (xrAt !== undefined) console.log(`first creature: ${firstWake ? `${(firstWake.t - xrAt).toFixed(0)} s after entering XR (${firstWake.shape})` : 'none woke'}   target under 60 s`);
   console.log(`recognition triggers: ${count(triggers.map((t) => `${t.shape}${t.target && t.target !== t.shape && t.target !== 'none' ? `(asked ${t.target})` : ''}${t.free ? '[free]' : ''}`))}`);
+  const drops = ev('dropouts');
+  if (drops.length) {
+    const total = drops.reduce((n, d) => n + d.flickers, 0);
+    console.log(`hand-tracking flickers: ${total} in ${drops.length} beats; worst ${[...drops].sort((a, b) => b.flickers / b.seconds - a.flickers / a.seconds).slice(0, 3).map((d) => `${d.beat} ${d.flickers} in ${d.seconds}s`).join(', ')}`);
+  } else console.log('hand-tracking flickers: none');
   const beats = ev('beat');
   console.log(`story: ${beats.length} beats, ${[...new Set(beats.map((b) => b.script))].join(', ') || '-'}; last ${beats.at(-1)?.beat ?? '-'}`);
   console.log(`visibility: ${ev('vis').map((v) => v.state).join(' > ') || '-'}   page: ${ev('page').map((v) => v.state).join(' > ') || '-'}`);

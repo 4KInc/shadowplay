@@ -33,6 +33,9 @@ export const stageRuntime = {
   testPlanes: null as RoomPlane[] | null,
 };
 
+/** Hand tracking flickering during a shape request (story.ts): show the light hint. */
+export const trackingRuntime = { lightHint: false };
+
 /** The headset panel's last button presses (ids, newest last), for the hands-only test. */
 export const uiPresses: string[] = [];
 

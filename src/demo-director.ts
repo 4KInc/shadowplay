@@ -69,6 +69,8 @@ export class DemoDirectorSystem extends createSystem({
   /** Seconds in the current beat (personas react to it). */
   private beatTime = 0;
   private persona = 'perfect';
+  /** The current beat asks for a shape (personas act only then). */
+  private asking = false;
 
   init(): void {
     // D play/stop, B switch the Chapter Three ending, H show/hide the capsule hands.
@@ -230,6 +232,7 @@ export class DemoDirectorSystem extends createSystem({
 
   /** Bend the careful performance into a more human one (bot playtests). */
   private actPersona(beat: StoryBeat | undefined): void {
+    this.asking = Boolean(beat && (beat.type === 'request' || beat.type === 'choice'));
     if (!beat || (beat.type !== 'request' && beat.type !== 'choice')) return;
     const t = this.target;
     const asked = t.fixture?.label ?? '';
@@ -289,7 +292,10 @@ export class DemoDirectorSystem extends createSystem({
     const fx = this.target.fixture;
     handOverride.active = true;
     handOverride.source = 'director';
-    if (!fx) {
+    // 'dim': in a dark room tracking keeps dropping (0.35 s of every 0.8 s, too often for a shape to be
+    // held for half a second) during the first 12 s of a request; then a light goes on and it holds.
+    const flicker = this.persona === 'dim' && this.asking && this.beatTime < 12 && this.time % 0.8 < 0.35;
+    if (!fx || flicker) {
       handOverride.left = handOverride.right = null;
       return;
     }
