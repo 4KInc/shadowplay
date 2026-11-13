@@ -8,6 +8,7 @@ import { BucketDiagSink, checkDiag, DiskDiagSink, type DiagSink } from './diag.t
 import { checkPerformance, clientIp, decodeSafe, RateLimiter } from './guard.ts';
 import { attachLive, liveRoomCount } from './live.ts';
 import { DiskStore, GcsStore, type StoryStore } from './storage.ts';
+import { MAX_CLIP_BYTES, SpeechToText } from './voice.ts';
 
 /**
  * Shadowplay server: serves the app and a tiny private sharing API for
@@ -18,6 +19,8 @@ import { DiskStore, GcsStore, type StoryStore } from './storage.ts';
  *   GET  /api/stories/:code  fetch a performance by family code
  *   POST /api/stories/:code/replies   a goodnight back from the family (up to MAX_REPLIES)
  *   GET  /api/stories/:code/replies   the replies to a story (for the storyteller)
+ *   GET  /api/voice          { available }: whether spoken commands can be understood here
+ *   POST /api/voice          a short spoken clip (audio/webm) -> { text } (Voice commands; nothing stored)
  *   POST /api/diag           device diagnostics from pages opened with ?diag (numbers and ids only)
  *   GET  /api/health (and /healthz locally: Cloud Run reserves paths ending in 'z')
  *   WS   /live                live rooms (see live.ts)
@@ -39,6 +42,8 @@ const diagSink: DiagSink = bucket
   ? new BucketDiagSink((name, body) => bucket.putRaw(name, body))
   : new DiskDiagSink(process.env.DIAG_DIR ?? join(process.cwd(), '.data/diag'));
 const MAX_DIAG_BYTES = 32 * 1024;
+/** VOICE_STT=google: spoken commands through Cloud Speech-to-Text (voice.ts); otherwise unavailable. */
+const speech = process.env.VOICE_STT === 'google' ? new SpeechToText(process.env.STT_API ?? undefined, process.env.STT_TOKEN_URL ?? undefined) : null;
 
 // ---------------------------------------------------------------- rate limiting
 
@@ -48,6 +53,8 @@ const limits = {
   lookup: new RateLimiter(60_000, 30),
   // Diagnostics: a snapshot every 5 s plus events (batched), from one headset.
   diag: new RateLimiter(60_000, 60),
+  // Voice commands: one short clip per spoken command.
+  voice: new RateLimiter(60_000, 40),
 };
 
 function allowed(kind: keyof typeof limits, req: IncomingMessage): boolean {
@@ -198,6 +205,36 @@ async function listReplies(req: IncomingMessage, res: ServerResponse, raw: strin
   json(res, 200, { code, replies });
 }
 
+async function readBytes(req: IncomingMessage, limit: number): Promise<Buffer | null> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length;
+    if (size > limit) return null;
+    chunks.push(chunk as Buffer);
+  }
+  return Buffer.concat(chunks);
+}
+
+async function postVoice(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (!speech) return json(res, 503, { error: 'Voice commands are not available here.' });
+  if (!allowed('voice', req)) return json(res, 429, { error: 'Too many voice commands.' });
+  if (!/^audio\/webm\b/.test(req.headers['content-type'] ?? '')) return json(res, 415, { error: 'Send audio/webm.' });
+  const clip = await readBytes(req, MAX_CLIP_BYTES);
+  if (clip === null) {
+    // The rest of the upload is left unread: close the connection rather than reuse it.
+    res.setHeader('Connection', 'close');
+    return json(res, 413, { error: 'Too long for a command.' });
+  }
+  if (clip.length < 200) return json(res, 400, { error: 'Nothing to hear.' });
+  try {
+    return json(res, 200, { text: await speech.transcribe(clip) });
+  } catch (error) {
+    console.warn('[voice]', error instanceof Error ? error.message : error);
+    return json(res, 502, { error: 'Could not understand that just now.' });
+  }
+}
+
 async function postDiag(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (!allowed('diag', req)) return json(res, 429, { error: 'Too many diagnostics.' });
   const body = await readBody(req, MAX_DIAG_BYTES);
@@ -274,6 +311,8 @@ const server = createServer((req, res) => {
   const route = async () => {
     if (path === '/api/health' || path === '/healthz') return json(res, 200, { ok: true, liveRooms: liveRoomCount() });
     if (path === '/api/diag' && req.method === 'POST') return postDiag(req, res);
+    if (path === '/api/voice' && req.method === 'GET') return json(res, 200, { available: speech !== null });
+    if (path === '/api/voice' && req.method === 'POST') return postVoice(req, res);
     if (path === '/api/stories' && req.method === 'POST') return uploadStory(req, res);
     const m = /^\/api\/stories\/([^/]+)$/.exec(path);
     if (m && req.method === 'GET') return fetchStory(req, res, m[1]);

@@ -220,9 +220,14 @@
       <span id="contrast-label" class="toggle-text">High contrast: Off</span>
     </button>
   </div>
-  <button id="gaze-toggle" class="toggle">
-    <span id="gaze-label" class="toggle-text">Look to press: Off</span>
-  </button>
+  <div class="row">
+    <button id="gaze-toggle" class="toggle half">
+      <span id="gaze-label" class="toggle-text">Look to press: Off</span>
+    </button>
+    <button id="voice-commands-toggle" class="toggle half">
+      <span id="voice-commands-label" class="toggle-text">Voice commands: Off</span>
+    </button>
+  </div>
 
   <div id="voice-section" class="section">
     <div class="label">Narration (test only)</div>

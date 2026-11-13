@@ -38,7 +38,8 @@ const CSS = `
 /**
  * The first screen, before entering the headset view: family names (typing in
  * immersive mode is awkward), plus the accessibility options (one-hand
- * mode, forgiving shapes, high contrast and look to press), so nobody has to find them inside the journal.
+ * mode, forgiving shapes, high contrast, look to press
+ * and voice commands), so nobody has to find them inside the journal.
  * Hidden on the family viewer and during an immersive session.
  */
 export class FamilySetupSystem extends createSystem({
@@ -50,6 +51,7 @@ export class FamilySetupSystem extends createSystem({
   private forgiving: HTMLButtonElement | null = null;
   private contrast: HTMLButtonElement | null = null;
   private gaze: HTMLButtonElement | null = null;
+  private voice: HTMLButtonElement | null = null;
   private credits: HTMLButtonElement | null = null;
   private style: HTMLStyleElement | null = null;
   private shownLabel = '';
@@ -75,6 +77,7 @@ export class FamilySetupSystem extends createSystem({
       setPressed(this.forgiving!, isForgiving(settings.getValue(Settings, 'tolerance')));
       setPressed(this.contrast!, Boolean(settings.getValue(Settings, 'highContrast')));
       setPressed(this.gaze!, Boolean(settings.getValue(Settings, 'gazeDwell')));
+      setPressed(this.voice!, Boolean(settings.getValue(Settings, 'voiceCommands')));
     }
     const child = family.own.child;
     const label = child ? `Stories for ${child}` : 'Who are the stories for?';
@@ -119,7 +122,12 @@ export class FamilySetupSystem extends createSystem({
       const s = this.settingsEntity();
       if (s) s.setValue(Settings, 'gazeDwell', !s.getValue(Settings, 'gazeDwell'));
     });
-    this.access.append(this.oneHand, this.forgiving, this.contrast, this.gaze);
+    this.voice = toggle('Voice commands', 'Say a shape, "open the journal", "pause" or "go on" instead of using your hands (uses the microphone while on)');
+    this.voice.addEventListener('click', () => {
+      const s = this.settingsEntity();
+      if (s) s.setValue(Settings, 'voiceCommands', !s.getValue(Settings, 'voiceCommands'));
+    });
+    this.access.append(this.oneHand, this.forgiving, this.contrast, this.gaze, this.voice);
     document.body.appendChild(this.access);
 
     this.credits = document.createElement('button');

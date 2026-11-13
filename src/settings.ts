@@ -89,6 +89,7 @@ export class SettingsSystem extends createSystem({
   private oneHandLabel: UIKit.Text | undefined;
   private contrastLabel: UIKit.Text | undefined;
   private gazeLabel: UIKit.Text | undefined;
+  private voiceCommandsLabel: UIKit.Text | undefined;
   private voiceLabel: UIKit.Text | undefined;
   private status: UIKit.Text | undefined;
   private loaded = false;
@@ -120,13 +121,16 @@ export class SettingsSystem extends createSystem({
     const voice = Boolean(settings.getValue(Settings, 'placeholderVoice'));
     const highContrast = Boolean(settings.getValue(Settings, 'highContrast'));
     const gazeDwell = Boolean(settings.getValue(Settings, 'gazeDwell'));
-    const key = `${tolerance}|${hints}|${oneHand}|${voice}|${highContrast}|${gazeDwell}`;
+    const voiceCommands = Boolean(settings.getValue(Settings, 'voiceCommands'));
+    const key = `${tolerance}|${hints}|${oneHand}|${voice}|${highContrast}|${gazeDwell}|${voiceCommands}`;
     if (key !== this.applied) {
       accessRuntime.highContrast = highContrast;
       accessRuntime.gazeDwell = gazeDwell;
       this.restyle();
       this.apply(tolerance, hints, oneHand, voice, highContrast, gazeDwell);
-      if (this.applied) void saveSettings({ tolerance, hints, oneHand, highContrast, gazeDwell, placeholderVoice: voice });
+      this.buttons.get('voice-commands-toggle')?.setProperties(voiceCommands ? palette().selected : palette().unselected);
+      this.voiceCommandsLabel?.setProperties({ text: `Voice commands: ${voiceCommands ? 'On' : 'Off'}`, color: voiceCommands ? palette().ink : palette().cream });
+      if (this.applied) void saveSettings({ tolerance, hints, oneHand, highContrast, gazeDwell, voiceCommands, placeholderVoice: voice });
       this.applied = key;
     }
     this.refreshStories();
@@ -185,6 +189,7 @@ export class SettingsSystem extends createSystem({
         settings.setValue(Settings, 'oneHand', stored.oneHand);
         settings.setValue(Settings, 'highContrast', Boolean(stored.highContrast));
         settings.setValue(Settings, 'gazeDwell', Boolean(stored.gazeDwell));
+        settings.setValue(Settings, 'voiceCommands', Boolean(stored.voiceCommands));
         settings.setValue(Settings, 'placeholderVoice', Boolean(stored.placeholderVoice));
       }
       this.loaded = true;
@@ -218,6 +223,7 @@ export class SettingsSystem extends createSystem({
     on('one-hand-toggle', () => settings.setValue(Settings, 'oneHand', !settings.getValue(Settings, 'oneHand')));
     on('contrast-toggle', () => settings.setValue(Settings, 'highContrast', !settings.getValue(Settings, 'highContrast')));
     on('gaze-toggle', () => settings.setValue(Settings, 'gazeDwell', !settings.getValue(Settings, 'gazeDwell')));
+    on('voice-commands-toggle', () => settings.setValue(Settings, 'voiceCommands', !settings.getValue(Settings, 'voiceCommands')));
     on('voice-toggle', () =>
       settings.setValue(Settings, 'placeholderVoice', !settings.getValue(Settings, 'placeholderVoice')),
     );
@@ -271,6 +277,8 @@ export class SettingsSystem extends createSystem({
     if (this.contrastLabel) this.contrastLabel.name = 'contrast-label';
     this.gazeLabel = panel.getElementById<UIKit.Text>('gaze-label') ?? undefined;
     if (this.gazeLabel) this.gazeLabel.name = 'gaze-label';
+    this.voiceCommandsLabel = panel.getElementById<UIKit.Text>('voice-commands-label') ?? undefined;
+    if (this.voiceCommandsLabel) this.voiceCommandsLabel.name = 'voice-commands-label';
     this.voiceLabel = panel.getElementById<UIKit.Text>('voice-label') ?? undefined;
     if (this.voiceLabel) this.voiceLabel.name = 'voice-label';
     // The placeholder voice is a development aid only; production builds hide it.

@@ -31,9 +31,16 @@ One container serves everything:
 | `DATA_DIR` | `./.data/stories` | local story folder when no bucket is set |
 | `STORY_TTL_DAYS` | `30` | how long a shared story lives |
 | `MAX_STORY_BYTES` | 30 MB | largest upload (a 15-minute story with voice) |
+| `VOICE_STT` | unset | `google`: voice commands through Cloud Speech-to-Text when the headset browser has no speech recognition of its own (`/api/voice`); unset = unavailable |
 
 With `STORY_BUCKET` set, the server uses the Cloud Run service account through
 the metadata server (no keys in the image).
+
+**Voice commands (`VOICE_STT=google`)** need the Speech-to-Text API enabled in
+the project (`gcloud services enable speech.googleapis.com --project $PROJECT`)
+and are billed per request (about $0.016 per minute of audio; a command clip is
+1-3 seconds). The service account needs no extra role for `speech:recognize`.
+Clips are forwarded and forgotten: nothing is stored or logged.
 
 ## Cloud Run (once approved)
 

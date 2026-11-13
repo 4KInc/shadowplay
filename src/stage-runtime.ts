@@ -58,6 +58,13 @@ export const accessRuntime = {
   gazeDwell: false,
   /** Look to press: the centre of the view is on the stage right now. */
   gazeOnStage: false,
+  /** Voice commands: 'off', 'starting', 'browser' or 'server' (listening), 'unavailable', 'denied'. */
+  voiceState: 'off',
+  /** Set by a spoken "go on"; the story finishes a movement beat with it and clears it. */
+  voiceNext: false,
+  /** The last thing understood, shown on the stage for a moment ('' for nothing), and when (performance.now()). */
+  voiceHeard: '',
+  voiceHeardAt: 0,
 };
 
 /**

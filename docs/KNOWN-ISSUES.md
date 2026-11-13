@@ -38,6 +38,11 @@ with the session that showed them.
 - **Look to press uses head gaze**, the centre of the view, not eye tracking
   (Quest 3 and 3S have none). Its Settings toggle adds a row: the panel is
   about one degree taller at each end. Tested in the emulator only.
+- **Voice commands depend on the browser.** Quest Browser's own speech
+  recognition is not documented; where there is none, commands go through the
+  server (`VOICE_STT=google`, Cloud Speech-to-Text), which needs the API
+  enabled for the deployment. English only. Tested with a simulated recogniser
+  and synthetic audio, not yet with a real voice on a headset.
 - **Live is one storyteller and one family member**, and Live rooms run on a
   single server instance (in memory). That is plenty for judging; a larger
   launch would need a shared room service.

@@ -198,6 +198,7 @@ export class AutomationSystem extends createSystem({
           lightHint: trackingRuntime.lightHint,
           highContrast: accessRuntime.highContrast,
           gaze: { ...gazeRuntime, on: accessRuntime.gazeDwell },
+          voice: { state: accessRuntime.voiceState, heard: accessRuntime.voiceHeard },
           shadowOpacity: (scene.getObjectByName('shadow-surface') as import('@iwsdk/core').Mesh<import('@iwsdk/core').BufferGeometry, import('@iwsdk/core').ShadowMaterial> | undefined)?.material.opacity ?? null,
           desk: stageRuntime.desk,
           fovH: stageRuntime.fovH,
