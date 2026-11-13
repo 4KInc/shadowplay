@@ -1,14 +1,15 @@
 /**
  * Mo the coach: one short, kind tip in Mo's voice for a player who is stuck on
- * a shape, written by Claude from what the hand tracker noticed. The request
+ * a shape, written by the model (Claude or Muse Spark, llm.ts) from what the hand tracker noticed. The request
  * carries only a shape name and fact ids from a fixed list (coach-vocab.ts),
  * never free text or anything about the person, so nothing personal reaches
  * the model and nothing can be injected into the prompt. Every reply is
  * checked (length, plain words) and replaced by a fixed line if it fails.
  *
- * On when ANTHROPIC_API_KEY is set. ANTHROPIC_API points it at a test double.
+ * On when the server has a model key (main.ts).
  */
 import { FACTS, localLine } from '../src/coach-vocab.ts';
+import type { Llm } from './llm.ts';
 
 export const COACH_SHAPES = new Set(['rabbit', 'dog', 'fish', 'bird', 'cup', 'snail', 'swan', 'deer', 'crocodile']);
 const MAX_WORDS = 20;
@@ -53,13 +54,11 @@ export function cleanLine(text: string): string | null {
 
 export class Coach {
   private cache = new Map<string, string>();
-  private key: string;
-  private api: string;
+  private llm: Llm;
   private model: string;
 
-  constructor(key: string, api = 'https://api.anthropic.com', model = 'claude-haiku-4-5-20251001') {
-    this.key = key;
-    this.api = api;
+  constructor(llm: Llm, model: string) {
+    this.llm = llm;
     this.model = model;
   }
 
@@ -71,20 +70,15 @@ export class Coach {
     try {
       const noticed = req.facts.map((f) => `- ${FACTS[f]}`).join('\n');
       const again = req.attempt > 0 ? `\nThis is tip number ${req.attempt + 1} for this shape tonight: say it in a new way.` : '';
-      const res = await fetch(`${this.api}/v1/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': this.key, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({
-          model: this.model,
-          max_tokens: 80,
-          system: SYSTEM,
-          messages: [{ role: 'user', content: `Shape: ${req.shape}\nWhat the hand tracker noticed:\n${noticed}${again}` }],
-        }),
-        signal: AbortSignal.timeout(6000),
+      const text = await this.llm.text({
+        model: this.model,
+        system: SYSTEM,
+        user: `Shape: ${req.shape}\nWhat the hand tracker noticed:\n${noticed}${again}`,
+        maxTokens: 80,
+        effort: 'low',
+        timeoutMs: 6000,
       });
-      if (!res.ok) throw new Error(`claude ${res.status}`);
-      const body = (await res.json()) as { content?: { type: string; text?: string }[] };
-      const line = cleanLine(body.content?.find((c) => c.type === 'text')?.text ?? '');
+      const line = cleanLine(text);
       if (!line) return { line: localLine(req.shape, req.facts), source: 'local' };
       if (this.cache.size > 300) this.cache.delete(this.cache.keys().next().value!);
       this.cache.set(cacheKey, line);

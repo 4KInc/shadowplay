@@ -258,7 +258,7 @@ test('voice: refuses other types, empty and over-long clips', async () => {
 
 test('coach: Mo\'s tip from Claude, built only from the shape and fixed fact ids', async () => {
   const c = as();
-  assert.deepEqual(await (await c.get('/api/coach')).json(), { available: true });
+  assert.deepEqual(await (await c.get('/api/coach')).json(), { available: true, by: 'claude' });
   const res = await c.post('/api/coach', { shape: 'rabbit', facts: ['ring-curl', 'thumb-touch'], attempt: 0 });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { line: 'Curl your ring finger down, and let your thumb kiss it!', source: 'ai' });
@@ -285,7 +285,7 @@ test('coach: an unusable reply becomes the fixed line; free text and unknown fac
 
 test('dream: a new story built from Claude\'s words, in the app\'s own story format', async () => {
   const c = as();
-  assert.deepEqual(await (await c.get('/api/dream')).json(), { available: true });
+  assert.deepEqual(await (await c.get('/api/dream')).json(), { available: true, by: 'claude' });
   const res = await c.post('/api/dream', { theme: 'sea', shapes: ['rabbit', 'bird', 'cup'] });
   assert.equal(res.status, 200);
   const story = await res.json();

@@ -31,9 +31,11 @@ One container serves everything:
 | `DATA_DIR` | `./.data/stories` | local story folder when no bucket is set |
 | `STORY_TTL_DAYS` | `30` | how long a shared story lives |
 | `MAX_STORY_BYTES` | 30 MB | largest upload (a 15-minute story with voice) |
+| `AI_PROVIDER` | `anthropic` | the model behind Mo's tips and dreamed stories: `anthropic` (Claude) or `meta` (Muse Spark on Meta Model API) |
+| `META_API_KEY` | unset | the Meta Model API key when `AI_PROVIDER=meta` (Secret Manager: `meta-api-key`) |
 | `ANTHROPIC_API_KEY` | unset | Mo's tips worded by Claude (`/api/coach`); unset = the app's own words. Set it from Secret Manager, never in the command line |
-| `COACH_MODEL` | `claude-haiku-4-5-20251001` | the model for Mo's tips (short, fast) |
-| `DREAM_MODEL` | `claude-sonnet-5-5` | the model that writes dreamed stories (`/api/dream`, same key) |
+| `COACH_MODEL` | `claude-haiku-4-5-20251001` (`muse-spark-1.3` with meta) | the model for Mo's tips (short, fast) |
+| `DREAM_MODEL` | `claude-sonnet-5-5` (`muse-spark-1.3` with meta) | the model that writes dreamed stories (`/api/dream`, same key) |
 | `VOICE_STT` | unset | `google`: voice commands through Cloud Speech-to-Text when the headset browser has no speech recognition of its own (`/api/voice`); unset = unavailable |
 
 With `STORY_BUCKET` set, the server uses the Cloud Run service account through
@@ -59,6 +61,15 @@ A tip is one short request (about 150 tokens in, 30 out) and repeats are
 cached, so a whole evening of stories costs well under a cent. A dreamed story
 is about 600 tokens in and 700 out (up to two tries), limited to 8 an hour per
 client.
+
+**Muse Spark instead of Claude (`AI_PROVIDER=meta`)**: store the Meta Model
+API key as the secret `meta-api-key` (same two commands as above, with that
+name), then on a **devtest** deploy add `AI_PROVIDER=meta` to `--set-env-vars`
+and `META_API_KEY=meta-api-key:latest` to `--set-secrets` (keep the Anthropic
+key there too, so switching back is one variable). `/api/coach` and
+`/api/dream` report `"by": "muse-spark"` or `"claude"`. The server sends Meta's
+Messages format (Bearer token, no `anthropic-version` header, adaptive
+thinking at low effort for tips and medium for stories).
 
 **Voice commands (`VOICE_STT=google`)** need the Speech-to-Text API enabled in
 the project (`gcloud services enable speech.googleapis.com --project $PROJECT`)

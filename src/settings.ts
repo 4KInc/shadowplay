@@ -196,7 +196,7 @@ export class SettingsSystem extends createSystem({
     this.status?.setProperties({ text: 'Mo is dreaming up a story...' });
     dreamRuntime.asked = { theme, shapes };
     const t0 = performance.now();
-    fetch('/api/dream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme, shapes }), signal: AbortSignal.timeout(45000) })
+    fetch('/api/dream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme, shapes }), signal: AbortSignal.timeout(60000) })
       .then(async (r) => {
         const script = r.ok ? ((await r.json()) as { version?: string; title?: string; beats?: unknown[] }) : null;
         if (!script || script.version !== 'shadowplay.story.v1' || !Array.isArray(script.beats)) throw new Error(`dream ${r.status}`);
