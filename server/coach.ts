@@ -9,6 +9,7 @@
  * On when the server has a model key (main.ts).
  */
 import { FACTS, localLine } from '../src/coach-vocab.ts';
+import { contentProblems } from './content-checks.ts';
 import type { Llm } from './llm.ts';
 
 export const COACH_SHAPES = new Set(['rabbit', 'dog', 'fish', 'bird', 'cup', 'snail', 'swan', 'deer', 'crocodile']);
@@ -25,6 +26,7 @@ const SYSTEM = [
   'Reply with exactly one short, warm, encouraging tip in your own voice that tells them the one change to make, using the words a child understands (index finger, thumb, wrists).',
   'At most 16 words. Plain words only: no emojis, no quotation marks, no lists, no questions about the person, no names, no brands.',
   'Never mention cameras, tracking, sensors or technology; talk about their hands and the shadow.',
+  'Describe only the change you were told about; never suggest crossing the wrists or hands.',
   'Output only the line.',
 ].join(' ');
 
@@ -47,9 +49,10 @@ export function checkCoach(body: unknown): CoachRequest | null {
 }
 
 /** The model's reply as a line Mo may say, or null. */
-export function cleanLine(text: string): string | null {
+export function cleanLine(text: string, shape?: string): string | null {
   const line = text.trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').replace(/\s+/g, ' ');
   if (!LINE.test(line) || NEVER.test(line) || line.split(' ').length > MAX_WORDS) return null;
+  if (contentProblems(line, shape).length) return null;
   return line;
 }
 
@@ -79,7 +82,7 @@ export class Coach {
         effort: 'low',
         timeoutMs: 6000,
       });
-      const line = cleanLine(text);
+      const line = cleanLine(text, req.shape);
       if (!line) return { line: localLine(req.shape, req.facts), source: 'local' };
       if (this.cache.size > 300) this.cache.delete(this.cache.keys().next().value!);
       this.cache.set(cacheKey, line);
