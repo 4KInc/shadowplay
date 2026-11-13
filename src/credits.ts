@@ -1,11 +1,13 @@
 /**
- * Third-party work Shadowplay ships, with its licence: shown from a Credits
+ * Third-party work and services Shadowplay uses, with their terms: shown from a Credits
  * button on the first screen and in the family viewer (also in the README).
  * Everything else, the stories, characters, models and sounds, is original.
  */
 export const CREDITS: ReadonlyArray<{ name: string; what: string; licence: string; by: string }> = [
   { name: 'Kokoro-82M', what: 'the storyteller voice (narration generated offline)', licence: 'Apache License 2.0', by: 'hexgrad' },
   { name: 'MediaPipe Hand Landmarker', what: 'camera hands in the family viewer (runs on the device)', licence: 'Apache License 2.0', by: 'Google' },
+  { name: 'Gemini API', what: "words Mo's tips and dreamed stories (on the server; only shape names and fixed hand facts are sent)", licence: 'Gemini API Terms of Service', by: 'Google' },
+  { name: 'Cloud Speech-to-Text', what: 'understands voice commands when the headset browser cannot (short clips, not stored)', licence: 'Google Cloud Terms of Service', by: 'Google' },
   { name: 'Inter', what: 'the typeface in the headset panels', licence: 'SIL Open Font License 1.1', by: 'The Inter Project Authors' },
   { name: 'Lucide', what: 'two interface icons', licence: 'ISC License', by: 'Lucide Contributors' },
   { name: 'three.js', what: '3D rendering', licence: 'MIT License', by: 'three.js authors' },

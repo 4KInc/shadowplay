@@ -66,7 +66,7 @@ screen; if the stage lands somewhere odd, pinch the book on the desk, then
   every other creature.
 - **Goodnights**: what your family sent back plays on your wall.
 - **Dream a new one** (Tonight's story): Mo dreams up a new short story for a
-  theme and two or three shapes the app picks. Claude writes the narration
+  theme and two or three shapes the app picks. Gemini writes the narration
   lines; the app builds the story itself (the same pattern as Counting Stars)
   and checks every line, so it plays like any other story, with captions. A
   dreamed story stays on the headset (it can't be recorded or shared yet).
@@ -115,9 +115,8 @@ are private to the family and deleted after 30 days.
 - Mo's tips: when someone is stuck on a shape, the app sends the server only
   the shape's name and a few fixed facts about the hand pose ("the ring finger
   should be curled down"), never names, video, audio or free text. Where the
-  server has AI enabled, the model (Claude by Anthropic, Meta's Muse Spark, or Google's Gemini)
-  words Mo's tip from those; otherwise the app's own words are used. Nothing is
-  stored.
+  server has AI enabled, Google's Gemini words Mo's tip from those; otherwise
+  the app's own words are used. Nothing is stored.
 - A dreamed story: the app sends a theme and shape names only (never names or
   anything typed or said), and keeps the story on the device.
 - Live rooms hold one storyteller and one family member. The server relays only
@@ -168,6 +167,8 @@ built in code). It uses:
 | --- | --- | --- |
 | [Kokoro-82M](https://github.com/hexgrad/kokoro) (hexgrad) | the storyteller voice, generated offline into `public/narration/` | Apache-2.0 |
 | [MediaPipe Hand Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker) (Google) | camera hands in the family viewer, on the device; see `public/models/NOTICE.md` | Apache-2.0 |
+| [Gemini API](https://ai.google.dev/gemini-api) (Google) | words Mo's tips and dreamed stories, on the server (only shape names and fixed hand facts are sent) | Gemini API Terms of Service |
+| [Cloud Speech-to-Text](https://cloud.google.com/speech-to-text) (Google) | voice commands when the headset browser has no speech recognition (short clips, not stored) | Google Cloud Terms of Service |
 | [Inter](https://rsms.me/inter/) (The Inter Project Authors) | typeface of the headset panels (via `@pmndrs/msdfonts`) | SIL OFL 1.1 |
 | [Lucide](https://lucide.dev) (Lucide Contributors) | two interface icons | ISC |
 | [three.js](https://threejs.org) | 3D rendering | MIT |
