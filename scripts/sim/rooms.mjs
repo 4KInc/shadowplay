@@ -212,7 +212,11 @@ for (const c of CASES) {
   const button = await page.evaluate(() => __sp.where('replace-stage-button'));
   await remote('look_at', { device: 'hand-right', target: { x: button[0], y: button[1], z: button[2] } });
   await sleep(300);
-  await remote('select', { device: 'hand-right', duration: 0.15 });
+  // Hold the pinch for real time, not frame time: the emulator's 'select' counts its
+  // duration in frame deltas, and one slow software-rendered frame can swallow it whole.
+  await remote('set_select_value', { device: 'hand-right', value: 1 });
+  await sleep(250);
+  await remote('set_select_value', { device: 'hand-right', value: 0 });
   await sleep(200);
   const pending = await page.evaluate(() => __sp.get('Stage', 'mode'));
   await remote('look_at', { device: 'headset', target: { x: -2, y: eye, z: 0 } });
