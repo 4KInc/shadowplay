@@ -125,6 +125,18 @@ export class AutomationSystem extends createSystem({
       room: (planes: RoomPlane[] | null) => {
         stageRuntime.testPlanes = planes;
       },
+      /** Anchor tests: behave as a browser without WebXR anchors (takes effect on the next XR session). */
+      noAnchors: (on: boolean) => {
+        stageRuntime.testNoAnchors = on;
+      },
+      /**
+       * Anchor tests: shift the stage sideways by `dx` metres without moving its
+       * anchor, as a tracking correction would; the stage should return to it.
+       */
+      nudgeStage: (dx: number) => {
+        const o = entity('Stage')?.object3D;
+        if (o) o.position.addScaledVector(stageRuntime.right, dx);
+      },
       /**
        * Where the stage is and how far its essential UI sits from straight ahead:
        * degrees left/right of the horizontal view direction and up/down from eye level.
@@ -185,6 +197,10 @@ export class AutomationSystem extends createSystem({
           lightHint: trackingRuntime.lightHint,
           desk: stageRuntime.desk,
           fovH: stageRuntime.fovH,
+          anchor: stageRuntime.anchor,
+          anchorLastTime: stageRuntime.anchorFromLastTime,
+          anchorFixes: stageRuntime.anchorFixes,
+          center: stageRuntime.center.toArray().map((v) => Math.round(v * 1000) / 1000),
           lampY: Math.round((entity('DeskLamp')?.object3D?.position.y ?? 0) * 1000) / 1000,
         };
       },

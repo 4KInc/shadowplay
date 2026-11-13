@@ -232,3 +232,30 @@ test('fov: chooseWall builds the narrower stage on the wall', () => {
   const w = chooseWall(head, ahead, [wall({ dist: 2 })], stageWidthPerMeter(50));
   assert.ok(Math.abs(w.width - 2 * stageWidthPerMeter(50)) < 1e-9);
 });
+
+test('restoreOnWall: last session\'s wall straight ahead comes back at the same width', async () => {
+  const { restoreOnWall } = await import('../src/wall-choice.ts');
+  const r = restoreOnWall(head, ahead, { x: 0, y: 1.25, z: -2 }, { x: 0, y: 0, z: 1 }, 0.9);
+  assert.ok(r);
+  assert.ok(Math.abs(r.dist - 2) < 1e-9);
+  assert.equal(r.width, 0.9);
+});
+
+test('restoreOnWall: never wider than a nearer seat allows', async () => {
+  const { restoreOnWall, WIDTH_PER_METER } = await import('../src/wall-choice.ts');
+  const r = restoreOnWall(head, ahead, { x: 0, y: 1.25, z: -1 }, { x: 0, y: 0, z: 1 }, 1.4);
+  assert.ok(r);
+  assert.ok(r.width <= 1 * WIDTH_PER_METER + 1e-9);
+});
+
+test('restoreOnWall: rejected when behind, off to the side, too close, too far, or tilted', async () => {
+  const { restoreOnWall } = await import('../src/wall-choice.ts');
+  const n = { x: 0, y: 0, z: 1 };
+  // Turned around: the remembered wall is behind the player.
+  assert.equal(restoreOnWall(head, { x: 0, y: 0, z: 1 }, { x: 0, y: 1.25, z: -2 }, n, 0.9), null);
+  // Stage centre 60 degrees off to the side.
+  assert.equal(restoreOnWall(head, ahead, { x: -2 * Math.tan(Math.PI / 3), y: 1.25, z: -2 }, n, 0.9), null);
+  assert.equal(restoreOnWall(head, ahead, { x: 0, y: 1.25, z: -0.4 }, n, 0.9), null);
+  assert.equal(restoreOnWall(head, ahead, { x: 0, y: 1.25, z: -5 }, n, 0.9), null);
+  assert.equal(restoreOnWall(head, ahead, { x: 0, y: 1.25, z: -2 }, { x: 0, y: 0.6, z: 0.8 }, 0.9), null);
+});

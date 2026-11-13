@@ -204,6 +204,11 @@ export function fitOnWall(
 const scratch: Measured = { nx: 0, nz: 0, dist: 0, facing: 0, uMin: 0, uMax: 0 };
 const other: Measured = { nx: 0, nz: 0, dist: 0, facing: 0, uMin: 0, uMax: 0 };
 
+/** The stage width a wall at `dist` metres gets before fitting it between obstacles. */
+function desiredWidth(dist: number, widthPerMeter: number): number {
+  return Math.min(MAX_STAGE_WIDTH, Math.max(0.45 * (widthPerMeter / WIDTH_PER_METER), dist * widthPerMeter));
+}
+
 /**
  * Pick the wall most directly in front of the player: vertical, not a door or
  * window (labelled walls first, then unlabelled planes, then other labels), 0.6-4 m away, turned less than 40 degrees from the view, with
@@ -239,7 +244,7 @@ export function chooseWall(head: V3, forward: V3, planes: readonly RoomPlane[], 
       if (vMax < STAGE_BAND_LOW || vMin > STAGE_BAND_HIGH) continue;
       blocked.push([other.uMin, other.uMax]);
     }
-    const desired = Math.min(MAX_STAGE_WIDTH, Math.max(0.45 * (widthPerMeter / WIDTH_PER_METER), dist * widthPerMeter));
+    const desired = desiredWidth(dist, widthPerMeter);
     const fit = fitOnWall(uMin, uMax, desired, blocked, blocked.length ? Math.max(0.3, dist * MAX_SHIFT_TAN) : Infinity);
     if (!fit) continue;
     const label = kind === 'wall' ? WALL_LABEL_BONUS : kind === 'other' ? -OTHER_LABEL_PENALTY : 0;
@@ -321,4 +326,35 @@ export function findDesk(head: V3, planes: readonly RoomPlane[], spots: readonly
     }
   }
   return best;
+}
+
+/**
+ * A stage remembered from an earlier session (a persistent anchor on its wall):
+ * is it still usable from where the player sits now? The same rules as a new
+ * wall (in front, facing the player, 0.6-4 m away), and the stage centre within
+ * the same angle of straight ahead. Returns its distance and width (no wider than
+ * it was, since it was fitted between obstacles on that wall), or null to scan
+ * the room again.
+ */
+export function restoreOnWall(
+  head: V3,
+  forward: V3,
+  center: V3,
+  normal: V3,
+  savedWidth: number,
+  widthPerMeter = WIDTH_PER_METER,
+): { dist: number; width: number } | null {
+  if (Math.abs(normal.y) > 0.15) return null;
+  const len = Math.hypot(normal.x, normal.z);
+  const nx = normal.x / len;
+  const nz = normal.z / len;
+  const facing = -(forward.x * nx + forward.z * nz);
+  const dist = (head.x - center.x) * nx + (head.z - center.z) * nz;
+  if (facing < FRONT_COS || dist < MIN_WALL || dist > MAX_WALL) return null;
+  const tx = center.x - head.x;
+  const tz = center.z - head.z;
+  const ahead = (tx * forward.x + tz * forward.z) / Math.max(1e-6, Math.hypot(tx, tz));
+  if (ahead < FRONT_COS) return null;
+  const width = Math.min(savedWidth, desiredWidth(dist, widthPerMeter));
+  return width > 0.2 ? { dist, width } : null;
 }

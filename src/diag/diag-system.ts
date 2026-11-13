@@ -72,7 +72,7 @@ export class DiagSystem extends createSystem({
   private visibility = 'non-immersive';
   private xrAt = 0;
   private placedAt = 0;
-  private last = { mode: '', quality: -1, beat: '', matched: '' };
+  private last = { mode: '', quality: -1, beat: '', matched: '', anchor: '', fixes: 0 };
   private canvas = document.createElement('canvas');
   private ctx = this.canvas.getContext('2d')!;
   private texture = new CanvasTexture(this.canvas);
@@ -181,6 +181,20 @@ export class DiagSystem extends createSystem({
         this.last.quality = quality;
       }
     }
+    // The stage's room anchor: created, remembered, restored, or unavailable; and each correction.
+    if (stageRuntime.anchor !== this.last.anchor || stageRuntime.anchorFixes !== this.last.fixes) {
+      this.last.anchor = stageRuntime.anchor;
+      this.last.fixes = stageRuntime.anchorFixes;
+      if (stageRuntime.anchor) {
+        this.event({
+          e: 'anchor',
+          state: stageRuntime.anchor,
+          lastTime: stageRuntime.anchorFromLastTime,
+          fixes: stageRuntime.anchorFixes,
+          maxFixCm: stageRuntime.anchorMaxFixCm,
+        });
+      }
+    }
     const beat = story?.getValue(StoryState, 'beatId') ?? '';
     if (beat && beat !== this.last.beat) {
       // Hand-tracking flickers during the beat that just ended (a dim-room signal).
@@ -219,6 +233,8 @@ export class DiagSystem extends createSystem({
       labels: this.planeLabels(),
       desk: stageRuntime.desk,
       fovH: stageRuntime.fovH,
+      anchor: stageRuntime.anchor,
+      anchorLast: stageRuntime.anchorFromLastTime,
       meshes: this.queries.meshes.entities.size,
     };
   }

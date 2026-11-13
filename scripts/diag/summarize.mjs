@@ -57,6 +57,11 @@ for (const [id, rows] of [...sessions].sort((a, b) => a[1][0].at - b[1][0].at)) 
   for (const p of ev('placed')) {
     console.log(`placed: ${p.place}  wall ${p.wallW} m wide at ${p.wallD} m  stage ${p.stageW} m  planes ${p.planes} (vertical ${p.vplanes})${p.labels?.length ? ' labels: ' + p.labels.join(', ') : p.vlabels ? ': ' + p.vlabels : ''}  meshes ${p.meshes}${p.desk ? `  desk ${p.desk}` : ''}${p.fovH ? `  view ${p.fovH}°` : ''}  at ${p.t}s`);
   }
+  const anchors = ev('anchor');
+  if (anchors.length) {
+    const a = anchors.at(-1);
+    console.log(`stage anchor: ${anchors.map((e) => e.state).filter((v, i, all) => v !== all[i - 1]).join(' > ')}${anchors.some((e) => e.lastTime) ? '  (back on last time\'s wall)' : ''}   corrections ${a.fixes}${a.fixes ? `, largest ${a.maxFixCm} cm` : ''}`);
+  }
   const last = snaps.at(-1);
   if (last) console.log(`startup: page load to XR ${(last.xrMs / 1000).toFixed(1)}s, XR to stage placed ${(last.placedMs / 1000).toFixed(1)}s   heap ${last.heapMB} MB`);
   const triggers = ev('trigger');

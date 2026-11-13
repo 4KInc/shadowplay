@@ -44,6 +44,8 @@ Run the core checks (A and B) in at least three rooms; the rest once per headset
 | A4c | Facing a window or a door: the stage slides beside it (if it is off to one side), or a paper screen stands just in front of it (if it is straight ahead). Never shadows on the glass | [ ] | |
 | A5 | Stage size feels right; not inside furniture | [ ] | |
 | A5c | The summary's `placed:` line shows `view N°` (the headset's field of view across one eye); Quest 3 and 3S should keep the full 33-degree stage | [ ] | degrees |
+| A5d | Stage anchor: the summary's `stage anchor:` line reads `pending > saved` on a wall (or `unsupported`). Take the headset off for a minute and put it back on: the stage is still on the same spot of the wall (corrections, if any, are listed) | [ ] | |
+| A5e | Exit and launch again from the same seat: the stage is back on the same spot of the wall within a second, before any scan (`(back on last time's wall)`). Then *Move stage here* to another wall, relaunch: it comes back on the new one | [ ] | |
 | A5b | The lamp and the book stand on your real desk or table, not floating above it or sunk into it (summary: `desk surface` when Room Setup found it, `desk estimate` otherwise) | [ ] | |
 | A6 | Frame rate holds at 72 (panel line 1 stays cream, not red) | [ ] | fps / p95 |
 | A7 | Quality level after 2 minutes (`q0`..`q3`; anything above `q0` means the headset could not hold 72) | [ ] | |
