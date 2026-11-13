@@ -16,6 +16,7 @@ import { handRuntime, stageRuntime } from '../stage-runtime.js';
 import { FrameStats } from './frame-stats.js';
 import { shadowMapSize } from '../quality-levels.js';
 import { formatSessionId, newSessionId } from './session-id.js';
+import { DropoutWatch } from '../tracking-watch.js';
 
 /** Snapshot to the server every SNAPSHOT_MS; events within EVENT_FLUSH_MS. */
 const SNAPSHOT_MS = 5000;
@@ -76,6 +77,9 @@ export class DiagSystem extends createSystem({
   private ctx = this.canvas.getContext('2d')!;
   private texture = new CanvasTexture(this.canvas);
   private panel!: Mesh;
+  /** Hand-tracking flickers in the current story beat, and its length so far. */
+  private dropouts = new DropoutWatch();
+  private beatSeconds = 0;
   /** The stage asks for 72 Hz on XR entry; its answer is reported once. */
   private rateReported = false;
 
@@ -134,6 +138,8 @@ export class DiagSystem extends createSystem({
   }
 
   update(delta: number): void {
+    this.dropouts.step(delta, handRuntime.left.tracked, handRuntime.right.tracked);
+    this.beatSeconds += delta;
     if (!this.rateReported && stageRuntime.frameRateRequest) {
       this.rateReported = true;
       this.event({ e: 'rate', requested: 72, result: stageRuntime.frameRateRequest });
@@ -177,6 +183,12 @@ export class DiagSystem extends createSystem({
     }
     const beat = story?.getValue(StoryState, 'beatId') ?? '';
     if (beat && beat !== this.last.beat) {
+      // Hand-tracking flickers during the beat that just ended (a dim-room signal).
+      if (this.last.beat && this.dropouts.flickers > 0) {
+        this.event({ e: 'dropouts', beat: this.last.beat, flickers: this.dropouts.flickers, seconds: round(this.beatSeconds) });
+      }
+      this.dropouts.reset();
+      this.beatSeconds = 0;
       this.last.beat = beat;
       this.event({ e: 'beat', beat, script: (story?.getValue(StoryState, 'script') ?? '').replace(/^story\//, '') });
     }

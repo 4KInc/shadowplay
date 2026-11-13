@@ -18,7 +18,8 @@ import {
   StoryStatuses,
 } from './shadowplay-components.js';
 import { loadStoryScript, readingSeconds, StoryBeat, StoryScript, storyRuntime } from './story-script.js';
-import { handRuntime, stageRuntime } from './stage-runtime.js';
+import { handRuntime, stageRuntime, trackingRuntime } from './stage-runtime.js';
+import { DropoutWatch } from './tracking-watch.js';
 import { viewerMode } from './viewer-mode.js';
 
 const CHAPTER_SECONDS = 3.2;
@@ -112,6 +113,8 @@ export class StorySystem extends createSystem({
   private lastAliveShape: string = ShapeIds.None;
   /** A creature has woken this session (until then the hint comes early). */
   private firstWoken = false;
+  /** Hand-tracking flickers during shape requests (tracking-watch.ts). */
+  private dropouts = new DropoutWatch();
   /** The chapter card now showing is a returning player's resume point. */
   private welcomeBack = false;
   /** Puppet size when the current grow beat began. */
@@ -299,6 +302,7 @@ export class StorySystem extends createSystem({
         const index = story.getValue(StoryState, 'beatIndex') ?? -1;
         const beat = this.script.beats[index];
         if (beat) {
+          this.watchTracking(beat, delta);
           this.updateAssist(beat, story, stage, delta);
           const next = this.run(beat, story, stage, delta);
           if (next !== null) {
@@ -351,6 +355,7 @@ export class StorySystem extends createSystem({
     const beat = this.script.beats[index];
     if (!beat) return;
     this.beatTime += delta;
+    this.watchTracking(beat, delta);
     this.updateAssist(beat, story, stage, delta);
     const next = this.run(beat, story, stage, delta);
     if (next !== null) {
@@ -424,6 +429,8 @@ export class StorySystem extends createSystem({
   }
 
   private enter(story: Entity, stage: Entity, index: number): number {
+    this.dropouts.reset();
+    trackingRuntime.lightHint = false;
     const beat = this.script!.beats[index];
     this.beatTime = 0;
     this.welcomeBack = false;
@@ -689,12 +696,24 @@ export class StorySystem extends createSystem({
     if (story.getValue(StoryState, 'assist') !== 0) story.setValue(StoryState, 'assist', 0);
   }
 
+  /**
+   * During a shape request, hands that keep flickering in and out of tracking
+   * (a dim room, most likely) get the ghost hand at once and a line suggesting
+   * a light. Recognition itself is unchanged.
+   */
+  private watchTracking(beat: StoryBeat, delta: number): void {
+    const asking = beat.type === 'request' || beat.type === 'choice';
+    const struggling = asking && this.dropouts.step(delta, handRuntime.left.tracked, handRuntime.right.tracked);
+    trackingRuntime.lightHint = struggling && !this.alivePuppet();
+  }
+
   /** Waits for one of the shapes to come alive; shows the hint when stuck. */
   private awaitAlive(story: Entity, shapes: string[], t: number): string | null {
     const alive = shapes.find((s) => this.puppetFor(s)?.getValue(ShadowPuppet, 'state') === PuppetStates.Alive);
     const setting = story.getValue(StoryState, 'hintAfterSeconds') ?? 15;
     const hintAfter = this.firstWoken || setting < 0 ? setting : Math.min(setting, FIRST_HINT_SECONDS);
-    story.setValue(StoryState, 'hintVisible', alive === undefined && hintAfter >= 0 && t >= hintAfter);
+    const stuck = hintAfter >= 0 && (t >= hintAfter || trackingRuntime.lightHint);
+    story.setValue(StoryState, 'hintVisible', alive === undefined && stuck);
     if (alive === undefined || t <= 0.3) return null;
     this.firstWoken = true;
     this.lastAliveShape = alive;

@@ -70,6 +70,7 @@ and whether anything woke that you did not ask for (panel: `match`).
 | B11 | Relaxed or half-closed hands never wake anything | anywhere | [ ] | |
 | B12 | Make a shape almost right: "Almost! Hold it still..." appears after about a second | any request | [ ] | |
 | B13 | Make the right shape outside the light: "Bring your hand into the lamplight." | any request | [ ] | |
+| B15 | Dim room (R4): if your hands keep dropping out while a shape is asked for, "Hands lost — try turning a light on" appears with the ghost hand within a few seconds; with the light on it goes away. The summary's `hand-tracking flickers:` line shows how often it happened | [ ] | |
 | B14 | Cupped hands with fingers overlapping (hard to track): still wakes within a few seconds | Moth finale, Sea | [ ] | |
 
 ## C. Whole stories (once per headset)

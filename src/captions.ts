@@ -10,11 +10,14 @@ import {
 } from '@iwsdk/core';
 import { CAPTION_H, CAPTION_W, drawCaption, drawHandHint, HINT_SIZE } from './caption-art.js';
 import { ShapeRecognizer, StoryState } from './shadowplay-components.js';
-import { stageRuntime } from './stage-runtime.js';
+import { stageRuntime, trackingRuntime } from './stage-runtime.js';
 
 const FADE_PER_SECOND = 4;
 const NUDGE_W = 1024;
 const NUDGE_H = 120;
+/** Hands keep dropping out of tracking during a shape request (usually too little light). */
+const LIGHT_HINT = 'Hands lost — try turning a light on';
+
 const NUDGE_TEXT: Record<string, string> = {
   almost: 'Almost! Hold it still...',
   light: 'Bring your hand into the lamplight.',
@@ -114,7 +117,8 @@ export class CaptionSystem extends createSystem({
     }
     this.updateHint(Boolean(story.getValue(StoryState, 'hintVisible')), delta);
     const rec = this.queries.recognizers.entities.values().next().value;
-    this.updateNudge(NUDGE_TEXT[rec?.getValue(ShapeRecognizer, 'nudge') ?? 'none'] ?? '', delta);
+    const nudge = trackingRuntime.lightHint ? LIGHT_HINT : (NUDGE_TEXT[rec?.getValue(ShapeRecognizer, 'nudge') ?? 'none'] ?? '');
+    this.updateNudge(nudge, delta);
   }
 
   /** The recognition nudge sits just above the caption, fading in and out. */
