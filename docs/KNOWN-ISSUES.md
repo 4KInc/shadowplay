@@ -31,6 +31,10 @@ with the session that showed them.
   Settings over the stage; there the Settings panel can still be taller than
   the view, so its top and bottom rows need a slight tilt of the head. Tested
   by narrowing the emulator's view, not on such a device.
+- **The stage remembers its wall** with a WebXR anchor where the browser
+  supports anchors (Quest Browser does), and comes back to it on the next
+  launch when that wall is still in front of the seat; otherwise the room is
+  scanned as usual. Tested with the emulator's anchors, not yet on a headset.
 - **Live is one storyteller and one family member**, and Live rooms run on a
   single server instance (in memory). That is plenty for judging; a larger
   launch would need a shared room service.

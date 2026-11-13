@@ -7,6 +7,7 @@ import {
   MeshStandardMaterial,
   Object3D,
   PCFSoftShadowMap,
+  Quaternion,
   SpotLight,
   Vector3,
   VisibilityState,
@@ -24,6 +25,7 @@ import {
   chooseWall,
   EYE_TO_DESK,
   findDesk,
+  restoreOnWall,
   SCREEN_DISTANCE,
   screenDistance,
   stageWidthPerMeter,
@@ -32,6 +34,7 @@ import {
   type WallChoice,
 } from './wall-choice.js';
 import { shadowMapSize } from './quality-levels.js';
+import { StageAnchor } from './stage-anchor.js';
 
 /** Behind the stage in a browser (no passthrough): a deep night blue. */
 const BROWSER_BACKGROUND = new Color(0x0d0a14);
@@ -44,6 +47,8 @@ const SCAN_TIMEOUT_SECONDS = 4;
  * the story is under way and the stage must not jump.
  */
 const LATE_WALL_SECONDS = 12;
+/** Last session's wall (a restored anchor) is used this soon after entering, before any scan. */
+const RESTORE_MIN_SECONDS = 0.3;
 /** "Move stage here": time to turn toward the new spot before the scan starts. */
 const MOVE_DELAY_SECONDS = 1.5;
 /** A close wall (usually behind a monitor) lifts the stage above it. */
@@ -103,6 +108,12 @@ export class StageSetupSystem extends createSystem({
   /** Where the lamp was placed; dragging away from here sweeps the light. */
   private lampHome = new Vector3();
   private sweep = new Vector3();
+  /** Keeps the stage on its wall and remembers the wall for next time (stage-anchor.ts). */
+  private anchor = new StageAnchor();
+  private anchorPose = new Matrix4();
+  private fix = new Matrix4();
+  private anchorQ = new Quaternion();
+  private anchorScale = new Vector3();
 
   init(): void {
     this.spot = new SpotLight(0xffc27a, 6, 6, (38 * Math.PI) / 180, 0.55, 1.2);
@@ -121,6 +132,7 @@ export class StageSetupSystem extends createSystem({
 
     this.cleanupFuncs.push(
       () => this.watchedRef?.removeEventListener('reset', this.onReset),
+      () => this.anchor.end(),
       (() => {
         // Phones rotate and browsers resize: re-fit the screen outside XR.
         const onResize = () => {
@@ -133,6 +145,7 @@ export class StageSetupSystem extends createSystem({
         const inXR = state !== VisibilityState.NonImmersive;
         if (inXR !== this.inXR) {
           this.inXR = inXR;
+          if (!inXR) this.anchor.end();
           this.resetPlacement(0);
           this.applyBrowserLook();
           // Fixed foveation (lower resolution at the edges of the view) where the
@@ -227,6 +240,8 @@ export class StageSetupSystem extends createSystem({
     // Re-place on request (Settings) or when the headset recenters the space.
     if (stage.getValue(Stage, 'replaceRequested')) {
       stage.setValue(Stage, 'replaceRequested', false);
+      // The player chose a new spot: last session's wall no longer applies.
+      this.anchor.discardRestored();
       this.resetPlacement(this.inXR ? MOVE_DELAY_SECONDS : 0);
     }
     const ref = this.world.xrReferenceSpace;
@@ -248,10 +263,18 @@ export class StageSetupSystem extends createSystem({
     if (this.forward.lengthSq() < 1e-6) this.forward.set(0, 0, -1);
     this.forward.normalize();
 
+    // A new XR session: start restoring last session's wall.
+    const session = this.inXR ? (this.world.xrSession ?? null) : null;
+    if (session && session !== this.anchor.began) this.anchor.begin(session, stageRuntime.testNoAnchors);
+
     if (!this.placed) {
       this.scanTime += delta;
       if (!this.inXR) {
         this.placeScreen(stage, lamp);
+      } else if (this.scanTime >= RESTORE_MIN_SECONDS && this.placeRestored(stage, lamp)) {
+        // Back on last session's wall.
+      } else if (this.anchor.waiting && this.scanTime < SCAN_TIMEOUT_SECONDS) {
+        // Still hearing whether last session's wall can be restored.
       } else if (this.scanTime >= SCAN_MIN_SECONDS) {
         if (this.findWall()) this.placeOnWall(stage, lamp);
         else if (this.scanTime >= SCAN_TIMEOUT_SECONDS) this.placeScreen(stage, lamp);
@@ -266,7 +289,58 @@ export class StageSetupSystem extends createSystem({
       }
     }
 
+    if (this.placed && this.inXR) this.followAnchor(stage, lamp);
+    stageRuntime.anchor = this.anchor.state;
+    stageRuntime.anchorFromLastTime = this.anchor.fromLastTime;
+    stageRuntime.anchorFixes = this.anchor.fixes;
+    stageRuntime.anchorMaxFixCm = this.anchor.maxFixCm;
+
     this.updateLighting(stage, lamp, delta);
+  }
+
+  /**
+   * Last session's wall, when its anchor was restored and still makes sense
+   * from where the player sits now (wall-choice.ts restoreOnWall). The stage
+   * goes back to the same spot, at today's eye height.
+   */
+  private placeRestored(stage: Entity, lamp: Entity): boolean {
+    const savedWidth = this.anchor.restoredPose(this.xrFrame, this.world.xrReferenceSpace, this.anchorPose);
+    if (!savedWidth) return false;
+    this.anchorPose.decompose(this.tmpB, this.anchorQ, this.anchorScale);
+    this.tmpA.set(0, 0, 1).applyQuaternion(this.anchorQ);
+    const fit = restoreOnWall(this.head, this.forward, this.tmpB, this.tmpA, savedWidth, stageWidthPerMeter(this.measureFov()));
+    if (!fit) {
+      this.anchor.discardRestored();
+      return false;
+    }
+    const close = fit.dist < CLOSE_WALL;
+    this.normal.set(this.tmpA.x, 0, this.tmpA.z).normalize();
+    this.tmpB.y = this.head.y + (close ? 0.28 : 0.05);
+    stage.setValue(Stage, 'wallWidth', 0);
+    this.anchor.fromLastTime = true;
+    this.applyStage(stage, lamp, this.tmpB, this.normal, fit.width, fit.dist, StageModes.Wall, close);
+    return true;
+  }
+
+  /**
+   * Keep the stage where its anchor is. When the headset re-finds the room and
+   * the anchor moves, the stage, lamp and journal move with it as one piece.
+   */
+  private followAnchor(stage: Entity, lamp: Entity): void {
+    const stageObj = stage.object3D!;
+    stageObj.updateMatrixWorld();
+    const moved = this.anchor.correction(this.xrFrame, this.world.xrReferenceSpace, stageObj.matrixWorld, this.fix);
+    if (!moved) return;
+    stageObj.applyMatrix4(this.fix);
+    lamp.object3D!.applyMatrix4(this.fix);
+    this.lampHome.applyMatrix4(this.fix);
+    for (const journal of this.queries.journals.entities) journal.object3D?.applyMatrix4(this.fix);
+    stageObj.updateMatrixWorld(true);
+    stageRuntime.center.copy(stageObj.position);
+    stageRuntime.normal.set(0, 0, 1).applyQuaternion(stageObj.quaternion);
+    stageRuntime.right.set(1, 0, 0).applyQuaternion(stageObj.quaternion);
+    stageRuntime.up.set(0, 1, 0).applyQuaternion(stageObj.quaternion);
+    this.anchor.corrected(moved * 100);
   }
 
   /** The detected planes (or an emulator test's fake ones) as wall-choice geometry. */
@@ -439,6 +513,8 @@ export class StageSetupSystem extends createSystem({
     stage.setValue(Stage, 'width', width);
     this.placed = true;
     stageRuntime.ready = true;
+    // Anchor the stage to the room; a wall is remembered for the next launch.
+    if (this.inXR) this.anchor.place(this.xrFrame, this.world.xrReferenceSpace, stageObj.matrixWorld, width, mode === StageModes.Wall);
   }
 
   /** Aim the lamp (and the light pool) according to how far it was slid along the desk. */

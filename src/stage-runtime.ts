@@ -30,6 +30,13 @@ export const stageRuntime = {
   fovH: 0,
   /** Where the lamp and journal stand: on the real desk Room Setup found ('surface'), or at the usual height ('estimate'). */
   desk: 'estimate' as 'estimate' | 'surface',
+  /** The stage's room anchor (stage-anchor.ts AnchorState), for diagnostics and tests. */
+  anchor: '' as string,
+  /** The stage went back to the wall remembered from last session. */
+  anchorFromLastTime: false,
+  /** Times the anchor moved the stage back onto its wall this session, and the largest move (cm). */
+  anchorFixes: 0,
+  anchorMaxFixCm: 0,
   /** A creature just woke: the lamp light swells (1) and settles back (0) over about a second. */
   wakeFlare: 0,
   /**
@@ -37,6 +44,8 @@ export const stageRuntime = {
    * planes instead of the headset's detected planes.
    */
   testPlanes: null as RoomPlane[] | null,
+  /** Automation only: behave as a browser without WebXR anchors. */
+  testNoAnchors: false,
 };
 
 /** Hand tracking flickering during a shape request (story.ts): show the light hint. */
