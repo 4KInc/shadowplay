@@ -256,3 +256,55 @@ export function screenDistance(head: V3, forward: V3, planes: readonly RoomPlane
   }
   return Math.max(SCREEN_MIN_DISTANCE, Math.min(SCREEN_DISTANCE, nearest - 0.15));
 }
+
+/** A real desk or table is this far below the eyes for a seated player. */
+const DESK_BELOW_MIN = 0.2;
+const DESK_BELOW_MAX = 0.75;
+/** The lamp or journal may sit this close to the surface's edge (or this far past it) and still count. */
+const DESK_EDGE_MARGIN = 0.1;
+/** Where a seated player's desk usually is: used to rank surfaces and as the fallback. */
+export const EYE_TO_DESK = 0.45;
+
+/** Shortest distance (x, z) from a point to a polygon's outline; 0 if inside. */
+function outsideBy(px: number, pz: number, corners: readonly V3[]): number {
+  let inside = false;
+  let best = Infinity;
+  for (let i = 0, j = corners.length - 1; i < corners.length; j = i++) {
+    const a = corners[i];
+    const b = corners[j];
+    if (a.z > pz !== b.z > pz && px < ((b.x - a.x) * (pz - a.z)) / (b.z - a.z) + a.x) inside = !inside;
+    const ex = b.x - a.x;
+    const ez = b.z - a.z;
+    const len2 = ex * ex + ez * ez || 1;
+    const t = Math.max(0, Math.min(1, ((px - a.x) * ex + (pz - a.z) * ez) / len2));
+    best = Math.min(best, Math.hypot(px - (a.x + ex * t), pz - (a.z + ez * t)));
+  }
+  return inside ? 0 : best;
+}
+
+/**
+ * The real desk or table a seated player is at: a horizontal surface (not the
+ * floor or ceiling) 20-75 cm below the eyes whose outline holds, or comes
+ * within 10 cm of, every spot where something is to be set down. Surfaces
+ * labelled desk or table come first, then the one nearest the usual desk
+ * height. Returns its height, or null to fall back to that usual height.
+ */
+export function findDesk(head: V3, planes: readonly RoomPlane[], spots: readonly V3[]): number | null {
+  let best: number | null = null;
+  let bestScore = -Infinity;
+  for (const plane of planes) {
+    if (plane.orientation !== 'horizontal' || plane.corners.length < 3) continue;
+    const label = (plane.label ?? '').toLowerCase();
+    if (/floor|ceiling/.test(label)) continue;
+    const y = plane.point.y;
+    const below = head.y - y;
+    if (below < DESK_BELOW_MIN || below > DESK_BELOW_MAX) continue;
+    if (spots.some((s) => outsideBy(s.x, s.z, plane.corners) > DESK_EDGE_MARGIN)) continue;
+    const score = (/desk|table/.test(label) ? 1 : 0) - Math.abs(below - EYE_TO_DESK);
+    if (score > bestScore) {
+      bestScore = score;
+      best = y;
+    }
+  }
+  return best;
+}

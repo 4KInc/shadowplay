@@ -43,6 +43,7 @@ Run the core checks (A and B) in at least three rooms; the rest once per headset
 | A4b | Write down the plane labels from the summary's `placed:` line (for example `v wall 4, v door frame 1, h table 1`). Walls with an unexpected label still hold the stage (ranked after labelled walls), so note which plane it chose and whether it was the wall you faced | [ ] | labels |
 | A4c | Facing a window or a door: the stage slides beside it (if it is off to one side), or a paper screen stands just in front of it (if it is straight ahead). Never shadows on the glass | [ ] | |
 | A5 | Stage size feels right; not inside furniture | [ ] | |
+| A5b | The lamp and the book stand on your real desk or table, not floating above it or sunk into it (summary: `desk surface` when Room Setup found it, `desk estimate` otherwise) | [ ] | |
 | A6 | Frame rate holds at 72 (panel line 1 stays cream, not red) | [ ] | fps / p95 |
 | A7 | Quality level after 2 minutes (`q0`..`q3`; anything above `q0` means the headset could not hold 72) | [ ] | |
 | A7b | If the level stepped down: no visible pop or flicker when it changed, and shadows still look whole (edges not clipped) | [ ] | |

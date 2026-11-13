@@ -20,7 +20,7 @@ import {
   createPaperScreen,
   createShadowSurface,
 } from './stage-visuals.js';
-import { chooseWall, SCREEN_DISTANCE, screenDistance, WIDTH_PER_METER, type RoomPlane, type WallChoice } from './wall-choice.js';
+import { chooseWall, EYE_TO_DESK, findDesk, SCREEN_DISTANCE, screenDistance, WIDTH_PER_METER, type RoomPlane, type WallChoice } from './wall-choice.js';
 import { shadowMapSize } from './quality-levels.js';
 
 /** Behind the stage in a browser (no passthrough): a deep night blue. */
@@ -38,7 +38,6 @@ const LATE_WALL_SECONDS = 12;
 const MOVE_DELAY_SECONDS = 1.5;
 /** A close wall (usually behind a monitor) lifts the stage above it. */
 const CLOSE_WALL = 1.0;
-const EYE_TO_DESK = 0.45;
 const DIM_FADE_SECONDS = 2.5;
 /** The light swell when a creature wakes: peak gain over normal, and how fast it settles (per second). */
 const WAKE_FLARE_GAIN = 0.8;
@@ -85,6 +84,7 @@ export class StageSetupSystem extends createSystem({
   private roomPool: RoomPlane[] = [];
   private wall: WallChoice | null = null;
   private planeNormal = new Vector3();
+  private bookSpot = new Vector3();
   private lateCheck = 0;
   /** Chosen wall's horizontal extent, relative to the point straight ahead. */
   private watchedRef: XRReferenceSpace | null = null;
@@ -374,13 +374,22 @@ export class StageSetupSystem extends createSystem({
     u.uCosInner.value = Math.cos(half + (4 * Math.PI) / 180);
     u.uCosOuter.value = Math.cos(half + (20 * Math.PI) / 180);
 
-    // Lamp on the desk, between the player and the stage, facing the stage.
-    const deskY = Math.max(0.4, this.head.y - EYE_TO_DESK);
+    // Lamp on the desk, between the player and the stage, facing the stage; the
+    // Shadow Journal on the other side. On the real desk or table when Room Setup
+    // found one under both (anchored to the detected surface), else at the usual
+    // seated desk height.
     const lampForward = close ? 0.22 : 0.3;
     lampObj.position
       .copy(this.head)
       .addScaledVector(this.forward, lampForward)
       .addScaledVector(right, 0.16);
+    this.bookSpot
+      .copy(this.head)
+      .addScaledVector(this.forward, close ? 0.2 : 0.28)
+      .addScaledVector(right, -0.2);
+    const surface = this.inXR ? findDesk(this.head, this.readRoom(), [lampObj.position, this.bookSpot]) : null;
+    const deskY = surface ?? Math.max(0.4, this.head.y - EYE_TO_DESK);
+    stageRuntime.desk = surface === null ? 'estimate' : 'surface';
     lampObj.position.y = deskY;
     if (!this.inXR) {
       // Desktop browser: keep the lamp low and to the side, out of the frame.
@@ -393,10 +402,7 @@ export class StageSetupSystem extends createSystem({
     for (const journal of this.queries.journals.entities) {
       const book = journal.object3D;
       if (!book) continue;
-      book.position
-        .copy(this.head)
-        .addScaledVector(this.forward, close ? 0.2 : 0.28)
-        .addScaledVector(right, -0.2);
+      book.position.copy(this.bookSpot);
       book.position.y = deskY;
       book.rotation.set(0, Math.atan2(-this.forward.x, -this.forward.z) + 0.2, 0);
     }

@@ -168,3 +168,46 @@ test('fitOnWall picks the clear span nearest straight ahead and refuses when not
   // Too far to the side: refused.
   assert.equal(fitOnWall(-3, 3, 1, [[-2.5, 2.5]], 0.6), null);
 });
+
+// ---- The desk under the lamp and the journal.
+import { findDesk } from '../src/wall-choice.ts';
+
+/** A horizontal rectangle at height y, spanning x0..x1, z0..z1. */
+function surface(y, label, x0 = -0.8, x1 = 0.8, z0 = -0.7, z1 = 0.1) {
+  const corners = [
+    { x: x0, y, z: z0 },
+    { x: x1, y, z: z0 },
+    { x: x1, y, z: z1 },
+    { x: x0, y, z: z1 },
+  ];
+  return { orientation: 'horizontal', label, point: { x: (x0 + x1) / 2, y, z: (z0 + z1) / 2 }, normal: { x: 0, y: 1, z: 0 }, corners };
+}
+// Lamp 30 cm ahead and 16 cm right; journal 28 cm ahead and 20 cm left (eyes at 1.2 m, looking down -Z).
+const spots = [
+  { x: 0.16, y: 0, z: -0.3 },
+  { x: -0.2, y: 0, z: -0.28 },
+];
+
+test('desk: a table under the lamp and journal is used, at its real height', () => {
+  assert.equal(findDesk(head, [surface(0.72, 'table')], spots), 0.72);
+  assert.equal(findDesk(head, [surface(0.8, '')], spots), 0.8);
+});
+
+test('desk: the floor, a ceiling, or a surface far too low or high is not a desk', () => {
+  assert.equal(findDesk(head, [surface(0, 'floor')], spots), null);
+  assert.equal(findDesk(head, [surface(0.2, 'other')], spots), null); // 1 m below the eyes: a coffee table across the room
+  assert.equal(findDesk(head, [surface(1.15, 'shelf')], spots), null); // at eye height
+});
+
+test('desk: a surface that does not reach the lamp and journal is not used', () => {
+  // A side table off to the right only.
+  assert.equal(findDesk(head, [surface(0.72, 'table', 0.6, 1.2)], spots), null);
+});
+
+test('desk: a labelled desk wins over an unlabelled shelf nearer the usual height', () => {
+  assert.equal(findDesk(head, [surface(0.75, ''), surface(0.66, 'desk')], spots), 0.66);
+});
+
+test('desk: a spot just past the edge (within 10 cm) still counts', () => {
+  assert.equal(findDesk(head, [surface(0.72, 'table', -0.8, 0.8, -0.7, -0.33)], spots), 0.72);
+});

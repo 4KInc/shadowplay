@@ -183,6 +183,8 @@ export class AutomationSystem extends createSystem({
           settings: boxOf(entity('Settings')?.object3D),
           flare: Math.round(r.wakeFlare * 100) / 100,
           lightHint: trackingRuntime.lightHint,
+          desk: stageRuntime.desk,
+          lampY: Math.round((entity('DeskLamp')?.object3D?.position.y ?? 0) * 1000) / 1000,
         };
       },
       /** What the GPU draws: shadow casters, transparent layers, shadow map setup (performance audit). */
