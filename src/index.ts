@@ -65,6 +65,10 @@ World.create(
     // The recognition lab (synthetic hands, trial reports) is a test tool.
     void import('./recognition-lab.js').then(({ RecognitionLabSystem }) => world.registerSystem(RecognitionLabSystem));
   }
+  // Filming the submission video: straight to the story picker (?film only, a separate chunk).
+  if (new URLSearchParams(location.search).has('film')) {
+    void import('./film.js').then(({ FilmSystem }) => world.registerSystem(FilmSystem));
+  }
   // Device diagnostics only with ?diag (a separate chunk, never loaded otherwise).
   if (new URLSearchParams(location.search).has('diag')) {
     void import('./diag/diag-system.js').then(({ DiagSystem }) => world.registerSystem(DiagSystem));
