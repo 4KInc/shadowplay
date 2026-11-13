@@ -10,6 +10,7 @@
  *
  * On when the server has a model key (main.ts; DREAM_MODEL picks the model).
  */
+import { contentProblems } from './content-checks.ts';
 import type { Llm } from './llm.ts';
 
 export const DREAM_SHAPES = ['rabbit', 'fish', 'dog', 'bird', 'cup'] as const;
@@ -60,8 +61,8 @@ interface DreamWords {
 
 const SYSTEM = [
   'You write the words of very short, gentle bedtime stories for a hand shadow-puppet game.',
-  'The listener is a child of 10 or younger at bedtime, with a grown-up. The hero is Mo, a small moth who rides each shadow creature the child makes with their hands.',
-  'Tone: calm, warm, sleepy, a little wonder. Mild peril at most, always resolved kindly. No other named characters, no brands, no real places, nothing scary.',
+  'The listener is a child of 10 or younger at bedtime, with a grown-up. The hero is Mo, a small moth (she, her) who rides each shadow creature the child makes with their hands.',
+  'Tone: calm, warm, sleepy, a little wonder. Mild peril at most, always resolved kindly. No other named characters, no characters or brands from books, films or games, no real places, nothing scary.',
   'Every line is one or two short sentences, at most 22 words, plain words, no quotation marks, no emojis.',
   'Reply with JSON only, exactly in the shape asked for.',
 ].join(' ');
@@ -76,10 +77,11 @@ function prompt(req: DreamRequest): string {
   ].join('\n');
 }
 
-function line(s: unknown): string | null {
+function line(s: unknown, shape?: string): string | null {
   if (typeof s !== 'string') return null;
   const t = s.trim().replace(/\s+/g, ' ');
   if (!LINE.test(t) || NEVER.test(t) || t.split(' ').length > MAX_LINE_WORDS) return null;
+  if (contentProblems(t, shape).length) return null;
   return t;
 }
 
@@ -116,7 +118,8 @@ export function assembleStory(req: DreamRequest, reply: string): Record<string, 
   for (let i = 0; i < req.shapes.length; i++) {
     const shape = req.shapes[i];
     const s = words.scenes[i] as Record<string, unknown>;
-    const [setup, ask, ride, after, bow] = ['setup', 'ask', 'ride', 'after', 'bow'].map((k) => line(s?.[k]));
+    // The request is checked against its own shape's hands; the other lines only for the general rules.
+    const [setup, ask, ride, after, bow] = ['setup', 'ask', 'ride', 'after', 'bow'].map((k) => line(s?.[k], k === 'ask' ? shape : undefined));
     if (s?.shape !== shape || !setup || !ask || !ride || !after || !bow) return null;
     if (!SHAPE_WORDS[shape].test(ask) || ride.split(' ').length > 8) return null;
     const n = i + 1;
