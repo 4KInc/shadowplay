@@ -102,6 +102,25 @@ await page.waitForFunction(() => __sp.get('StoryState', 'beatId') === 'hush', nu
   check('headset off (hidden) 10 s: narration silent, no beats skipped on return', !during.audio && after.index - before.index <= 1 && after.status === 'playing', { before, during, after });
 }
 
+// 4b. In XR the page itself may report hidden (a headset browser hides its 2D page during an
+// immersive session): only the session's own visibility may pause the story.
+{
+  const before = await story();
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await sleep(3000);
+  const during = await story();
+  await page.evaluate(() => {
+    delete document.hidden;
+    delete document.visibilityState;
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  check('in XR, a hidden 2D page does not pause the story', during.status === 'playing' && during.caption !== 'Paused.', { before, during });
+}
+
 // 5. The first request: ghost hand at ~2 s, then the wake flare.
 {
   await page.waitForFunction(() => __sp.get('StoryState', 'beatId') === 'want-rabbit', null, { timeout: 90000 });
