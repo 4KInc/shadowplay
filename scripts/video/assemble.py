@@ -147,7 +147,7 @@ def emulator(st):
     im.paste(shot, ((W - 1300) // 2, 150))
     d = ImageDraw.Draw(im)
     label(d, 0, 104, 'In the headset: a lamp on the desk, a story on the wall', W)
-    centered(d, 1018, '(Meta Quest emulator)', font(FONT, 24), MUTED)
+    centered(d, 1018, '(headset emulator)', font(FONT, 24), MUTED)
     return im
 
 
@@ -180,7 +180,7 @@ segments = hook + [
     (4.2, lambda t: fade(card([('Go live', 60, False, AMBER), ('talk, and take turns making the creatures.', 48, True, CREAM)]), t, 4.2), None),
     (4.2, lambda t: fade(card([('Safe by design', 60, False, AMBER), ('No accounts. Camera video never leaves the device.', 48, True, CREAM)]), t, 4.2), None),
     (7.5, lambda t: fade(card([('Shadowplay', 110, False, AMBER), ('A bedtime story, wherever you are.', 54, True, CREAM), (URL, 34, False, CREAM)],
-                              small='Built with IWSDK for Meta Quest  ·  Footage from the Meta Quest emulator  ·  Sample voices generated (Kokoro)'), t, 7.5), None),
+                              small='Built with IWSDK  ·  Footage from the headset emulator  ·  Sample voices generated (Kokoro)'), t, 7.5), None),
 ]
 
 

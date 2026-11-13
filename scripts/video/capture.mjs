@@ -163,11 +163,17 @@ await sleep(3000);
 for (const v of [wall, emulator, phone]) await v.start();
 await sleep(1500);
 
+// The headset side only seeds Mia's goodnight (samples are per role); Dad's story reaches the wall
+// and the emulated headset the way it reaches a family: fetched by its family code.
+const fetchByCode = (page) => page.evaluate(async (c) => (await import('/src/performance/sharing.ts')).fetchStory(c).then((p) => p.id), code);
+const dadOnWall = await fetchByCode(wall.page);
+const dadOnEmulator = await fetchByCode(emulator.page);
+
 // Start all three replays together.
 log('play');
 await Promise.all([
-  wall.page.evaluate(() => { __sp.set('PerformancePlayer', 'recordingId', 'sample-story-from-dad'); __sp.set('PerformancePlayer', 'playing', true); }),
-  emulator.page.evaluate(() => { __sp.set('PerformancePlayer', 'recordingId', 'sample-story-from-dad'); __sp.set('PerformancePlayer', 'playing', true); }),
+  wall.page.evaluate((id) => { __sp.set('PerformancePlayer', 'recordingId', id); __sp.set('PerformancePlayer', 'playing', true); }, dadOnWall),
+  emulator.page.evaluate((id) => { __sp.set('PerformancePlayer', 'recordingId', id); __sp.set('PerformancePlayer', 'playing', true); }, dadOnEmulator),
   card.click(),
 ]);
 const starts = { wall: await clockStart(wall.page), emulator: await clockStart(emulator.page), phone: await clockStart(phone.page) };
