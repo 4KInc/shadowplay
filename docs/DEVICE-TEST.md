@@ -111,7 +111,7 @@ and whether anything woke that you did not ask for (panel: `match`).
 | E8 | Tolerance Very forgiving: shapes wake sooner, no false wakes | [ ] | |
 | E8b | Change Tolerance while a shape is being asked for: takes effect at once and stays after it wakes | [ ] | |
 | E9 | Captions and the journal page readable without turning the head (measured in the emulator: within 16.5 degrees either side, 11 up, 13 down) | [ ] | |
-| E9b | Settings readable and every row reachable by pinch without straining. It is the tallest thing on the stage: in the emulator it reaches 27 degrees up, 25 down and 33 to the right at a 2 m wall. Note whether the top or bottom rows are uncomfortable | [ ] | |
+| E9b | Settings readable and every row reachable by pinch without straining. In the emulator it spans 19 degrees up to 22 down and reaches 33 to the right at a 2 m wall (was 27 up, 25 down). Note whether the top or bottom rows are uncomfortable, and whether the desk lamp covers its lower corner | [ ] | |
 | E11 | Every Settings button presses by hand ray and pinch, including "After 15 s" under Show-me hints (in the emulator it needed aiming slightly above its centre) | [ ] | |
 | E12 | Credits (first screen, and the family viewer on a phone) opens and closes | [ ] | |
 | E10 | Session ended mid-story: next launch continues from that chapter, with "Welcome back. Continuing from Chapter N..." | [ ] | |

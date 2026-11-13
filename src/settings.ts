@@ -17,6 +17,8 @@ const PANEL_NODE = 'settings-panel';
 const PANEL_WIDTH = 0.38;
 /** Enlarge the authored panel so its text is legible at wall distance. */
 const READABLE_SCALE = 1.7;
+/** How far the panel sits below the stage centre, as a fraction of the stage width (about 3 degrees at any distance). */
+const PANEL_DROP = 0.09;
 
 const TOLERANCE_VALUE: Readonly<Record<string, number>> = {
   [ToleranceLevels.Strict]: 0.2,
@@ -298,6 +300,8 @@ export class SettingsSystem extends createSystem({
     obj.position
       .copy(stageRuntime.center)
       .addScaledVector(stageRuntime.right, stageRuntime.width * 0.46 + (PANEL_WIDTH * scale) / 2 + 0.04)
+      // About 3 degrees below eye level: looking down at a menu is easier than looking up.
+      .addScaledVector(stageRuntime.up, -stageRuntime.width * PANEL_DROP)
       .addScaledVector(n, 0.04);
   }
 }
