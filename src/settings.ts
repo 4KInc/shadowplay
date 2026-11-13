@@ -55,6 +55,8 @@ interface LibraryStory {
   title: string;
   script: string;
   minutes: number;
+  /** Stories told in chapters say so (each chapter is short, and the story resumes at the last one). */
+  chapters?: number;
   blurb: string;
 }
 const MOTH_SCRIPT = 'story/the-moth.story.json';
@@ -130,7 +132,8 @@ export class SettingsSystem extends createSystem({
     if (!story) return;
     const telling = story.script === script;
     this.storyTitle?.setProperties({ text: story.title });
-    this.storyBlurb?.setProperties({ text: `${story.blurb} (${story.minutes} min)` });
+    const length = story.chapters ? `${story.chapters} chapters, ${story.minutes} min` : `${story.minutes} min`;
+    this.storyBlurb?.setProperties({ text: `${story.blurb} (${length})` });
     this.buttons.get('story-start')?.setProperties(telling ? SELECTED : UNSELECTED);
     this.storyStart?.setProperties({ text: telling ? 'Telling this story tonight' : 'Tell this story', color: telling ? '#1a1320' : '#f6e3bd' });
     this.panel.getElementById('chapter-section')?.setProperties({ display: script === MOTH_SCRIPT ? 'flex' : 'none' });

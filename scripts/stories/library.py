@@ -159,7 +159,7 @@ s.b('end', 'end', text='The End')
 s.write('counting-stars')
 
 library = {'stories': [
-    {'id': 'the-moth', 'title': 'The Moth Who Borrowed Light', 'script': 'story/the-moth.story.json', 'minutes': 20, 'blurb': 'Help Mo find her glow, chapter by chapter.'},
+    {'id': 'the-moth', 'title': 'The Moth Who Borrowed Light', 'script': 'story/the-moth.story.json', 'minutes': 20, 'chapters': 5, 'blurb': 'Five short chapters that remember where you stopped.'},
     {'id': 'across-the-sea', 'title': 'Goodnight Across the Sea', 'script': 'story/across-the-sea.story.json', 'minutes': 5, 'blurb': 'Mo carries a goodnight from far away.'},
     {'id': 'the-slow-letter', 'title': 'The Letter That Took the Slow Way', 'script': 'story/the-slow-letter.story.json', 'minutes': 5, 'blurb': 'A snail, a swan and a deer carry a letter home.'},
     {'id': 'the-brave-little-dog', 'title': 'The Brave Little Dog', 'script': 'story/the-brave-little-dog.story.json', 'minutes': 5, 'blurb': 'Being brave while someone is far away.'},

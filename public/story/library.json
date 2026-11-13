@@ -5,7 +5,8 @@
       "title": "The Moth Who Borrowed Light",
       "script": "story/the-moth.story.json",
       "minutes": 20,
-      "blurb": "Help Mo find her glow, chapter by chapter."
+      "blurb": "Five short chapters that remember where you stopped.",
+      "chapters": 5
     },
     {
       "id": "across-the-sea",
