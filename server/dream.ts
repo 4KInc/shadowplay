@@ -123,9 +123,10 @@ export function assembleStory(req: DreamRequest, reply: string): Record<string, 
     beats.push({ id: `dream-${n}-want`, type: 'request', shape, ...(shape === 'fish' ? { alt: 'dog' } : {}), text: ask });
     if (shape === 'cup') {
       // Cupped hands hold something; they open to let it go (as in Counting Stars).
+      // The let-go beat waits for open hands, so its caption must say so; the bow follows.
       beats.push({ id: `dream-${n}-after`, type: 'narrate', text: after });
-      beats.push({ id: `dream-${n}-letgo`, type: 'letgo', text: bow });
-      beats.push({ id: `dream-${n}-free`, type: 'release', text: ride });
+      beats.push({ id: `dream-${n}-letgo`, type: 'letgo', text: 'Now open your hands, and let it go.' });
+      beats.push({ id: `dream-${n}-free`, type: 'release', text: bow });
     } else {
       beats.push({ id: `dream-${n}-ride`, type: 'moth', mode: 'riding' });
       beats.push({ id: `dream-${n}-carry`, type: 'carry', toU: 0.3, ...(shape === 'bird' ? { minV: 0.12 } : {}), text: ride });

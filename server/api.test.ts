@@ -297,6 +297,8 @@ test('dream: a new story built from Claude\'s words, in the app\'s own story for
   assert.deepEqual(requests, ['rabbit', 'bird', 'cup']);
   assert.equal(story.beats.find((b: { type: string }) => b.type === 'scenery').set, 'sea');
   assert.equal(story.beats.at(-1).type, 'end');
+  // The let-go beat waits for open hands: its caption says so.
+  assert.match(story.beats.find((b: { type: string }) => b.type === 'letgo').text, /open your hands/);
   const sent = claudeSeen.at(-1)!;
   assert.equal(sent.body.model, 'claude-sonnet-5-5');
   assert.match(sent.body.messages?.[0].content ?? '', /by the quiet sea at night.*rabbit, bird, cup/s);
