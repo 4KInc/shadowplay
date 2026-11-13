@@ -42,7 +42,21 @@ export const MAX_WALL = 4;
 export const MAX_WALL_ANGLE = 40;
 const FRONT_COS = Math.cos((MAX_WALL_ANGLE * Math.PI) / 180);
 /** Stage subtends ~33 degrees: width = 2 * d * tan(16.5deg). */
-export const WIDTH_PER_METER = 2 * Math.tan((16.5 * Math.PI) / 180);
+export const STAGE_ANGLE = 33;
+export const WIDTH_PER_METER = 2 * Math.tan(((STAGE_ANGLE / 2) * Math.PI) / 180);
+/** On a device with a narrower view the stage takes at most this share of its horizontal field of view. */
+export const FOV_SHARE = 0.45;
+
+/**
+ * Stage width per metre of distance for a device whose horizontal field of view
+ * is `fovDeg` (unknown: the usual 33 degrees). Quest 3 and 3S (about 100
+ * degrees) keep 33; a narrower view gets a smaller stage, so it and its
+ * captions stay inside the comfortable middle of the view.
+ */
+export function stageWidthPerMeter(fovDeg?: number): number {
+  const angle = fovDeg && fovDeg > 0 ? Math.min(STAGE_ANGLE, fovDeg * FOV_SHARE) : STAGE_ANGLE;
+  return 2 * Math.tan(((angle / 2) * Math.PI) / 180);
+}
 /** How far outside a detected wall's outline the point straight ahead may fall. */
 const WALL_MARGIN = 0.25;
 /** Narrowest stage we will build on a small wall. */
@@ -197,7 +211,7 @@ const other: Measured = { nx: 0, nz: 0, dist: 0, facing: 0, uMin: 0, uMax: 0 };
  * door or window on it. Labelled walls win over unlabelled planes at equal footing.
  * `forward` is the horizontal view direction.
  */
-export function chooseWall(head: V3, forward: V3, planes: readonly RoomPlane[]): WallChoice | null {
+export function chooseWall(head: V3, forward: V3, planes: readonly RoomPlane[], widthPerMeter = WIDTH_PER_METER): WallChoice | null {
   const flen = Math.hypot(forward.x, forward.z) || 1;
   const fx = forward.x / flen;
   const fz = forward.z / flen;
@@ -225,7 +239,7 @@ export function chooseWall(head: V3, forward: V3, planes: readonly RoomPlane[]):
       if (vMax < STAGE_BAND_LOW || vMin > STAGE_BAND_HIGH) continue;
       blocked.push([other.uMin, other.uMax]);
     }
-    const desired = Math.min(MAX_STAGE_WIDTH, Math.max(0.45, dist * WIDTH_PER_METER));
+    const desired = Math.min(MAX_STAGE_WIDTH, Math.max(0.45 * (widthPerMeter / WIDTH_PER_METER), dist * widthPerMeter));
     const fit = fitOnWall(uMin, uMax, desired, blocked, blocked.length ? Math.max(0.3, dist * MAX_SHIFT_TAN) : Infinity);
     if (!fit) continue;
     const label = kind === 'wall' ? WALL_LABEL_BONUS : kind === 'other' ? -OTHER_LABEL_PENALTY : 0;

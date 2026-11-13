@@ -253,6 +253,29 @@ for (const c of CASES) {
   check('no desk detected: the usual seated height', off.desk === 'estimate' && Math.abs(off.lampY - (eye - 0.45)) < 0.005, { desk: off.desk, lampY: off.lampY });
 }
 
+// Field-of-view aware: a narrower device view (the emulator's view narrowed) gets a smaller stage
+// (at most 45% of the view) and Settings over the stage instead of beside it.
+{
+  await place([flat(0, 'floor'), wall()]);
+  const wide = await page.evaluate(() => __sp.view());
+  // 38 degrees tall is about 58 degrees across in the emulator.
+  await page.evaluate(() => { IWER_DEVICE.fovy = (38 * Math.PI) / 180; });
+  await sleep(500);
+  const narrowView = await place([flat(0, 'floor'), wall()]);
+  await page.evaluate(() => __sp.set('ShadowJournal', 'open', true));
+  await sleep(1200);
+  const withPanel = await page.evaluate(() => __sp.view());
+  await page.evaluate(() => {
+    __sp.set('ShadowJournal', 'open', false);
+    IWER_DEVICE.fovy = Math.PI / 2;
+  });
+  const stageAngle = narrowView.stage.left + narrowView.stage.right;
+  check('Quest-class view: the usual 33-degree stage', Math.abs(wide.stage.left + wide.stage.right - 33) < 0.6, { fovH: wide.fovH, stage: wide.stage });
+  check('narrow view: the stage takes at most 45% of it', narrowView.fovH > 0 && narrowView.fovH < 75 && stageAngle <= narrowView.fovH * 0.45 + 0.6, { fovH: narrowView.fovH, stageAngle: +stageAngle.toFixed(1) });
+  check('narrow view: Settings sits over the stage (centred), inside the view', withPanel.settings && Math.abs(withPanel.settings.left - withPanel.settings.right) < 2 && Math.max(withPanel.settings.left, withPanel.settings.right) < withPanel.fovH / 2, { fovH: withPanel.fovH, settings: withPanel.settings });
+  await place([flat(0, 'floor'), wall()]);
+}
+
 // Essential UI inside the comfortable field of view, with the journal (and settings) open.
 {
   await place([flat(0, 'floor'), wall()]);

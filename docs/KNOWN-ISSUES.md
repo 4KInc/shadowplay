@@ -27,6 +27,10 @@ with the session that showed them.
   degrees to the right; the text and buttons were kept large rather than
   shrunk. From the seat, the desk lamp's head can cover the panel's lower
   corner; drag the lamp aside if it does.
+- **Narrower-view devices** get a smaller stage (at most 45% of the view) and
+  Settings over the stage; there the Settings panel can still be taller than
+  the view, so its top and bottom rows need a slight tilt of the head. Tested
+  by narrowing the emulator's view, not on such a device.
 - **Live is one storyteller and one family member**, and Live rooms run on a
   single server instance (in memory). That is plenty for judging; a larger
   launch would need a shared room service.
