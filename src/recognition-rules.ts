@@ -62,8 +62,13 @@ export function requested(shape: string, t1: string, a1: string, t2: string, a2:
   if (shape === ShapeIds.None) return ShapeIds.None;
   if (shape === t1 || (a1 !== ShapeIds.None && shape === a1)) return t1;
   if (shape === t2 || (a2 !== ShapeIds.None && shape === a2)) return t2;
+  // One-hand mode: an open hand is the bird wherever a bird is asked for (and in Free Stage).
+  if (oneHand && shape === ShapeIds.Open) {
+    if (t1 === ShapeIds.Bird) return t1;
+    if (t2 === ShapeIds.Bird) return t2;
+    if (free) return ShapeIds.Bird;
+  }
   if (!free) return ShapeIds.None;
-  if (oneHand && shape === ShapeIds.Open) return ShapeIds.Bird;
   return FREE_ACCEPT[shape] ?? ShapeIds.None;
 }
 
