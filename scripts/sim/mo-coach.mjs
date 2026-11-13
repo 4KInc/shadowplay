@@ -37,7 +37,9 @@ async function session(mode) {
     if (req.method() === 'GET') return route.fulfill({ json: { available: mode !== 'off' } });
     asked.push(JSON.parse(req.postData() ?? '{}'));
     if (mode === 'fail') return route.fulfill({ status: 502, json: { error: 'down' } });
-    return route.fulfill({ json: { line: `Two hands, little one! Wrists together, like wings. (${asked.length})`, source: 'ai' } });
+    // The second tip is as long as the server allows (110 characters): it must fit the bubble whole.
+    const line = asked.length === 2 ? 'Bring both hands up close together, side by side, wrists almost touching, and spread your fingers wide as wings.' : `Two hands, little one! Wrists together, like wings. (${asked.length})`;
+    return route.fulfill({ json: { line, source: 'ai' } });
   });
   await context.addInitScript(() => {
     window.SpeechRecognition = class {
@@ -85,7 +87,8 @@ async function session(mode) {
     line: first.line,
   });
   await page.waitForFunction(() => __sp.view().coach.tips >= 2, null, { timeout: 20000 });
-  check('second tip around 21 s, asked to be said differently', asked[1]?.attempt === 1, { sent: asked[1] });
+  const second = await coach();
+  check('second tip around 21 s, asked to be said differently; the longest allowed tip fits the bubble whole', asked[1]?.attempt === 1 && second.line.length >= 105 && !second.cut, { sent: asked[1], chars: second.line.length, cut: second.cut });
   await page.waitForFunction(() => __sp.get('StoryState', 'beatId') !== 'stars-want-bird', null, { timeout: 30000 });
   const tipsAtWake = (await coach()).tips;
   await sleep(4000);
