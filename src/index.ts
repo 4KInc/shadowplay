@@ -9,6 +9,7 @@ import { AudioSystem } from './audio.js';
 import { CaptionSystem } from './captions.js';
 import { FreeStageSystem } from './free-stage.js';
 import { HandCasterSystem } from './hand-caster.js';
+import { MoCoachSystem } from './mo-coach.js';
 import { MothSystem } from './moth.js';
 import { NarrationSystem } from './narration.js';
 import { PerformancePlayerSystem } from './performance/player.js';
@@ -53,6 +54,7 @@ World.create(
     .registerSystem(ScenerySystem)
     .registerSystem(HiddenPropSystem)
     .registerSystem(CaptionSystem)
+    .registerSystem(MoCoachSystem)
     .registerSystem(AudioSystem)
     .registerSystem(QualitySystem)
     .registerSystem(StoryTapSystem)

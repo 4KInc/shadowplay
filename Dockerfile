@@ -16,6 +16,8 @@ RUN echo '{"type":"module","private":true}' > package.json && npm install --no-s
 COPY server ./server
 # The voice-command phrases, shared with the app (phrase hints for speech-to-text).
 COPY src/voice-commands.ts ./src/voice-commands.ts
+# Mo the coach's fact words, shared with the app.
+COPY src/coach-vocab.ts ./src/coach-vocab.ts
 COPY --from=build /app/dist ./dist
 USER node
 EXPOSE 8080

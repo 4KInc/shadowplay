@@ -13,6 +13,7 @@ import {
 } from '@iwsdk/core';
 import { ShapeRecognizer, Stage, StoryState } from '../shadowplay-components.js';
 import { handRuntime, stageRuntime } from '../stage-runtime.js';
+import { coachRuntime } from '../mo-coach.js';
 import { FrameStats } from './frame-stats.js';
 import { shadowMapSize } from '../quality-levels.js';
 import { formatSessionId, newSessionId } from './session-id.js';
@@ -72,7 +73,7 @@ export class DiagSystem extends createSystem({
   private visibility = 'non-immersive';
   private xrAt = 0;
   private placedAt = 0;
-  private last = { mode: '', quality: -1, beat: '', matched: '', anchor: '', fixes: 0 };
+  private last = { mode: '', quality: -1, beat: '', matched: '', anchor: '', fixes: 0, tips: 0 };
   private canvas = document.createElement('canvas');
   private ctx = this.canvas.getContext('2d')!;
   private texture = new CanvasTexture(this.canvas);
@@ -194,6 +195,11 @@ export class DiagSystem extends createSystem({
           maxFixCm: stageRuntime.anchorMaxFixCm,
         });
       }
+    }
+    // Mo the coach gave a tip: which facts, AI or fixed words, how long it took.
+    if (coachRuntime.tips !== this.last.tips) {
+      this.last.tips = coachRuntime.tips;
+      this.event({ e: 'coach', facts: coachRuntime.facts.slice(0, 2), source: coachRuntime.source, ms: coachRuntime.ms });
     }
     const beat = story?.getValue(StoryState, 'beatId') ?? '';
     if (beat && beat !== this.last.beat) {

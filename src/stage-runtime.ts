@@ -65,6 +65,8 @@ export const accessRuntime = {
   /** The last thing understood, shown on the stage for a moment ('' for nothing), and when (performance.now()). */
   voiceHeard: '',
   voiceHeardAt: 0,
+  /** Set by a spoken "help": Mo the coach gives a tip now (mo-coach.ts clears it). */
+  coachRequested: false,
 };
 
 /**

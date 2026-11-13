@@ -8,6 +8,7 @@ import { BucketDiagSink, checkDiag, DiskDiagSink, type DiagSink } from './diag.t
 import { checkPerformance, clientIp, decodeSafe, RateLimiter } from './guard.ts';
 import { attachLive, liveRoomCount } from './live.ts';
 import { DiskStore, GcsStore, type StoryStore } from './storage.ts';
+import { checkCoach, Coach } from './coach.ts';
 import { MAX_CLIP_BYTES, SpeechToText } from './voice.ts';
 
 /**
@@ -21,6 +22,8 @@ import { MAX_CLIP_BYTES, SpeechToText } from './voice.ts';
  *   GET  /api/stories/:code/replies   the replies to a story (for the storyteller)
  *   GET  /api/voice          { available }: whether spoken commands can be understood here
  *   POST /api/voice          a short spoken clip (audio/webm) -> { text } (Voice commands; nothing stored)
+ *   GET  /api/coach          { available }: whether Mo's tips are written by AI here
+ *   POST /api/coach          { shape, facts, attempt } -> { line, source } (Mo the coach; no personal data)
  *   POST /api/diag           device diagnostics from pages opened with ?diag (numbers and ids only)
  *   GET  /api/health (and /healthz locally: Cloud Run reserves paths ending in 'z')
  *   WS   /live                live rooms (see live.ts)
@@ -43,6 +46,10 @@ const diagSink: DiagSink = bucket
   : new DiskDiagSink(process.env.DIAG_DIR ?? join(process.cwd(), '.data/diag'));
 const MAX_DIAG_BYTES = 32 * 1024;
 /** VOICE_STT=google: spoken commands through Cloud Speech-to-Text (voice.ts); otherwise unavailable. */
+/** ANTHROPIC_API_KEY: Mo's tips (coach.ts) written by Claude; otherwise the app uses its own fixed lines. */
+const coach = process.env.ANTHROPIC_API_KEY
+  ? new Coach(process.env.ANTHROPIC_API_KEY, process.env.ANTHROPIC_API ?? undefined, process.env.COACH_MODEL ?? undefined)
+  : null;
 const speech = process.env.VOICE_STT === 'google' ? new SpeechToText(process.env.STT_API ?? undefined, process.env.STT_TOKEN_URL ?? undefined) : null;
 
 // ---------------------------------------------------------------- rate limiting
@@ -55,6 +62,8 @@ const limits = {
   diag: new RateLimiter(60_000, 60),
   // Voice commands: one short clip per spoken command.
   voice: new RateLimiter(60_000, 40),
+  // Mo's tips: a few per minute at most (one per stuck shape request, every 12 s).
+  coach: new RateLimiter(60_000, 12),
 };
 
 function allowed(kind: keyof typeof limits, req: IncomingMessage): boolean {
@@ -235,6 +244,22 @@ async function postVoice(req: IncomingMessage, res: ServerResponse): Promise<voi
   }
 }
 
+async function postCoach(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (!coach) return json(res, 503, { error: 'Mo is resting.' });
+  if (!allowed('coach', req)) return json(res, 429, { error: 'Too many tips.' });
+  const body = await readBody(req, 2048);
+  if (body === null) return json(res, 413, { error: 'Too large.' });
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return json(res, 400, { error: 'Not a tip request.' });
+  }
+  const request = checkCoach(parsed);
+  if (!request) return json(res, 400, { error: 'Not a tip request.' });
+  return json(res, 200, await coach.tip(request));
+}
+
 async function postDiag(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (!allowed('diag', req)) return json(res, 429, { error: 'Too many diagnostics.' });
   const body = await readBody(req, MAX_DIAG_BYTES);
@@ -311,6 +336,8 @@ const server = createServer((req, res) => {
   const route = async () => {
     if (path === '/api/health' || path === '/healthz') return json(res, 200, { ok: true, liveRooms: liveRoomCount() });
     if (path === '/api/diag' && req.method === 'POST') return postDiag(req, res);
+    if (path === '/api/coach' && req.method === 'GET') return json(res, 200, { available: coach !== null });
+    if (path === '/api/coach' && req.method === 'POST') return postCoach(req, res);
     if (path === '/api/voice' && req.method === 'GET') return json(res, 200, { available: speech !== null });
     if (path === '/api/voice' && req.method === 'POST') return postVoice(req, res);
     if (path === '/api/stories' && req.method === 'POST') return uploadStory(req, res);

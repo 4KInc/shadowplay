@@ -31,10 +31,25 @@ One container serves everything:
 | `DATA_DIR` | `./.data/stories` | local story folder when no bucket is set |
 | `STORY_TTL_DAYS` | `30` | how long a shared story lives |
 | `MAX_STORY_BYTES` | 30 MB | largest upload (a 15-minute story with voice) |
+| `ANTHROPIC_API_KEY` | unset | Mo's tips worded by Claude (`/api/coach`); unset = the app's own words. Set it from Secret Manager, never in the command line |
+| `COACH_MODEL` | `claude-haiku-4-5-20251001` | the model for Mo's tips (short, fast) |
 | `VOICE_STT` | unset | `google`: voice commands through Cloud Speech-to-Text when the headset browser has no speech recognition of its own (`/api/voice`); unset = unavailable |
 
 With `STORY_BUCKET` set, the server uses the Cloud Run service account through
 the metadata server (no keys in the image).
+
+**Mo's tips (`ANTHROPIC_API_KEY`)**: keep the key in Secret Manager and give
+the service account access to it, then deploy with
+`--set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest`:
+
+```sh
+printf '%s' "$KEY" | gcloud secrets create anthropic-api-key --project $PROJECT --data-file=-
+gcloud secrets add-iam-policy-binding anthropic-api-key --project $PROJECT \
+  --member serviceAccount:$SA --role roles/secretmanager.secretAccessor
+```
+
+A tip is one short request (about 150 tokens in, 30 out) and repeats are
+cached, so a whole evening of stories costs well under a cent.
 
 **Voice commands (`VOICE_STT=google`)** need the Speech-to-Text API enabled in
 the project (`gcloud services enable speech.googleapis.com --project $PROJECT`)

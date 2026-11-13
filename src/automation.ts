@@ -19,6 +19,7 @@ import { voiceStats } from './live/voice.js';
 import type { Performance } from './performance/format.js';
 import { toWire } from './performance/sharing.js';
 import { gazeRuntime } from './gaze-dwell.js';
+import { coachRuntime } from './mo-coach.js';
 import { accessRuntime, handOverride, handRuntime, secondHands, stageRuntime, trackingRuntime, uiPresses } from './stage-runtime.js';
 import type { RoomPlane } from './wall-choice.js';
 
@@ -199,6 +200,7 @@ export class AutomationSystem extends createSystem({
           highContrast: accessRuntime.highContrast,
           gaze: { ...gazeRuntime, on: accessRuntime.gazeDwell },
           voice: { state: accessRuntime.voiceState, heard: accessRuntime.voiceHeard },
+          coach: { ...coachRuntime },
           shadowOpacity: (scene.getObjectByName('shadow-surface') as import('@iwsdk/core').Mesh<import('@iwsdk/core').BufferGeometry, import('@iwsdk/core').ShadowMaterial> | undefined)?.material.opacity ?? null,
           desk: stageRuntime.desk,
           fovH: stageRuntime.fovH,
