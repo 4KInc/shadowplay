@@ -67,8 +67,12 @@ screen; if the stage lands somewhere odd, pinch the book on the desk, then
 - **Goodnights**: what your family sent back plays on your wall.
 - Accessibility: recognition tolerance, show-me hints, one-hand mode and a
   high-contrast mode (black-and-white panels and captions, solid shadows on the
-  wall). One-hand mode, forgiving shapes and high contrast are also on the
-  first screen, before entering XR.
+  wall), and **Look to press** for limited hand mobility: rest the centre of
+  your view on a button, the journal or the lamp switch to press it, and look
+  at the ghost hand to make a shape, so a whole story can be told without hands
+  (head gaze: Quest 3 and 3S have no eye tracking). One-hand mode, forgiving
+  shapes, high contrast and Look to press are also on the first screen, before
+  entering XR.
 - Pauses when you open the Quest menu or take the headset off, and picks up on
   the same line; a story left mid-way continues from its chapter next time.
 

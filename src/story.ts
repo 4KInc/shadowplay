@@ -18,7 +18,7 @@ import {
   StoryStatuses,
 } from './shadowplay-components.js';
 import { loadStoryScript, readingSeconds, StoryBeat, StoryScript, storyRuntime } from './story-script.js';
-import { handRuntime, stageRuntime, trackingRuntime } from './stage-runtime.js';
+import { accessRuntime, handRuntime, stageRuntime, trackingRuntime } from './stage-runtime.js';
 import { DropoutWatch } from './tracking-watch.js';
 import { viewerMode } from './viewer-mode.js';
 
@@ -62,6 +62,9 @@ const ASSIST_TOLERANCE = [0, 0.1, 0.2] as const;
 /** At level 3, a hand held this still in the light for this long counts as the request. */
 const STILL_SPEED = 0.15;
 const STILL_SECONDS = 1.5;
+/** Look to press: beats that ask the hands to move finish after the gaze rests on the stage this long. */
+const GAZE_BEAT_SECONDS = 2.5;
+const GAZE_BEATS = new Set(['follow', 'grow', 'carry', 'reveal', 'continue', 'letgo']);
 
 /** Lamp flicker envelope for the prologue: stutters, catches, then warms up. */
 function flicker(t: number): number {
@@ -97,6 +100,8 @@ export class StorySystem extends createSystem({
   private beatTime = 0;
   /** Time the current player condition (grow/continue) has been held. */
   private holdTime = 0;
+  /** Look to press: how long the gaze has rested on the stage during this beat. */
+  private gazeTime = 0;
   private beatCaption = '';
   private blurred = false;
   private inXR = false;
@@ -331,7 +336,8 @@ export class StorySystem extends createSystem({
     if (this.attract) this.leaveAttract(stage);
 
     // Hands first: controllers but no hands pauses the story with a gentle note.
-    this.controllerTime = handRuntime.controllersOnly ? this.controllerTime + delta : 0;
+    // (Not with Look to press: someone who cannot use their hands may well be holding controllers.)
+    this.controllerTime = handRuntime.controllersOnly && !accessRuntime.gazeDwell ? this.controllerTime + delta : 0;
     const needHands = this.controllerTime > CONTROLLER_GRACE_SECONDS;
 
     const journalOpen = Boolean(first(this.queries.journals.entities)?.getValue(ShadowJournal, 'open'));
@@ -444,6 +450,7 @@ export class StorySystem extends createSystem({
     this.beatTime = 0;
     this.welcomeBack = false;
     this.holdTime = 0;
+    this.gazeTime = 0;
     this.growFrom = 0;
     this.endAssist(story, stage);
     story.setValue(StoryState, 'beatIndex', index);
@@ -552,6 +559,14 @@ export class StorySystem extends createSystem({
     const t = this.beatTime;
     const index = story.getValue(StoryState, 'beatIndex') ?? 0;
     const done = index + 1;
+    if (GAZE_BEATS.has(beat.type) && accessRuntime.gazeDwell) {
+      // Look to press: no hands needed; resting the gaze on the stage does what the movement would.
+      this.gazeTime = accessRuntime.gazeOnStage ? this.gazeTime + delta : 0;
+      if (this.gazeTime >= GAZE_BEAT_SECONDS) {
+        if (beat.type === 'reveal') for (const p of this.queries.props.entities) p.setValue(HiddenProp, 'revealed', 1);
+        return done;
+      }
+    }
     switch (beat.type) {
       case 'chapter':
         return this.lineFinished(story, beat.id, t, this.welcomeBack ? readingSeconds(this.beatCaption) : CHAPTER_SECONDS) ? done : null;

@@ -38,7 +38,7 @@ const CSS = `
 /**
  * The first screen, before entering the headset view: family names (typing in
  * immersive mode is awkward), plus the accessibility options (one-hand
- * mode, forgiving shapes and high contrast), so nobody has to find them inside the journal.
+ * mode, forgiving shapes, high contrast and look to press), so nobody has to find them inside the journal.
  * Hidden on the family viewer and during an immersive session.
  */
 export class FamilySetupSystem extends createSystem({
@@ -49,6 +49,7 @@ export class FamilySetupSystem extends createSystem({
   private oneHand: HTMLButtonElement | null = null;
   private forgiving: HTMLButtonElement | null = null;
   private contrast: HTMLButtonElement | null = null;
+  private gaze: HTMLButtonElement | null = null;
   private credits: HTMLButtonElement | null = null;
   private style: HTMLStyleElement | null = null;
   private shownLabel = '';
@@ -73,6 +74,7 @@ export class FamilySetupSystem extends createSystem({
       setPressed(this.oneHand!, Boolean(settings.getValue(Settings, 'oneHand')));
       setPressed(this.forgiving!, isForgiving(settings.getValue(Settings, 'tolerance')));
       setPressed(this.contrast!, Boolean(settings.getValue(Settings, 'highContrast')));
+      setPressed(this.gaze!, Boolean(settings.getValue(Settings, 'gazeDwell')));
     }
     const child = family.own.child;
     const label = child ? `Stories for ${child}` : 'Who are the stories for?';
@@ -112,7 +114,12 @@ export class FamilySetupSystem extends createSystem({
       const s = this.settingsEntity();
       if (s) s.setValue(Settings, 'highContrast', !s.getValue(Settings, 'highContrast'));
     });
-    this.access.append(this.oneHand, this.forgiving, this.contrast);
+    this.gaze = toggle('Look to press', 'Rest the centre of your view on a button to press it; look at the ghost hand to make a shape');
+    this.gaze.addEventListener('click', () => {
+      const s = this.settingsEntity();
+      if (s) s.setValue(Settings, 'gazeDwell', !s.getValue(Settings, 'gazeDwell'));
+    });
+    this.access.append(this.oneHand, this.forgiving, this.contrast, this.gaze);
     document.body.appendChild(this.access);
 
     this.credits = document.createElement('button');

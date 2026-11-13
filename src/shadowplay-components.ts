@@ -274,6 +274,8 @@ export const Settings = createComponent('Settings', {
   oneHand: { type: Types.Boolean, default: false },
   /** High-contrast mode: black-and-white panels and captions, solid black shadows on the wall. */
   highContrast: { type: Types.Boolean, default: false },
+  /** Look to press: head-gaze dwell presses buttons, and looking at the ghost hand makes the shape. */
+  gazeDwell: { type: Types.Boolean, default: false },
   /** Test-only: speak captions with an on-device synthetic voice until real narration exists. */
   placeholderVoice: { type: Types.Boolean, default: false },
   /** Set by the panel; the story system restarts from the Prologue and clears it. */

@@ -1,5 +1,6 @@
 import type { World } from '@iwsdk/core';
 import { FamilySetupSystem } from '../family-ui.js';
+import { GazeDwellSystem } from '../gaze-dwell.js';
 import { JournalSystem } from '../journal.js';
 import { LampControlSystem } from '../lamp-control.js';
 import { FamilyControlsSystem } from '../live/family-controls.js';
@@ -14,5 +15,6 @@ export function registerHeadset(world: World): void {
     .registerSystem(SettingsSystem)
     .registerSystem(FamilyInboxSystem)
     .registerSystem(FamilyControlsSystem)
-    .registerSystem(FamilySetupSystem);
+    .registerSystem(FamilySetupSystem)
+    .registerSystem(GazeDwellSystem);
 }
