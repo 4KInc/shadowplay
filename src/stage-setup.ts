@@ -20,7 +20,17 @@ import {
   createPaperScreen,
   createShadowSurface,
 } from './stage-visuals.js';
-import { chooseWall, EYE_TO_DESK, findDesk, SCREEN_DISTANCE, screenDistance, WIDTH_PER_METER, type RoomPlane, type WallChoice } from './wall-choice.js';
+import {
+  chooseWall,
+  EYE_TO_DESK,
+  findDesk,
+  SCREEN_DISTANCE,
+  screenDistance,
+  stageWidthPerMeter,
+  WIDTH_PER_METER,
+  type RoomPlane,
+  type WallChoice,
+} from './wall-choice.js';
 import { shadowMapSize } from './quality-levels.js';
 
 /** Behind the stage in a browser (no passthrough): a deep night blue. */
@@ -294,9 +304,25 @@ export class StageSetupSystem extends createSystem({
     return this.room;
   }
 
+  /**
+   * The headset's horizontal field of view (degrees, one eye), from the XR
+   * camera's projection; 0 when unknown (outside XR). Recorded for the layout
+   * (stageRuntime.fovH) and diagnostics.
+   */
+  private measureFov(): number {
+    if (!this.inXR) return 0;
+    const eye = this.world.renderer.xr.getCamera().cameras[0];
+    const e = eye?.projectionMatrix.elements;
+    if (!e || !e[0]) return 0;
+    // Asymmetric frustum: tan(left) = (1 - m8) / m0, tan(right) = (1 + m8) / m0.
+    const fov = ((Math.atan((1 - e[8]) / e[0]) + Math.atan((1 + e[8]) / e[0])) * 180) / Math.PI;
+    stageRuntime.fovH = Math.round(fov);
+    return fov;
+  }
+
   /** Pick the wall most directly in front of the player (see wall-choice.ts for the rules). */
   private findWall(): boolean {
-    this.wall = chooseWall(this.head, this.forward, this.readRoom());
+    this.wall = chooseWall(this.head, this.forward, this.readRoom(), stageWidthPerMeter(this.measureFov()));
     return this.wall !== null;
   }
 
@@ -331,7 +357,7 @@ export class StageSetupSystem extends createSystem({
       this.world.camera.getWorldDirection(this.tmpA);
       this.tmpB.copy(this.head).addScaledVector(this.tmpA, this.fitDistance(SCREEN_DISTANCE * WIDTH_PER_METER));
     }
-    const width = dist * WIDTH_PER_METER;
+    const width = dist * (this.inXR ? stageWidthPerMeter(this.measureFov()) : WIDTH_PER_METER);
     this.applyStage(stage, lamp, this.tmpB, this.normal, width, dist, StageModes.Screen, false);
   }
 
@@ -353,6 +379,7 @@ export class StageSetupSystem extends createSystem({
     stageRuntime.normal.copy(normal);
     stageRuntime.center.copy(center);
     stageRuntime.width = width;
+    stageRuntime.distance = dist;
     stageRuntime.height = height;
 
     stageObj.position.copy(center);

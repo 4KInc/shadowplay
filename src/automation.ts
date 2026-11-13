@@ -184,6 +184,7 @@ export class AutomationSystem extends createSystem({
           flare: Math.round(r.wakeFlare * 100) / 100,
           lightHint: trackingRuntime.lightHint,
           desk: stageRuntime.desk,
+          fovH: stageRuntime.fovH,
           lampY: Math.round((entity('DeskLamp')?.object3D?.position.y ?? 0) * 1000) / 1000,
         };
       },

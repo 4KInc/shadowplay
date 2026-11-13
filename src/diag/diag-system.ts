@@ -218,6 +218,7 @@ export class DiagSystem extends createSystem({
       vplanes: this.verticalPlanes(),
       labels: this.planeLabels(),
       desk: stageRuntime.desk,
+      fovH: stageRuntime.fovH,
       meshes: this.queries.meshes.entities.size,
     };
   }

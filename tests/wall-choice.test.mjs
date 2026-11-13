@@ -211,3 +211,24 @@ test('desk: a labelled desk wins over an unlabelled shelf nearer the usual heigh
 test('desk: a spot just past the edge (within 10 cm) still counts', () => {
   assert.equal(findDesk(head, [surface(0.72, 'table', -0.8, 0.8, -0.7, -0.33)], spots), 0.72);
 });
+
+// ---- Field-of-view-aware stage size.
+import { stageWidthPerMeter, WIDTH_PER_METER } from '../src/wall-choice.ts';
+
+const angleOf = (wpm) => (2 * Math.atan(wpm / 2) * 180) / Math.PI;
+
+test('fov: Quest-class views (about 100 degrees) keep the 33-degree stage; unknown too', () => {
+  for (const fov of [undefined, 0, 90, 100, 110]) assert.ok(Math.abs(stageWidthPerMeter(fov) - WIDTH_PER_METER) < 1e-12, String(fov));
+});
+
+test('fov: a narrower view gets a stage of at most 45% of it', () => {
+  for (const fov of [70, 60, 50, 40]) {
+    const angle = angleOf(stageWidthPerMeter(fov));
+    assert.ok(Math.abs(angle - fov * 0.45) < 1e-9, `${fov}: ${angle}`);
+  }
+});
+
+test('fov: chooseWall builds the narrower stage on the wall', () => {
+  const w = chooseWall(head, ahead, [wall({ dist: 2 })], stageWidthPerMeter(50));
+  assert.ok(Math.abs(w.width - 2 * stageWidthPerMeter(50)) < 1e-9);
+});

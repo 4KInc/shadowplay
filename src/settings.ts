@@ -19,6 +19,10 @@ const PANEL_WIDTH = 0.38;
 const READABLE_SCALE = 1.7;
 /** How far the panel sits below the stage centre, as a fraction of the stage width (about 3 degrees at any distance). */
 const PANEL_DROP = 0.09;
+/** Stage width per metre at the usual 33 degrees (the reference the panel is sized against). */
+const WIDTH_AT_ONE_METER = 2 * Math.tan((16.5 * Math.PI) / 180);
+/** Below this horizontal field of view the panel goes over the stage rather than beside it. */
+const NARROW_FOV = 75;
 
 const TOLERANCE_VALUE: Readonly<Record<string, number>> = {
   [ToleranceLevels.Strict]: 0.2,
@@ -292,17 +296,21 @@ export class SettingsSystem extends createSystem({
       obj.position.set(0, -10, 0);
       return;
     }
-    // Readable from the seat: ~2.3 cm body text on a wall ~2 m away, scaled with the stage.
-    const scale = READABLE_SCALE * Math.min(1.4, Math.max(0.6, stageRuntime.width / 1.1));
+    // Readable from the seat: ~2.3 cm body text on a wall ~2 m away, scaled with the distance
+    // (so the text keeps its size in view even where a narrow field of view shrinks the stage).
+    const scale = READABLE_SCALE * Math.min(1.4, Math.max(0.6, (stageRuntime.distance * WIDTH_AT_ONE_METER) / 1.1));
+    // A narrow field of view (below NARROW_FOV): over the middle of the stage, where it stays in view,
+    // instead of beside it.
+    const narrow = stageRuntime.fovH > 0 && stageRuntime.fovH < NARROW_FOV;
     const n = stageRuntime.normal;
     obj.quaternion.copy(this.quat.setFromAxisAngle(this.yAxis, Math.atan2(n.x, n.z)));
     obj.scale.setScalar(scale);
     obj.position
       .copy(stageRuntime.center)
-      .addScaledVector(stageRuntime.right, stageRuntime.width * 0.46 + (PANEL_WIDTH * scale) / 2 + 0.04)
+      .addScaledVector(stageRuntime.right, narrow ? 0 : stageRuntime.width * 0.46 + (PANEL_WIDTH * scale) / 2 + 0.04)
       // About 3 degrees below eye level: looking down at a menu is easier than looking up.
-      .addScaledVector(stageRuntime.up, -stageRuntime.width * PANEL_DROP)
-      .addScaledVector(n, 0.04);
+      .addScaledVector(stageRuntime.up, -stageRuntime.distance * WIDTH_AT_ONE_METER * PANEL_DROP)
+      .addScaledVector(n, narrow ? 0.06 : 0.04);
   }
 }
 
