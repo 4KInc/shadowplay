@@ -2,7 +2,12 @@
 
 Every session uses the device-test build with diagnostics, so it leaves data behind:
 
-**https://devtest---shadowplay-1031148889398.us-central1.run.app/?diag**
+- Quest 3: **https://devtest---shadowplay-1031148889398.us-central1.run.app/?diag&device=q3**
+- Quest 3S: **https://devtest---shadowplay-1031148889398.us-central1.run.app/?diag&device=q3s**
+
+Use the right one on each headset (bookmark it there): Quest 3S reports
+"Quest 3" in its user agent, so the `device=` tag is the only way the data can
+tell them apart. Without it the summary says `quest3-or-3s`.
 
 (the public URL with `?diag` works too; see DEPLOY.md "Device-test deploys").
 A panel appears under the stage with frame times, quality, hands and

@@ -29,11 +29,19 @@ const H = 300 + BAND;
 
 type Item = Record<string, string | number | boolean | number[] | string[] | null>;
 
-/** Which headset or device, from the user agent (an enum, nothing identifying). */
+/** Headset tags a device-test URL may carry (`?diag&device=q3s`): the user agent cannot tell these apart. */
+const DEVICE_TAGS: Readonly<Record<string, string>> = { q3: 'quest3', q3s: 'quest3s' };
+
+/**
+ * Which headset or device (an enum, nothing identifying). Quest 3S reports
+ * "Quest 3" in its user agent, exactly like Quest 3, so the two are told apart
+ * only by the URL tag; untagged, both are 'quest3-or-3s'.
+ */
 function deviceClass(): string {
   const ua = navigator.userAgent;
-  if (/Quest 3S/i.test(ua)) return 'quest3s';
-  if (/Quest 3/i.test(ua)) return 'quest3';
+  const tag = DEVICE_TAGS[new URLSearchParams(location.search).get('device') ?? ''];
+  if (tag && /OculusBrowser|Quest/i.test(ua)) return tag;
+  if (/Quest 3/i.test(ua)) return 'quest3-or-3s';
   if (/Quest Pro/i.test(ua)) return 'questpro';
   if (/Quest 2/i.test(ua)) return 'quest2';
   if (/OculusBrowser|Quest/i.test(ua)) return 'quest';
