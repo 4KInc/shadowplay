@@ -64,6 +64,11 @@
     cursor: pointer;
   }
 
+  .half {
+    flex-grow: 1;
+    flex-basis: 0;
+  }
+
   .toggle-text {
     color: #f6e3bd;
     font-size: 1.45;
@@ -150,7 +155,7 @@
     text-align: center;
   }
 </style>
-<div class="root">
+<div id="settings-root" class="root">
   <div class="title">Settings</div>
 
   <div class="label">For your family</div>
@@ -206,10 +211,15 @@
     <button id="hint-always" class="option">Always</button>
   </div>
 
-  <div class="label">Two-hand shapes</div>
-  <button id="one-hand-toggle" class="toggle">
-    <span id="one-hand-label" class="toggle-text">One-hand mode: Off</span>
-  </button>
+  <div class="label">Easier to use</div>
+  <div class="row">
+    <button id="one-hand-toggle" class="toggle half">
+      <span id="one-hand-label" class="toggle-text">One-hand mode: Off</span>
+    </button>
+    <button id="contrast-toggle" class="toggle half">
+      <span id="contrast-label" class="toggle-text">High contrast: Off</span>
+    </button>
+  </div>
 
   <div id="voice-section" class="section">
     <div class="label">Narration (test only)</div>

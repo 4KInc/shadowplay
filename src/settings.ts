@@ -10,7 +10,8 @@ import {
   ToleranceLevels,
 } from './shadowplay-components.js';
 import { playClick } from './sfx.js';
-import { stageRuntime, uiPresses } from './stage-runtime.js';
+import { palette } from './panel-palette.js';
+import { accessRuntime, stageRuntime, uiPresses } from './stage-runtime.js';
 
 const PANEL_NODE = 'settings-panel';
 /** Authored panel width in metres (UIKit cm / 100). */
@@ -67,10 +68,8 @@ interface LibraryStory {
 }
 const MOTH_SCRIPT = 'story/the-moth.story.json';
 
-const LOCKED = { backgroundColor: '#1d1826', borderColor: '#2e2639', color: '#6b5f7a' };
-
-const SELECTED = { backgroundColor: '#e0a24a', borderColor: '#f2c47a', color: '#1a1320' };
-const UNSELECTED = { backgroundColor: '#2b2338', borderColor: '#4a3d5c', color: '#f6e3bd' };
+/** Buttons with their own look (the rest are options and toggles). */
+const REPLAY_BUTTONS = new Set(['replay-button']);
 
 /**
  * Accessibility settings: a hands-first panel (pressed with hand rays) that
@@ -88,6 +87,7 @@ export class SettingsSystem extends createSystem({
   private panel: UIKitMLAsset | undefined;
   private buttons = new Map<string, UIKit.Container>();
   private oneHandLabel: UIKit.Text | undefined;
+  private contrastLabel: UIKit.Text | undefined;
   private voiceLabel: UIKit.Text | undefined;
   private status: UIKit.Text | undefined;
   private loaded = false;
@@ -117,10 +117,13 @@ export class SettingsSystem extends createSystem({
     const hints = settings.getValue(Settings, 'hints') ?? HintModes.Delayed;
     const oneHand = Boolean(settings.getValue(Settings, 'oneHand'));
     const voice = Boolean(settings.getValue(Settings, 'placeholderVoice'));
-    const key = `${tolerance}|${hints}|${oneHand}|${voice}`;
+    const highContrast = Boolean(settings.getValue(Settings, 'highContrast'));
+    const key = `${tolerance}|${hints}|${oneHand}|${voice}|${highContrast}`;
     if (key !== this.applied) {
-      this.apply(tolerance, hints, oneHand, voice);
-      if (this.applied) void saveSettings({ tolerance, hints, oneHand, placeholderVoice: voice });
+      accessRuntime.highContrast = highContrast;
+      this.restyle();
+      this.apply(tolerance, hints, oneHand, voice, highContrast);
+      if (this.applied) void saveSettings({ tolerance, hints, oneHand, highContrast, placeholderVoice: voice });
       this.applied = key;
     }
     this.refreshStories();
@@ -140,8 +143,9 @@ export class SettingsSystem extends createSystem({
     this.storyTitle?.setProperties({ text: story.title });
     const length = story.chapters ? `${story.chapters} chapters, ${story.minutes} min` : `${story.minutes} min`;
     this.storyBlurb?.setProperties({ text: `${story.blurb} (${length})` });
-    this.buttons.get('story-start')?.setProperties(telling ? SELECTED : UNSELECTED);
-    this.storyStart?.setProperties({ text: telling ? 'Telling this story tonight' : 'Tell this story', color: telling ? '#1a1320' : '#f6e3bd' });
+    const p = palette();
+    this.buttons.get('story-start')?.setProperties(telling ? p.selected : p.unselected);
+    this.storyStart?.setProperties({ text: telling ? 'Telling this story tonight' : 'Tell this story', color: telling ? p.ink : p.cream });
     this.panel.getElementById('chapter-section')?.setProperties({ display: script === MOTH_SCRIPT ? 'flex' : 'none' });
   }
 
@@ -165,7 +169,7 @@ export class SettingsSystem extends createSystem({
     this.shownUnlocks = unlocks;
     const reached = unlocks.split(',');
     for (const [id, chapter] of CHAPTER_BUTTONS) {
-      this.buttons.get(id)?.setProperties(reached.includes(chapter) ? UNSELECTED : LOCKED);
+      this.buttons.get(id)?.setProperties(reached.includes(chapter) ? palette().unselected : palette().locked);
     }
   }
 
@@ -176,6 +180,7 @@ export class SettingsSystem extends createSystem({
         settings.setValue(Settings, 'tolerance', stored.tolerance as never);
         settings.setValue(Settings, 'hints', stored.hints as never);
         settings.setValue(Settings, 'oneHand', stored.oneHand);
+        settings.setValue(Settings, 'highContrast', Boolean(stored.highContrast));
         settings.setValue(Settings, 'placeholderVoice', Boolean(stored.placeholderVoice));
       }
       this.loaded = true;
@@ -203,6 +208,7 @@ export class SettingsSystem extends createSystem({
     for (const [id, value] of TOLERANCE_BUTTONS) on(id, () => settings.setValue(Settings, 'tolerance', value as never));
     for (const [id, value] of HINT_BUTTONS) on(id, () => settings.setValue(Settings, 'hints', value as never));
     on('one-hand-toggle', () => settings.setValue(Settings, 'oneHand', !settings.getValue(Settings, 'oneHand')));
+    on('contrast-toggle', () => settings.setValue(Settings, 'highContrast', !settings.getValue(Settings, 'highContrast')));
     on('voice-toggle', () =>
       settings.setValue(Settings, 'placeholderVoice', !settings.getValue(Settings, 'placeholderVoice')),
     );
@@ -252,6 +258,8 @@ export class SettingsSystem extends createSystem({
     this.oneHandLabel = panel.getElementById<UIKit.Text>('one-hand-label') ?? undefined;
     this.status = panel.getElementById<UIKit.Text>('status-text') ?? undefined;
     if (this.oneHandLabel) this.oneHandLabel.name = 'one-hand-label';
+    this.contrastLabel = panel.getElementById<UIKit.Text>('contrast-label') ?? undefined;
+    if (this.contrastLabel) this.contrastLabel.name = 'contrast-label';
     this.voiceLabel = panel.getElementById<UIKit.Text>('voice-label') ?? undefined;
     if (this.voiceLabel) this.voiceLabel.name = 'voice-label';
     // The placeholder voice is a development aid only; production builds hide it.
@@ -263,7 +271,20 @@ export class SettingsSystem extends createSystem({
     this.shownScript = '';
   }
 
-  private apply(tolerance: string, hints: string, oneHand: boolean, voice: boolean): void {
+  /**
+   * Every button and the panel itself in the current palette (high contrast or
+   * not); apply() then highlights the selected ones, and the story and chapter
+   * rows are redrawn on the next update.
+   */
+  private restyle(): void {
+    const p = palette();
+    this.panel?.getElementById('settings-root')?.setProperties(p.root);
+    for (const [id, el] of this.buttons) el.setProperties(REPLAY_BUTTONS.has(id) ? p.replay : p.unselected);
+    this.shownScript = '';
+    this.shownUnlocks = null;
+  }
+
+  private apply(tolerance: string, hints: string, oneHand: boolean, voice: boolean, highContrast: boolean): void {
     for (const r of this.queries.recognizers.entities) {
       r.setValue(ShapeRecognizer, 'tolerance', TOLERANCE_VALUE[tolerance] ?? 0.3);
       r.setValue(ShapeRecognizer, 'oneHand', oneHand);
@@ -271,18 +292,16 @@ export class SettingsSystem extends createSystem({
     for (const s of this.queries.stories.entities) {
       s.setValue(StoryState, 'hintAfterSeconds', HINT_AFTER[hints] ?? 15);
     }
-    for (const [id, value] of TOLERANCE_BUTTONS) this.buttons.get(id)?.setProperties(value === tolerance ? SELECTED : UNSELECTED);
-    for (const [id, value] of HINT_BUTTONS) this.buttons.get(id)?.setProperties(value === hints ? SELECTED : UNSELECTED);
-    this.buttons.get('one-hand-toggle')?.setProperties(oneHand ? SELECTED : UNSELECTED);
-    this.buttons.get('voice-toggle')?.setProperties(voice ? SELECTED : UNSELECTED);
-    this.voiceLabel?.setProperties({
-      text: `Placeholder voice: ${voice ? 'On' : 'Off'}`,
-      color: voice ? '#1a1320' : '#f6e3bd',
-    });
-    this.oneHandLabel?.setProperties({
-      text: `One-hand mode: ${oneHand ? 'On' : 'Off'}`,
-      color: oneHand ? '#1a1320' : '#f6e3bd',
-    });
+    const p = palette();
+    const pick = (on: boolean) => (on ? p.selected : p.unselected);
+    for (const [id, value] of TOLERANCE_BUTTONS) this.buttons.get(id)?.setProperties(pick(value === tolerance));
+    for (const [id, value] of HINT_BUTTONS) this.buttons.get(id)?.setProperties(pick(value === hints));
+    this.buttons.get('one-hand-toggle')?.setProperties(pick(oneHand));
+    this.buttons.get('contrast-toggle')?.setProperties(pick(highContrast));
+    this.buttons.get('voice-toggle')?.setProperties(pick(voice));
+    this.voiceLabel?.setProperties({ text: `Placeholder voice: ${voice ? 'On' : 'Off'}`, color: voice ? p.ink : p.cream });
+    this.oneHandLabel?.setProperties({ text: `One-hand mode: ${oneHand ? 'On' : 'Off'}`, color: oneHand ? p.ink : p.cream });
+    this.contrastLabel?.setProperties({ text: `High contrast: ${highContrast ? 'On' : 'Off'}`, color: highContrast ? p.ink : p.cream });
   }
 
   /** Beside the open journal page, to the right of the stage; tucked away otherwise. */

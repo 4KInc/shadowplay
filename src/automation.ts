@@ -18,7 +18,7 @@ import { loadRecording } from './journal-store.js';
 import { voiceStats } from './live/voice.js';
 import type { Performance } from './performance/format.js';
 import { toWire } from './performance/sharing.js';
-import { handOverride, handRuntime, secondHands, stageRuntime, trackingRuntime, uiPresses } from './stage-runtime.js';
+import { accessRuntime, handOverride, handRuntime, secondHands, stageRuntime, trackingRuntime, uiPresses } from './stage-runtime.js';
 import type { RoomPlane } from './wall-choice.js';
 
 const COMPONENTS = {
@@ -195,6 +195,8 @@ export class AutomationSystem extends createSystem({
           settings: boxOf(entity('Settings')?.object3D),
           flare: Math.round(r.wakeFlare * 100) / 100,
           lightHint: trackingRuntime.lightHint,
+          highContrast: accessRuntime.highContrast,
+          shadowOpacity: (scene.getObjectByName('shadow-surface') as import('@iwsdk/core').Mesh<import('@iwsdk/core').BufferGeometry, import('@iwsdk/core').ShadowMaterial> | undefined)?.material.opacity ?? null,
           desk: stageRuntime.desk,
           fovH: stageRuntime.fovH,
           anchor: stageRuntime.anchor,

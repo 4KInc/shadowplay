@@ -37,8 +37,8 @@ const CSS = `
 
 /**
  * The first screen, before entering the headset view: family names (typing in
- * immersive mode is awkward), plus the two accessibility options, one-hand
- * mode and forgiving shapes, so nobody has to find them inside the journal.
+ * immersive mode is awkward), plus the accessibility options (one-hand
+ * mode, forgiving shapes and high contrast), so nobody has to find them inside the journal.
  * Hidden on the family viewer and during an immersive session.
  */
 export class FamilySetupSystem extends createSystem({
@@ -48,6 +48,7 @@ export class FamilySetupSystem extends createSystem({
   private access: HTMLDivElement | null = null;
   private oneHand: HTMLButtonElement | null = null;
   private forgiving: HTMLButtonElement | null = null;
+  private contrast: HTMLButtonElement | null = null;
   private credits: HTMLButtonElement | null = null;
   private style: HTMLStyleElement | null = null;
   private shownLabel = '';
@@ -71,6 +72,7 @@ export class FamilySetupSystem extends createSystem({
     if (settings && show) {
       setPressed(this.oneHand!, Boolean(settings.getValue(Settings, 'oneHand')));
       setPressed(this.forgiving!, isForgiving(settings.getValue(Settings, 'tolerance')));
+      setPressed(this.contrast!, Boolean(settings.getValue(Settings, 'highContrast')));
     }
     const child = family.own.child;
     const label = child ? `Stories for ${child}` : 'Who are the stories for?';
@@ -105,7 +107,12 @@ export class FamilySetupSystem extends createSystem({
       const on = isForgiving(s.getValue(Settings, 'tolerance'));
       s.setValue(Settings, 'tolerance', on ? ToleranceLevels.Normal : ToleranceLevels.Forgiving);
     });
-    this.access.append(this.oneHand, this.forgiving);
+    this.contrast = toggle('High contrast', 'Black-and-white panels and captions, solid shadows on the wall');
+    this.contrast.addEventListener('click', () => {
+      const s = this.settingsEntity();
+      if (s) s.setValue(Settings, 'highContrast', !s.getValue(Settings, 'highContrast'));
+    });
+    this.access.append(this.oneHand, this.forgiving, this.contrast);
     document.body.appendChild(this.access);
 
     this.credits = document.createElement('button');

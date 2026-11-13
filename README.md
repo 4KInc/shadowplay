@@ -65,8 +65,10 @@ screen; if the stage lands somewhere odd, pinch the book on the desk, then
   screen in real time; talk to each other; **Take turns** so the child makes
   every other creature.
 - **Goodnights**: what your family sent back plays on your wall.
-- Accessibility: recognition tolerance, show-me hints, one-hand mode (one-hand
-  mode and forgiving shapes are also on the first screen, before entering XR).
+- Accessibility: recognition tolerance, show-me hints, one-hand mode and a
+  high-contrast mode (black-and-white panels and captions, solid shadows on the
+  wall). One-hand mode, forgiving shapes and high contrast are also on the
+  first screen, before entering XR.
 - Pauses when you open the Quest menu or take the headset off, and picks up on
   the same line; a story left mid-way continues from its chapter next time.
 

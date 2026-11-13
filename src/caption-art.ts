@@ -6,6 +6,8 @@ export const CAPTION_W = 1024;
 export const CAPTION_H = 192;
 
 const FONT = 'italic 500 50px Georgia, "Times New Roman", serif';
+/** High contrast: upright, heavier, sans-serif, white on solid black with a white edge. */
+const FONT_HIGH_CONTRAST = '700 52px "Helvetica Neue", Arial, sans-serif';
 
 function wrap(g: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const lines: string[] = [];
@@ -23,11 +25,11 @@ function wrap(g: CanvasRenderingContext2D, text: string, maxWidth: number): stri
   return lines.slice(0, 3);
 }
 
-/** Warm serif caption on a soft dark backing, legible on any real wall. */
-export function drawCaption(g: CanvasRenderingContext2D, text: string): void {
+/** Warm serif caption on a soft dark backing, legible on any real wall (or white on solid black in high contrast). */
+export function drawCaption(g: CanvasRenderingContext2D, text: string, highContrast = false): void {
   g.clearRect(0, 0, CAPTION_W, CAPTION_H);
   if (!text) return;
-  g.font = FONT;
+  g.font = highContrast ? FONT_HIGH_CONTRAST : FONT;
   const lines = wrap(g, text, CAPTION_W - 120);
   const lineH = 58;
   const blockH = lines.length * lineH + 36;
@@ -37,15 +39,25 @@ export function drawCaption(g: CanvasRenderingContext2D, text: string): void {
   const y = (CAPTION_H - blockH) / 2;
 
   g.save();
-  g.shadowColor = 'rgba(5, 3, 10, 0.9)';
-  g.shadowBlur = 28;
-  g.fillStyle = 'rgba(10, 7, 16, 0.72)';
-  g.beginPath();
-  g.roundRect(x, y, w, blockH, 30);
-  g.fill();
+  if (highContrast) {
+    g.fillStyle = '#000000';
+    g.strokeStyle = '#ffffff';
+    g.lineWidth = 5;
+    g.beginPath();
+    g.roundRect(x, y, w, blockH, 18);
+    g.fill();
+    g.stroke();
+  } else {
+    g.shadowColor = 'rgba(5, 3, 10, 0.9)';
+    g.shadowBlur = 28;
+    g.fillStyle = 'rgba(10, 7, 16, 0.72)';
+    g.beginPath();
+    g.roundRect(x, y, w, blockH, 30);
+    g.fill();
+  }
   g.restore();
 
-  g.fillStyle = '#f6e3bd';
+  g.fillStyle = highContrast ? '#ffffff' : '#f6e3bd';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   lines.forEach((l, i) => {

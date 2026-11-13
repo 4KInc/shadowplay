@@ -272,6 +272,8 @@ export const Settings = createComponent('Settings', {
   hints: { type: Types.Enum, enum: HintModes, default: HintModes.Delayed },
   /** Two-hand shapes become optional: their one-hand alternative works everywhere. */
   oneHand: { type: Types.Boolean, default: false },
+  /** High-contrast mode: black-and-white panels and captions, solid black shadows on the wall. */
+  highContrast: { type: Types.Boolean, default: false },
   /** Test-only: speak captions with an on-device synthetic voice until real narration exists. */
   placeholderVoice: { type: Types.Boolean, default: false },
   /** Set by the panel; the story system restarts from the Prologue and clears it. */
