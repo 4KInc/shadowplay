@@ -51,6 +51,9 @@ export const stageRuntime = {
 /** Hand tracking flickering during a shape request (story.ts): show the light hint. */
 export const trackingRuntime = { lightHint: false };
 
+/** Accessibility modes that several systems draw differently (written by SettingsSystem). */
+export const accessRuntime = { highContrast: false };
+
 /** The headset panel's last button presses (ids, newest last), for the hands-only test. */
 export const uiPresses: string[] = [];
 

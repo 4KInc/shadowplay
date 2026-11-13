@@ -90,6 +90,7 @@ export interface StoredSettings {
   tolerance: string;
   hints: string;
   oneHand: boolean;
+  highContrast?: boolean;
   placeholderVoice?: boolean;
 }
 

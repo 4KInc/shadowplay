@@ -1,15 +1,10 @@
 import { createSystem, Entity, UIKit, UIKitMLAsset } from '@iwsdk/core';
 import { FamilyInbox, LiveSession, PerformanceRecorder } from '../shadowplay-components.js';
 import { playClick } from '../sfx.js';
-import { uiPresses } from '../stage-runtime.js';
+import { palette } from '../panel-palette.js';
+import { accessRuntime, uiPresses } from '../stage-runtime.js';
 
 const PANEL_NODE = 'settings-panel';
-const ON = { backgroundColor: '#e0a24a', borderColor: '#f2c47a' };
-const OFF = { backgroundColor: '#2b2338', borderColor: '#4a3d5c' };
-const DIM = { backgroundColor: '#1d1826', borderColor: '#2e2639' };
-const INK = '#1a1320';
-const CREAM = '#f6e3bd';
-const MUTED = '#6b5f7a';
 
 interface Control {
   button: UIKit.Container;
@@ -105,7 +100,7 @@ export class FamilyControlsSystem extends createSystem({
     const inbox = this.queries.inboxes.entities.values().next().value;
     const unwatched = inbox?.getValue(FamilyInbox, 'unwatched') ?? 0;
     const from = inbox?.getValue(FamilyInbox, 'latestFrom') ?? '';
-    const key = `${recording}|${seconds}|${hasStory}|${role}|${talk}|${duet}|${turn}|${unwatched}|${liveStatus}|${recStatus}`;
+    const key = `${accessRuntime.highContrast}|${recording}|${seconds}|${hasStory}|${role}|${talk}|${duet}|${turn}|${unwatched}|${liveStatus}|${recStatus}`;
     if (key === this.shown) return;
     this.shown = key;
 
@@ -130,8 +125,10 @@ export class FamilyControlsSystem extends createSystem({
   private set(id: string, text: string, state: 'on' | 'off' | 'dim'): void {
     const c = this.controls.get(id);
     if (!c) return;
-    c.button.setProperties(state === 'on' ? ON : state === 'dim' ? DIM : OFF);
-    c.label?.setProperties({ text, color: state === 'on' ? INK : state === 'dim' ? MUTED : CREAM });
+    const p = palette();
+    const style = state === 'on' ? p.selected : state === 'dim' ? p.locked : p.unselected;
+    c.button.setProperties({ backgroundColor: style.backgroundColor, borderColor: style.borderColor });
+    c.label?.setProperties({ text, color: state === 'on' ? p.ink : state === 'dim' ? p.muted : p.cream });
   }
 }
 

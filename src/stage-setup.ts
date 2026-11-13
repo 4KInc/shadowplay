@@ -14,7 +14,7 @@ import {
   XRPlane,
 } from '@iwsdk/core';
 import { DeskLamp, ShadowJournal, Stage, StageModes } from './shadowplay-components.js';
-import { stageRuntime } from './stage-runtime.js';
+import { accessRuntime, stageRuntime } from './stage-runtime.js';
 import {
   createDimShell,
   createLightPool,
@@ -59,6 +59,8 @@ const WAKE_FLARE_GAIN = 0.8;
 const WAKE_FLARE_DECAY = 1.1;
 /** Sliding the lamp sideways sweeps its aim across the wall this many times further. */
 const SWEEP_GAIN = 3.5;
+/** How dark the shadows on the wall are (high contrast makes them solid). */
+const SHADOW_OPACITY = 0.85;
 
 /**
  * Chooses the wall in front of the seated player (or a floating paper screen),
@@ -602,7 +604,10 @@ export class StageSetupSystem extends createSystem({
 
     const warm = targetDim > 0 ? Math.min(1, this.dimLevel / targetDim) : 1;
     this.pool.scale.set(stageRuntime.width * 1.5 * (1 + 2.5 * finale), stageRuntime.height * 1.7 * (1 + 2.5 * finale), 1);
-    const poolGain = this.paper.visible ? 0.18 : 0.4;
+    // High contrast: solid black shadows in a brighter pool of light.
+    const contrast = accessRuntime.highContrast;
+    this.surface.material.opacity = contrast ? 1 : SHADOW_OPACITY;
+    const poolGain = (this.paper.visible ? 0.18 : 0.4) * (contrast ? 1.5 : 1);
     this.pool.material.uniforms.uIntensity.value = this.placed ? (poolGain + 0.5 * finale) * warm * level * flare : 0;
     this.surface.visible = this.placed && level > 0.02;
     if (this.placed) this.sizeSurface(this.paper.visible, finale);

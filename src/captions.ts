@@ -10,7 +10,7 @@ import {
 } from '@iwsdk/core';
 import { CAPTION_H, CAPTION_W, drawCaption, drawHandHint, HINT_SIZE } from './caption-art.js';
 import { ShapeRecognizer, StoryState } from './shadowplay-components.js';
-import { stageRuntime, trackingRuntime } from './stage-runtime.js';
+import { accessRuntime, stageRuntime, trackingRuntime } from './stage-runtime.js';
 
 const FADE_PER_SECOND = 4;
 const NUDGE_W = 1024;
@@ -23,18 +23,18 @@ const NUDGE_TEXT: Record<string, string> = {
   light: 'Bring your hand into the lamplight.',
 };
 
-/** A small amber pill with one short line (recognition nudges). */
-function drawNudge(g: CanvasRenderingContext2D, text: string): void {
+/** A small amber pill with one short line (recognition nudges); solid yellow with black text in high contrast. */
+function drawNudge(g: CanvasRenderingContext2D, text: string, highContrast: boolean): void {
   g.clearRect(0, 0, NUDGE_W, NUDGE_H);
   if (!text) return;
-  g.font = 'italic 600 48px Georgia, "Times New Roman", serif';
+  g.font = highContrast ? '700 48px "Helvetica Neue", Arial, sans-serif' : 'italic 600 48px Georgia, "Times New Roman", serif';
   const w = Math.min(NUDGE_W - 8, g.measureText(text).width + 80);
   const x = (NUDGE_W - w) / 2;
-  g.fillStyle = 'rgba(224, 162, 74, 0.92)';
+  g.fillStyle = highContrast ? '#ffd400' : 'rgba(224, 162, 74, 0.92)';
   g.beginPath();
   g.roundRect(x, 12, w, NUDGE_H - 24, (NUDGE_H - 24) / 2);
   g.fill();
-  g.fillStyle = '#1a1320';
+  g.fillStyle = highContrast ? '#000000' : '#1a1320';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.fillText(text, NUDGE_W / 2, NUDGE_H / 2 + 2);
@@ -79,6 +79,8 @@ export class CaptionSystem extends createSystem({
   private yAxis = new Vector3(0, 1, 0);
   private attached = false;
   private hintShape = '';
+  /** The contrast mode the caption and nudge were last drawn in. */
+  private drawnContrast = false;
 
   init(): void {
     this.cleanupFuncs.push(() => {
@@ -108,6 +110,14 @@ export class CaptionSystem extends createSystem({
     root.quaternion.copy(this.quat.setFromAxisAngle(this.yAxis, Math.atan2(n.x, n.z)));
     root.position.copy(stageRuntime.center).addScaledVector(n, 0.02);
 
+    if (accessRuntime.highContrast !== this.drawnContrast) {
+      // Redraw what is showing in the new mode.
+      this.drawnContrast = accessRuntime.highContrast;
+      drawCaption(this.caption.g, this.shown, this.drawnContrast);
+      this.caption.texture.needsUpdate = true;
+      drawNudge(this.nudge.g, this.nudgeShown, this.drawnContrast);
+      this.nudge.texture.needsUpdate = true;
+    }
     this.updateCaption(story.getValue(StoryState, 'caption') ?? '', delta);
     const shape = story.getValue(StoryState, 'hintShape') ?? 'rabbit';
     if (shape !== this.hintShape) {
@@ -125,7 +135,7 @@ export class CaptionSystem extends createSystem({
   private updateNudge(text: string, delta: number): void {
     if (text && text !== this.nudgeShown) {
       this.nudgeShown = text;
-      drawNudge(this.nudge.g, text);
+      drawNudge(this.nudge.g, text, this.drawnContrast);
       this.nudge.texture.needsUpdate = true;
     }
     const target = text ? 1 : 0;
@@ -145,7 +155,7 @@ export class CaptionSystem extends createSystem({
       m.opacity = Math.max(0, m.opacity - delta * FADE_PER_SECOND);
       if (m.opacity === 0) {
         this.shown = this.pending;
-        drawCaption(this.caption.g, this.shown);
+        drawCaption(this.caption.g, this.shown, this.drawnContrast);
         this.caption.texture.needsUpdate = true;
       }
     } else if (this.shown) {
