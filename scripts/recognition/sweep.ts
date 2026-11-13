@@ -347,6 +347,10 @@ const gate: [string, boolean][] = [
   ['Free Stage accepts any creature', requested('swan', 'none', 'none', 'none', 'none', true, false) === 'swan'],
   ['Free Stage never accepts cup or fist', requested('cup', 'none', 'none', 'none', 'none', true, false) === 'none' && requested('fist', 'none', 'none', 'none', 'none', true, false) === 'none'],
   ['one-hand mode: an open hand is a bird in Free Stage', requested('open', 'none', 'none', 'none', 'none', true, true) === 'bird'],
+  ['one-hand mode: an open hand is the bird a story asks for', requested('open', 'bird', 'none', 'none', 'none', false, true) === 'bird'],
+  ['one-hand mode: an open hand picks the bird in a dog-or-bird choice', requested('open', 'dog', 'none', 'bird', 'none', false, true) === 'bird'],
+  ['one-hand mode: an open hand is nothing when the story asks for another shape', requested('open', 'rabbit', 'ears', 'none', 'none', false, true) === 'none'],
+  ['without one-hand mode an open hand is not a bird', requested('open', 'bird', 'none', 'none', 'none', false, false) === 'none'],
 ];
 console.log('\n5. Request gate:');
 for (const [name, ok] of gate) console.log(`   ${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : ((failed = true), '')}`);
