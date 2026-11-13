@@ -124,6 +124,22 @@ Recognition currently runs on joint angles alone: the second method
 paired Quest, record a few per shape with the recognition lab; this only adds
 a second opinion, it is not required.
 
+## Needs device: Quest Browser and phone behaviour (from a code audit)
+
+Things that may behave differently on real hardware than in the emulator. Each
+has a safe fallback or a fix in place; the device confirms it.
+
+| # | Check | Pass | What to look for |
+| --- | --- | --- | --- |
+| N1 | Quest: decline room access when asked (or have no Room Setup): Enter XR still works and the story plays on the paper screen | [ ] | Features are optional (`iwsdk.config.json`), so the session should start |
+| N2 | Quest: the story keeps playing in XR (the summary's `page:` line shows what the 2D page reports while immersive) | [ ] | In XR only the session's own visibility pauses the story (#32); confirm it never sits on "Paused." |
+| N3 | Quest: the first narration line is heard right after Enter XR | [ ] | The Enter XR tap allows audio; if not, lines still finish on their captions |
+| N4 | Quest: Quest menu, then back; headset off 1 min, then on: story, sound and Live voice pause and resume | [ ] | (E1/E2) |
+| N5 | iPhone or iPad (Safari): Join live, the parent talks: is the parent's voice heard on the phone? | [ ] | Safari starts audio only from a tap; the Live voice player starts when the first sound arrives. If silent, tell me (fix ready: start it from the Join live tap) |
+| N6 | iPhone or iPad (Safari): tap the sample story from Dad: is Dad's voice heard? | [ ] | Same audio rule |
+| N7 | Live: put the headset to sleep for 1 minute mid-Live, then wake it: what does each side show? | [ ] | The room waits 45 s for the storyteller; after that the phone should show a clear message, never hang |
+| N8 | A whole 20-minute Moth: heap in the summary's snapshots stays flat | [ ] | Emulator: 77.9 MB to 79.3 MB over two full playthroughs |
+
 ## Open questions only a device can answer
 
 - Real frame rate and GPU cost on Quest 3 vs 3S (the panel and the summary).
