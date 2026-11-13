@@ -22,6 +22,14 @@ before(async () => {
     req.on('end', () => {
       const body = JSON.parse(raw);
       seen.push({ path: req.url ?? '', headers: req.headers, body });
+      if (req.headers['x-goog-api-key']) {
+        // Gemini: generateContent, a thought part before the answer.
+        const user = body.contents[0].parts[0].text as string;
+        const shapes = /shapes: ([a-z, ]+)\./.exec(user)?.[1].split(', ');
+        const text = shapes ? cannedWords(shapes) : 'Tuck your thumb along your hand, like a fin.';
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'Thinking about fins...', thought: true }, { text }] } }] }));
+      }
       const meta = String(req.headers.authorization ?? '').startsWith('Bearer ');
       if (meta && req.headers['anthropic-version']) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -74,7 +82,27 @@ test('anthropic: x-api-key and anthropic-version, no reasoning fields', async ()
   assert.equal(r.body.max_tokens, 80);
 });
 
+test('gemini: generateContent with x-goog-api-key, minimal thinking for a tip; the thought part is skipped', async () => {
+  const coach = new Coach(new Llm('gemini', 'gemini-key', base), 'gemini-3.5-flash-lite');
+  assert.deepEqual(await coach.tip({ shape: 'fish', facts: ['thumb-tuck'], attempt: 2 }), { line: 'Tuck your thumb along your hand, like a fin.', source: 'ai' });
+  const r = seen.at(-1)!;
+  assert.equal(r.path, '/v1beta/models/gemini-3.5-flash-lite:generateContent');
+  assert.equal(r.headers['x-goog-api-key'], 'gemini-key');
+  assert.equal(r.headers.authorization, undefined);
+  const config = r.body.generationConfig as { thinkingConfig: { thinkingLevel: string }; maxOutputTokens: number };
+  assert.equal(config.thinkingConfig.thinkingLevel, 'minimal');
+  assert.ok(config.maxOutputTokens > 1000);
+  assert.match(JSON.stringify(r.body.systemInstruction), /You are Mo/);
+});
+
+test('gemini: a dreamed story at low thinking', async () => {
+  const req = { theme: 'river', shapes: ['fish', 'dog'] };
+  assert.deepEqual(await new Dreamer(new Llm('gemini', 'gemini-key', base), 'gemini-3.8-flash').dream(req), assembleStory(req, cannedWords(req.shapes)));
+  assert.equal((seen.at(-1)!.body.generationConfig as { thinkingConfig: { thinkingLevel: string } }).thinkingConfig.thinkingLevel, 'low');
+});
+
 test('labels name the provider', () => {
+  assert.equal(new Llm('gemini', 'k').label, 'gemini');
   assert.equal(new Llm('meta', 'k').label, 'muse-spark');
   assert.equal(new Llm('anthropic', 'k').label, 'claude');
 });

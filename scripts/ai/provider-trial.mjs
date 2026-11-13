@@ -6,17 +6,19 @@
 //
 //   META_API_KEY=... node scripts/ai/provider-trial.mjs meta [tips=30] [stories=20]
 //   ANTHROPIC_API_KEY=... node scripts/ai/provider-trial.mjs anthropic 10 3
+//   GEMINI_API_KEY=... node scripts/ai/provider-trial.mjs gemini 30 20
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Coach } from '../../server/coach.ts';
 import { Dreamer, DREAM_SHAPES, THEMES } from '../../server/dream.ts';
 import { DEFAULTS, Llm } from '../../server/llm.ts';
 
-const provider = process.argv[2] === 'anthropic' ? 'anthropic' : 'meta';
+const provider = ['anthropic', 'gemini'].includes(process.argv[2]) ? process.argv[2] : 'meta';
 const tips = Number(process.argv[3] ?? 30);
 const stories = Number(process.argv[4] ?? 20);
-const key = provider === 'meta' ? process.env.META_API_KEY : process.env.ANTHROPIC_API_KEY;
-if (!key) throw new Error(`set ${provider === 'meta' ? 'META_API_KEY' : 'ANTHROPIC_API_KEY'}`);
+const KEY_ENV = { meta: 'META_API_KEY', anthropic: 'ANTHROPIC_API_KEY', gemini: 'GEMINI_API_KEY' }[provider];
+const key = process.env[KEY_ENV];
+if (!key) throw new Error(`set ${KEY_ENV}`);
 const llm = new Llm(provider, key);
 const coach = new Coach(llm, process.env.COACH_MODEL || DEFAULTS[provider].coachModel);
 const dreamer = new Dreamer(llm, process.env.DREAM_MODEL || DEFAULTS[provider].dreamModel);

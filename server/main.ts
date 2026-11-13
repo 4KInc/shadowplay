@@ -52,12 +52,17 @@ const MAX_DIAG_BYTES = 32 * 1024;
 /** VOICE_STT=google: spoken commands through Cloud Speech-to-Text (voice.ts); otherwise unavailable. */
 /**
  * The model behind Mo's tips (coach.ts) and dreamed stories (dream.ts):
- * AI_PROVIDER=anthropic (default; ANTHROPIC_API_KEY) or meta (Muse Spark;
- * META_API_KEY). No key: tips use the app's own lines and dreaming is off.
+ * AI_PROVIDER=anthropic (default; ANTHROPIC_API_KEY), meta (Muse Spark;
+ * META_API_KEY) or gemini (GEMINI_API_KEY). No key: tips use the app's own lines and dreaming is off.
  */
-const provider = process.env.AI_PROVIDER === 'meta' ? 'meta' : 'anthropic';
-const modelKey = provider === 'meta' ? process.env.META_API_KEY : process.env.ANTHROPIC_API_KEY;
-const llm = modelKey ? new Llm(provider, modelKey, (provider === 'meta' ? process.env.META_API : process.env.ANTHROPIC_API) || undefined) : null;
+const provider = process.env.AI_PROVIDER === 'meta' ? 'meta' : process.env.AI_PROVIDER === 'gemini' ? 'gemini' : 'anthropic';
+const PROVIDER_ENV = {
+  anthropic: { key: 'ANTHROPIC_API_KEY', api: 'ANTHROPIC_API' },
+  meta: { key: 'META_API_KEY', api: 'META_API' },
+  gemini: { key: 'GEMINI_API_KEY', api: 'GEMINI_API' },
+} as const;
+const modelKey = process.env[PROVIDER_ENV[provider].key];
+const llm = modelKey ? new Llm(provider, modelKey, process.env[PROVIDER_ENV[provider].api] || undefined) : null;
 const coach = llm ? new Coach(llm, process.env.COACH_MODEL || DEFAULTS[provider].coachModel) : null;
 const dreamer = llm ? new Dreamer(llm, process.env.DREAM_MODEL || DEFAULTS[provider].dreamModel) : null;
 if (llm) console.log(`[ai] Mo's tips and dreamed stories by ${llm.label}`);
