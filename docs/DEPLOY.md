@@ -31,7 +31,8 @@ One container serves everything:
 | `DATA_DIR` | `./.data/stories` | local story folder when no bucket is set |
 | `STORY_TTL_DAYS` | `30` | how long a shared story lives |
 | `MAX_STORY_BYTES` | 30 MB | largest upload (a 15-minute story with voice) |
-| `AI_PROVIDER` | `anthropic` | the model behind Mo's tips and dreamed stories: `anthropic` (Claude) or `meta` (Muse Spark on Meta Model API) |
+| `AI_PROVIDER` | `anthropic` | the model behind Mo's tips and dreamed stories: `anthropic` (Claude), `meta` (Muse Spark on Meta Model API) or `gemini` (Gemini API) |
+| `GEMINI_API_KEY` | unset | the Gemini API key when `AI_PROVIDER=gemini` (Secret Manager: `shadowplay-gemini-api-key`); defaults `gemini-3.5-flash-lite` for tips, `gemini-3.8-flash` for stories |
 | `META_API_KEY` | unset | the Meta Model API key when `AI_PROVIDER=meta` (Secret Manager: `meta-api-key`) |
 | `ANTHROPIC_API_KEY` | unset | Mo's tips worded by Claude (`/api/coach`); unset = the app's own words. Set it from Secret Manager, never in the command line |
 | `COACH_MODEL` | `claude-haiku-4-5-20251001` (`muse-spark-1.3` with meta) | the model for Mo's tips (short, fast) |
@@ -70,6 +71,11 @@ key there too, so switching back is one variable). `/api/coach` and
 `/api/dream` report `"by": "muse-spark"` or `"claude"`. The server sends Meta's
 Messages format (Bearer token, no `anthropic-version` header, adaptive
 thinking at low effort for tips and medium for stories).
+
+**Gemini (`AI_PROVIDER=gemini`)**: the same way, with the secret
+`shadowplay-gemini-api-key` and `GEMINI_API_KEY=shadowplay-gemini-api-key:latest`
+in `--set-secrets` (the project already has an unrelated `gemini-api-key`
+secret: do not reuse it). Tips use minimal thinking, stories low.
 
 **Voice commands (`VOICE_STT=google`)** need the Speech-to-Text API enabled in
 the project (`gcloud services enable speech.googleapis.com --project $PROJECT`)

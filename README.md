@@ -115,7 +115,7 @@ are private to the family and deleted after 30 days.
 - Mo's tips: when someone is stuck on a shape, the app sends the server only
   the shape's name and a few fixed facts about the hand pose ("the ring finger
   should be curled down"), never names, video, audio or free text. Where the
-  server has AI enabled, the model (Claude by Anthropic, or Meta's Muse Spark)
+  server has AI enabled, the model (Claude by Anthropic, Meta's Muse Spark, or Google's Gemini)
   words Mo's tip from those; otherwise the app's own words are used. Nothing is
   stored.
 - A dreamed story: the app sends a theme and shape names only (never names or
