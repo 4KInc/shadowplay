@@ -9,6 +9,7 @@ import { checkPerformance, clientIp, decodeSafe, RateLimiter } from './guard.ts'
 import { attachLive, liveRoomCount } from './live.ts';
 import { DiskStore, GcsStore, type StoryStore } from './storage.ts';
 import { checkCoach, Coach } from './coach.ts';
+import { checkDream, Dreamer } from './dream.ts';
 import { MAX_CLIP_BYTES, SpeechToText } from './voice.ts';
 
 /**
@@ -24,6 +25,8 @@ import { MAX_CLIP_BYTES, SpeechToText } from './voice.ts';
  *   POST /api/voice          a short spoken clip (audio/webm) -> { text } (Voice commands; nothing stored)
  *   GET  /api/coach          { available }: whether Mo's tips are written by AI here
  *   POST /api/coach          { shape, facts, attempt } -> { line, source } (Mo the coach; no personal data)
+ *   GET  /api/dream          { available }: whether new stories can be dreamed up here
+ *   POST /api/dream          { theme, shapes } -> a new story script (words by Claude, built and checked here)
  *   POST /api/diag           device diagnostics from pages opened with ?diag (numbers and ids only)
  *   GET  /api/health (and /healthz locally: Cloud Run reserves paths ending in 'z')
  *   WS   /live                live rooms (see live.ts)
@@ -50,6 +53,9 @@ const MAX_DIAG_BYTES = 32 * 1024;
 const coach = process.env.ANTHROPIC_API_KEY
   ? new Coach(process.env.ANTHROPIC_API_KEY, process.env.ANTHROPIC_API ?? undefined, process.env.COACH_MODEL ?? undefined)
   : null;
+const dreamer = process.env.ANTHROPIC_API_KEY
+  ? new Dreamer(process.env.ANTHROPIC_API_KEY, process.env.ANTHROPIC_API ?? undefined, process.env.DREAM_MODEL ?? undefined)
+  : null;
 const speech = process.env.VOICE_STT === 'google' ? new SpeechToText(process.env.STT_API ?? undefined, process.env.STT_TOKEN_URL ?? undefined) : null;
 
 // ---------------------------------------------------------------- rate limiting
@@ -64,6 +70,8 @@ const limits = {
   voice: new RateLimiter(60_000, 40),
   // Mo's tips: a few per minute at most (one per stuck shape request, every 12 s).
   coach: new RateLimiter(60_000, 12),
+  // New stories: a handful an evening.
+  dream: new RateLimiter(3600_000, 8),
 };
 
 function allowed(kind: keyof typeof limits, req: IncomingMessage): boolean {
@@ -260,6 +268,28 @@ async function postCoach(req: IncomingMessage, res: ServerResponse): Promise<voi
   return json(res, 200, await coach.tip(request));
 }
 
+async function postDream(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (!dreamer) return json(res, 503, { error: 'Mo can only dream up stories where the server has AI.' });
+  if (!allowed('dream', req)) return json(res, 429, { error: 'Mo has dreamed enough stories for now.' });
+  const body = await readBody(req, 1024);
+  if (body === null) return json(res, 413, { error: 'Too large.' });
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return json(res, 400, { error: 'Not a story request.' });
+  }
+  const request = checkDream(parsed);
+  if (!request) return json(res, 400, { error: 'Not a story request.' });
+  try {
+    const story = await dreamer.dream(request);
+    return story ? json(res, 200, story) : json(res, 422, { error: 'Mo could not dream that one. Try again.' });
+  } catch (error) {
+    console.warn('[dream]', error instanceof Error ? error.message : error);
+    return json(res, 502, { error: 'Mo could not dream just now.' });
+  }
+}
+
 async function postDiag(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (!allowed('diag', req)) return json(res, 429, { error: 'Too many diagnostics.' });
   const body = await readBody(req, MAX_DIAG_BYTES);
@@ -336,6 +366,8 @@ const server = createServer((req, res) => {
   const route = async () => {
     if (path === '/api/health' || path === '/healthz') return json(res, 200, { ok: true, liveRooms: liveRoomCount() });
     if (path === '/api/diag' && req.method === 'POST') return postDiag(req, res);
+    if (path === '/api/dream' && req.method === 'GET') return json(res, 200, { available: dreamer !== null });
+    if (path === '/api/dream' && req.method === 'POST') return postDream(req, res);
     if (path === '/api/coach' && req.method === 'GET') return json(res, 200, { available: coach !== null });
     if (path === '/api/coach' && req.method === 'POST') return postCoach(req, res);
     if (path === '/api/voice' && req.method === 'GET') return json(res, 200, { available: speech !== null });

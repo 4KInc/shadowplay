@@ -1,3 +1,4 @@
+import { loadDreamed } from './journal-store.js';
 /**
  * Story script format (public/story/*.story.json). Each beat either runs for a
  * reading-time duration (chapter, narrate, release, journal) or waits on the
@@ -60,6 +61,17 @@ export function readingSeconds(text: string): number {
   return Math.max(2.5, words / 3 + 1.2);
 }
 
+/**
+ * A story Mo dreamed up ('dreamed:<n>', the n-th one on this device): kept in
+ * the journal store, never a file, and only the latest is kept. Not an app
+ * story file, so recordings and Live do not carry it.
+ */
+const DREAMED = /^dreamed:\d{1,6}$/;
+
+export function isDreamed(path: string): boolean {
+  return DREAMED.test(path);
+}
+
 /** Only the app's own story files (a recording or a Live peer names one; never any other path). */
 const SCRIPT_PATH = /^story\/[a-z0-9-]{1,40}\.story\.json$/;
 
@@ -68,11 +80,18 @@ export function isStoryScript(path: string): boolean {
 }
 
 export async function loadStoryScript(path: string): Promise<StoryScript> {
-  if (!SCRIPT_PATH.test(path)) throw new Error(`Unknown story "${path.slice(0, 60)}"`);
-  const url = `${import.meta.env.BASE_URL}${path.replace(/^\/+/u, '')}`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Story script ${url}: HTTP ${response.status}`);
-  const script = (await response.json()) as StoryScript;
+  let script: StoryScript;
+  let url = path;
+  if (DREAMED.test(path)) {
+    script = (await loadDreamed()) as StoryScript;
+    if (!script) throw new Error('No dreamed story on this device');
+  } else {
+    if (!SCRIPT_PATH.test(path)) throw new Error(`Unknown story "${path.slice(0, 60)}"`);
+    url = `${import.meta.env.BASE_URL}${path.replace(/^\/+/u, '')}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Story script ${url}: HTTP ${response.status}`);
+    script = (await response.json()) as StoryScript;
+  }
   if (script.version !== 'shadowplay.story.v1' || !Array.isArray(script.beats)) {
     throw new Error(`Story script ${url}: unsupported format`);
   }

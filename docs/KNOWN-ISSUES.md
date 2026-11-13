@@ -47,6 +47,9 @@ with the session that showed them.
   the same joint angles the recogniser uses, so a hand the headset sees poorly
   gets a poorer tip. Worded by Claude where the server has a key, otherwise by
   fixed lines. Tested with synthetic hands and a stand-in for the AI service.
+- **Dreamed stories are captions only** (narration audio exists only for the
+  library stories) and stay on the headset: they cannot be recorded, sent or
+  told live yet. They need the server's AI key; without it the button says so.
 - **Live is one storyteller and one family member**, and Live rooms run on a
   single server instance (in memory). That is plenty for judging; a larger
   launch would need a shared room service.

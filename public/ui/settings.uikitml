@@ -192,9 +192,14 @@
     </div>
     <button id="story-next" class="option arrow">&gt;</button>
   </div>
-  <button id="story-start" class="family">
-    <span id="story-start-label" class="toggle-text">Tell this story</span>
-  </button>
+  <div class="row">
+    <button id="story-start" class="family">
+      <span id="story-start-label" class="toggle-text">Tell this story</span>
+    </button>
+    <button id="story-dream" class="family">
+      <span id="story-dream-label" class="toggle-text">Dream a new one</span>
+    </button>
+  </div>
 
   <div class="label">Shape recognition</div>
   <div class="row">

@@ -115,6 +115,15 @@ export async function saveSampleSeeded(name: string): Promise<void> {
   await run(PROGRESS, 'readwrite', (s) => s.put(true, `samples:${name}`));
 }
 
+/** The last story Mo dreamed up (one is kept, so it can be resumed next launch). */
+export async function loadDreamed(): Promise<unknown> {
+  return run<unknown>(PROGRESS, 'readonly', (s) => s.get('dreamed') as IDBRequest<unknown>);
+}
+
+export async function saveDreamed(script: unknown): Promise<void> {
+  await run(PROGRESS, 'readwrite', (s) => s.put(script, 'dreamed'));
+}
+
 export async function loadSettings(): Promise<StoredSettings | null> {
   return run<StoredSettings>(PROGRESS, 'readonly', (s) => s.get('settings') as IDBRequest<StoredSettings>);
 }

@@ -33,6 +33,7 @@ One container serves everything:
 | `MAX_STORY_BYTES` | 30 MB | largest upload (a 15-minute story with voice) |
 | `ANTHROPIC_API_KEY` | unset | Mo's tips worded by Claude (`/api/coach`); unset = the app's own words. Set it from Secret Manager, never in the command line |
 | `COACH_MODEL` | `claude-haiku-4-5-20251001` | the model for Mo's tips (short, fast) |
+| `DREAM_MODEL` | `claude-sonnet-5-5` | the model that writes dreamed stories (`/api/dream`, same key) |
 | `VOICE_STT` | unset | `google`: voice commands through Cloud Speech-to-Text when the headset browser has no speech recognition of its own (`/api/voice`); unset = unavailable |
 
 With `STORY_BUCKET` set, the server uses the Cloud Run service account through
@@ -49,7 +50,9 @@ gcloud secrets add-iam-policy-binding anthropic-api-key --project $PROJECT \
 ```
 
 A tip is one short request (about 150 tokens in, 30 out) and repeats are
-cached, so a whole evening of stories costs well under a cent.
+cached, so a whole evening of stories costs well under a cent. A dreamed story
+is about 600 tokens in and 700 out (up to two tries), limited to 8 an hour per
+client.
 
 **Voice commands (`VOICE_STT=google`)** need the Speech-to-Text API enabled in
 the project (`gcloud services enable speech.googleapis.com --project $PROJECT`)

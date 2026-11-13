@@ -68,6 +68,8 @@ const PHRASES: readonly [string, VoiceCommand][] = [
   ['next story', { kind: 'press', id: 'story-next' }],
   ['previous story', { kind: 'press', id: 'story-prev' }],
   ['tell this story', { kind: 'press', id: 'story-start' }],
+  ['dream a new story', { kind: 'press', id: 'story-dream' }],
+  ['a new story', { kind: 'press', id: 'story-dream' }],
   ['record a story', { kind: 'press', id: 'record-button' }],
   ['stop recording', { kind: 'press', id: 'record-button' }],
   ['send to family', { kind: 'press', id: 'send-button' }],
