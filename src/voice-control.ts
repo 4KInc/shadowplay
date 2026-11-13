@@ -281,6 +281,9 @@ export class VoiceControlSystem extends createSystem({
       case 'next':
         accessRuntime.voiceNext = true;
         return true;
+      case 'help':
+        accessRuntime.coachRequested = true;
+        return true;
       case 'press': {
         const target = gazeTargets.get(c.id);
         if (!target) return false;

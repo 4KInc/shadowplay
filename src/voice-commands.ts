@@ -15,6 +15,8 @@ export type VoiceCommand =
   | { kind: 'next' }
   /** Press a panel button, by its id. */
   | { kind: 'press'; id: string }
+  /** Ask Mo for a tip on the shape the story wants. */
+  | { kind: 'help' }
   /** Turn a setting on or off (null: toggle). */
   | { kind: 'setting'; which: 'oneHand' | 'highContrast' | 'gazeDwell' | 'forgiving' | 'voiceCommands'; on: boolean | null };
 
@@ -55,6 +57,10 @@ const PHRASES: readonly [string, VoiceCommand][] = [
   ['next', { kind: 'next' }],
   ['done', { kind: 'next' }],
   ['let go', { kind: 'next' }],
+  ['help', { kind: 'help' }],
+  ['help me', { kind: 'help' }],
+  ['how do i make it', { kind: 'help' }],
+  ['mo help', { kind: 'help' }],
   ['move stage here', { kind: 'press', id: 'replace-stage-button' }],
   ['move the stage', { kind: 'press', id: 'replace-stage-button' }],
   ['start again', { kind: 'press', id: 'replay-button' }],
@@ -124,6 +130,8 @@ export function describe(command: VoiceCommand): string {
       return command.on ? 'continue' : 'pause';
     case 'next':
       return 'go on';
+    case 'help':
+      return 'help';
     case 'press':
       return (PHRASES.find(([, c]) => c.kind === 'press' && c.id === command.id)?.[0]) ?? command.id;
     case 'setting':

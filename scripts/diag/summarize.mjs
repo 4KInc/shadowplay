@@ -57,6 +57,8 @@ for (const [id, rows] of [...sessions].sort((a, b) => a[1][0].at - b[1][0].at)) 
   for (const p of ev('placed')) {
     console.log(`placed: ${p.place}  wall ${p.wallW} m wide at ${p.wallD} m  stage ${p.stageW} m  planes ${p.planes} (vertical ${p.vplanes})${p.labels?.length ? ' labels: ' + p.labels.join(', ') : p.vlabels ? ': ' + p.vlabels : ''}  meshes ${p.meshes}${p.desk ? `  desk ${p.desk}` : ''}${p.fovH ? `  view ${p.fovH}°` : ''}  at ${p.t}s`);
   }
+  const tips = ev('coach');
+  if (tips.length) console.log(`Mo's tips: ${tips.length} (${tips.filter((t) => t.source === 'ai').length} by AI), median ${pct(tips.map((t) => t.ms), 0.5)} ms; facts: ${count(tips.flatMap((t) => t.facts ?? []))}`);
   const anchors = ev('anchor');
   if (anchors.length) {
     const a = anchors.at(-1);

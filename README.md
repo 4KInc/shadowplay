@@ -107,6 +107,11 @@ are private to the family and deleted after 30 days.
   understood by the browser's own speech recognition or, where the headset
   browser has none, sent to a speech-to-text service and forgotten; commands
   are ignored while a story is being recorded with voice or during Talk.
+- Mo's tips: when someone is stuck on a shape, the app sends the server only
+  the shape's name and a few fixed facts about the hand pose ("the ring finger
+  should be curled down"), never names, video, audio or free text. Where the
+  server has AI enabled, Claude (Anthropic) words Mo's tip from those; otherwise
+  the app's own words are used. Nothing is stored.
 - Live rooms hold one storyteller and one family member. The server relays only
   protocol messages and stores nothing.
 - Uploads are strictly validated; rate limits and room limits are per client.

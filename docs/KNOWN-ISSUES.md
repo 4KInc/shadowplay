@@ -43,6 +43,10 @@ with the session that showed them.
   server (`VOICE_STT=google`, Cloud Speech-to-Text), which needs the API
   enabled for the deployment. English only. Tested with a simulated recogniser
   and synthetic audio, not yet with a real voice on a headset.
+- **Mo's tips are as good as the hand tracker's view.** The facts come from
+  the same joint angles the recogniser uses, so a hand the headset sees poorly
+  gets a poorer tip. Worded by Claude where the server has a key, otherwise by
+  fixed lines. Tested with synthetic hands and a stand-in for the AI service.
 - **Live is one storyteller and one family member**, and Live rooms run on a
   single server instance (in memory). That is plenty for judging; a larger
   launch would need a shared room service.
