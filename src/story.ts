@@ -48,6 +48,13 @@ const HANDS_CAPTION = 'Shadowplay is played with your hands. Put your controller
 const CONTROLLER_GRACE_SECONDS = 1;
 /** The first story; progress saved before the library existed belongs to it. */
 const DEFAULT_SCRIPT = 'story/the-moth.story.json';
+/**
+ * A first launch (nothing saved yet) opens with the shortest story: Counting
+ * Stars, three minutes from the lamp to goodnight, so the first creature comes
+ * quickly and a judge or a new family finishes a whole story in one sitting.
+ * Returning players continue where they were; the journal lists every story.
+ */
+const FIRST_LAUNCH_SCRIPT = 'story/counting-stars.story.json';
 /** 'Never stuck' assist: seconds a player beat may wait before each assist level. */
 const ASSIST_AFTER = [20, 40, 60] as const;
 /** Extra recognition tolerance at assist levels 1 and 2. */
@@ -221,7 +228,7 @@ export class StorySystem extends createSystem({
     Promise.all([resume ? loadProgress() : null, loadUnlocks()])
       .then(async ([progress, unlocks]) => {
         // Resume whichever story from the library was being told last.
-        const path = (progress && (progress.script ?? DEFAULT_SCRIPT)) || (story.getValue(StoryState, 'script') ?? '');
+        const path = progress ? progress.script ?? DEFAULT_SCRIPT : FIRST_LAUNCH_SCRIPT;
         const script = await loadStoryScript(path);
         this.script = script;
         this.scriptPath = path;
