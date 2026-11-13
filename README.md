@@ -2,6 +2,11 @@
 
 **Bedtime stories told with your hands, for a child who is far away.**
 
+Hands only, no controllers. Seated. Works on any wall, or none.
+
+**Video:** _link added with the submission_
+<!-- Hero image: docs/hero.jpg, a still from the headset capture (added after the device sessions). -->
+
 A parent puts on a Meta Quest and tells a shadow-puppet story on their own wall:
 a virtual desk lamp throws the shadows of their real, tracked hands, and when
 they make a rabbit, a fish or a bird, the shadow comes alive and carries the
@@ -26,6 +31,20 @@ everything alone: the viewer has a story *from Dad* to watch and join in, and th
 headset has a goodnight *from Mia* waiting (pinch the Shadow Journal on the desk,
 then **Goodnights**).
 
+### Your first minute
+
+1. Open the link in the Quest Browser, press **Enter XR** and allow room access
+   (it finds your wall).
+2. **Keep the room lights on.** Shadowplay dims the room for you, and hand
+   tracking needs light.
+3. Put the controllers down. Raise a hand into the lamplight: Mo the moth follows
+   your fingertip. When asked, make the shape the ghost hand shows and hold it
+   still for a moment; the shadow comes alive.
+
+Two fallbacks: with no wall straight ahead, the story plays on a floating paper
+screen; if the stage lands somewhere odd, pinch the book on the desk, then
+**Move stage here**, and look at the wall you want.
+
 ## What it does
 
 **In the headset (the storyteller)**
@@ -40,7 +59,8 @@ then **Goodnights**).
   Eleven hand shapes, from a rabbit to a two-handed crocodile; the story never
   fails: it shows a ghost hand, waits, and becomes more forgiving.
 - **Record a story** (hands, story and your voice) and **Send to family**: a
-  private three-word family code, no accounts.
+  private family code (three words and a number, like `lantern-otter-moss-417`),
+  no accounts.
 - **Go live**: your family joins with the code and sees your shadows on their
   screen in real time; talk to each other; **Take turns** so the child makes
   every other creature.
@@ -68,6 +88,10 @@ then **Goodnights**).
 - Live rooms hold one storyteller and one family member. The server relays only
   protocol messages and stores nothing.
 - Uploads are strictly validated; rate limits and room limits are per client.
+- Diagnostics are off unless the page is opened with `?diag`; then it sends
+  anonymous technical data (frame times, quality level, recognition results,
+  room detection, device type and error messages), never audio, video, names
+  or family codes.
 
 ## How it works
 
