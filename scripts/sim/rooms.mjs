@@ -53,6 +53,16 @@ const CASES = [
   { name: 'wall at a steep angle (55 deg)', planes: [wall({ yaw: 55 })], expect: { mode: 'screen' } },
   { name: 'wall at a usable angle (30 deg)', planes: [wall({ yaw: 30 })], expect: { mode: 'wall' } },
   {
+    name: 'open-plan: only an "invisible wall face"',
+    planes: [flat(0, 'floor'), wall({ label: 'invisible wall face' })],
+    expect: { mode: 'wall', distance: [1.99, 2.01] },
+  },
+  {
+    name: 'a TV ("screen") on the wall ahead: the wall holds the stage',
+    planes: [wall({ dist: 2 }), wall({ dist: 1.95, width: 1.4, height: 0.8, y0: 0.9, label: 'screen' })],
+    expect: { mode: 'wall', distance: [1.99, 2.01] },
+  },
+  {
     name: 'labelled "wall face"',
     planes: [wall({ label: 'wall face' })],
     expect: { mode: 'wall' },

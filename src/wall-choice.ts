@@ -65,10 +65,17 @@ export const SCREEN_MIN_DISTANCE = 0.9;
 
 export type LabelKind = 'wall' | 'unlabelled' | 'opening' | 'other';
 
+/** Score bonus for a plane labelled a wall, and the cost of an unexpected label (vs unlabelled, 0). */
+const WALL_LABEL_BONUS = 0.1;
+const OTHER_LABEL_PENALTY = 0.15;
+
 /**
  * Walls are planes labelled "wall" (any spelling: "wall", "wall face", "WALL_FACE")
  * or not labelled at all. Doors and windows are openings to keep the stage off.
- * Anything else ("invisible wall face", "wall art", "screen", furniture) is not a wall.
+ * Any other label ("invisible wall face" in an open-plan room, "wall art", a TV
+ * "screen") is 'other': a vertical one can still hold the stage, behind a real
+ * wall at the same spot (OTHER_LABEL_PENALTY), so an unexpected label never sends
+ * a room to the paper screen for nothing. Horizontal surfaces are never walls.
  */
 export function labelKind(label: string | undefined): LabelKind {
   const l = (label ?? '').toLowerCase().replace(/[_-]+/g, ' ').trim();
@@ -184,8 +191,8 @@ const scratch: Measured = { nx: 0, nz: 0, dist: 0, facing: 0, uMin: 0, uMax: 0 }
 const other: Measured = { nx: 0, nz: 0, dist: 0, facing: 0, uMin: 0, uMax: 0 };
 
 /**
- * Pick the wall most directly in front of the player: vertical, labelled a wall
- * (or unlabelled), 0.6-4 m away, turned less than 40 degrees from the view, with
+ * Pick the wall most directly in front of the player: vertical, not a door or
+ * window (labelled walls first, then unlabelled planes, then other labels), 0.6-4 m away, turned less than 40 degrees from the view, with
  * the point straight ahead on its outline and room for the stage clear of any
  * door or window on it. Labelled walls win over unlabelled planes at equal footing.
  * `forward` is the horizontal view direction.
@@ -198,7 +205,7 @@ export function chooseWall(head: V3, forward: V3, planes: readonly RoomPlane[]):
   let bestScore = -Infinity;
   for (const plane of planes) {
     const kind = labelKind(plane.label);
-    if (kind !== 'wall' && kind !== 'unlabelled') continue;
+    if (kind === 'opening') continue;
     if (!measure(plane, head, fx, fz, scratch)) continue;
     const { nx, nz, dist, facing, uMin, uMax } = scratch;
     if (dist < MIN_WALL || dist > MAX_WALL || facing < FRONT_COS) continue;
@@ -221,7 +228,8 @@ export function chooseWall(head: V3, forward: V3, planes: readonly RoomPlane[]):
     const desired = Math.min(MAX_STAGE_WIDTH, Math.max(0.45, dist * WIDTH_PER_METER));
     const fit = fitOnWall(uMin, uMax, desired, blocked, blocked.length ? Math.max(0.3, dist * MAX_SHIFT_TAN) : Infinity);
     if (!fit) continue;
-    const score = facing - dist * 0.05 + (kind === 'wall' ? 0.1 : 0) - Math.abs(fit.shift) * 0.1;
+    const label = kind === 'wall' ? WALL_LABEL_BONUS : kind === 'other' ? -OTHER_LABEL_PENALTY : 0;
+    const score = facing - dist * 0.05 + label - Math.abs(fit.shift) * 0.1;
     if (score > bestScore) {
       bestScore = score;
       best = { nx, nz, point: { ...plane.point }, dist, width: fit.width, shift: fit.shift, wallWidth: uMax - uMin };

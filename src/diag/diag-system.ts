@@ -26,7 +26,7 @@ const W = 1024;
 const BAND = 84;
 const H = 300 + BAND;
 
-type Item = Record<string, string | number | boolean | number[] | null>;
+type Item = Record<string, string | number | boolean | number[] | string[] | null>;
 
 /** Which headset or device, from the user agent (an enum, nothing identifying). */
 function deviceClass(): string {
@@ -204,22 +204,28 @@ export class DiagSystem extends createSystem({
       stageW: round(stage.getValue(Stage, 'width') ?? 0, 2),
       planes: this.queries.planes.entities.size,
       vplanes: this.verticalPlanes(),
-      vlabels: this.verticalLabels(),
+      labels: this.planeLabels(),
       meshes: this.queries.meshes.entities.size,
     };
   }
 
-  /** What the headset calls its vertical planes ("wall:4,door frame:1,-:2"), so label handling can be checked. */
-  private verticalLabels(): string {
+  /**
+   * Every plane label the headset reports, with its orientation and count
+   * ("v wall 4", "v door frame 1", "h table 2", "v - 1" for no label), so label
+   * handling can be checked against real rooms. Up to 16 kinds.
+   */
+  private planeLabels(): string[] {
     const counts = new Map<string, number>();
     for (const p of this.queries.planes.entities) {
       const plane = p.getValue(XRPlane, '_plane') as (XRPlane & { semanticLabel?: string }) | undefined;
-      if (plane?.orientation !== 'vertical') continue;
-      const label = (plane.semanticLabel ?? '').toLowerCase().replace(/[^a-z0-9 _-]/g, '').slice(0, 20) || '-';
-      counts.set(label, (counts.get(label) ?? 0) + 1);
+      if (!plane) continue;
+      const label = (plane.semanticLabel ?? '').toLowerCase().replace(/[^a-z0-9 _-]/g, '').slice(0, 40) || '-';
+      const key = `${plane.orientation === 'vertical' ? 'v' : 'h'} ${label}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
     }
-    return [...counts].map(([l, n]) => `${l}:${n}`).join(',').slice(0, 64);
+    return [...counts].slice(0, 16).map(([k, n]) => `${k} ${n}`);
   }
+
 
   private verticalPlanes(): number {
     let n = 0;
