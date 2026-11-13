@@ -39,6 +39,12 @@ One container serves everything:
 With `STORY_BUCKET` set, the server uses the Cloud Run service account through
 the metadata server (no keys in the image).
 
+**Every deploy command below sets the full configuration** (`--set-env-vars`
+replaces all variables): keep `VOICE_STT=google` and the `--set-secrets` line
+in each, or voice commands, Mo's tips and dreamed stories switch off. Set up
+since devtest-5 (13 Nov): secret `anthropic-api-key` (the service account can
+read it), Speech-to-Text and Secret Manager APIs enabled.
+
 **Mo's tips (`ANTHROPIC_API_KEY`)**: keep the key in Secret Manager and give
 the service account access to it, then deploy with
 `--set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest`:
@@ -78,7 +84,8 @@ gcloud storage buckets update gs://$BUCKET --lifecycle-file=/tmp/lifecycle.json
 
 gcloud run deploy shadowplay --project $PROJECT --region $REGION --source . \
   --allow-unauthenticated \
-  --set-env-vars STORY_BUCKET=$BUCKET,TRUSTED_PROXY_HOPS=1 \
+  --set-env-vars STORY_BUCKET=$BUCKET,TRUSTED_PROXY_HOPS=1,VOICE_STT=google \
+  --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest \
   --min-instances 0 --max-instances 1 --timeout 3600 --session-affinity \
   --memory 512Mi --cpu 1
 
@@ -107,7 +114,8 @@ N=1   # next devtest number: gcloud run revisions list --service shadowplay --pr
 git checkout main && git pull --ff-only
 gcloud run deploy shadowplay --project $PROJECT --region $REGION --source . \
   --service-account $SA --allow-unauthenticated \
-  --set-env-vars STORY_BUCKET=$BUCKET,TRUSTED_PROXY_HOPS=1 \
+  --set-env-vars STORY_BUCKET=$BUCKET,TRUSTED_PROXY_HOPS=1,VOICE_STT=google \
+  --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest \
   --min-instances 0 --max-instances 1 --timeout 3600 --session-affinity \
   --memory 512Mi --cpu 1 \
   --revision-suffix devtest-$N --tag devtest --no-traffic
@@ -182,7 +190,8 @@ git checkout main && git pull --ff-only
 git tag v1.0-competition && git push origin v1.0-competition
 gcloud run deploy shadowplay --project $PROJECT --region $REGION --source . \
   --service-account $SA --allow-unauthenticated \
-  --set-env-vars STORY_BUCKET=$BUCKET,TRUSTED_PROXY_HOPS=1 \
+  --set-env-vars STORY_BUCKET=$BUCKET,TRUSTED_PROXY_HOPS=1,VOICE_STT=google \
+  --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest \
   --min-instances 1 --max-instances 1 \
   --no-cpu-throttling --cpu 1 --memory 1Gi \
   --timeout 3600 --session-affinity \
