@@ -45,7 +45,7 @@ export function openCredits(): void {
   const title = document.createElement('h2');
   title.textContent = 'Credits';
   const intro = document.createElement('p');
-  intro.textContent = 'The stories, characters, shadows, lamp and sounds are original to Shadowplay. It is built with:';
+  intro.textContent = 'Rated 10+: gentle bedtime stories, made for a grown-up and a child together. The stories, characters, shadows, lamp and sounds are original to Shadowplay. It is built with:';
   const list = document.createElement('ul');
   for (const c of CREDITS) {
     const li = document.createElement('li');

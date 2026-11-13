@@ -78,6 +78,16 @@ screen; if the stage lands somewhere odd, pinch the book on the desk, then
 - **Send a goodnight back**: twenty seconds of your shadow creature and, if a
   grown-up switches it on, your voice.
 
+## Age rating: 10+
+
+Bedtime stories meant to be shared by a grown-up and a child. The only peril is
+gentle and resolves kindly: a wolf on the path runs away from a big shadow dog
+or falls asleep under a shadow bird, a storm passes, a little dog is scared and
+brave anyway. There is no violence, injury, frightening imagery, profanity,
+romance, advertising or in-app purchase. The family side is set up by a grown-up,
+who allows the camera and switches on the voice for a goodnight; shared stories
+are private to the family and deleted after 30 days.
+
 ## Privacy and safety
 
 - No accounts and no public listing. A shared story is reachable only by its
