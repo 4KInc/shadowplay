@@ -48,8 +48,11 @@ check('bird, hands far apart: bring them together', apart.includes('hands-apart'
 check('one-hand mode: the bird is an open hand', coachFacts('bird', none, hand('open', 'right'), true)[0] === 'almost', null);
 check('no hands: say so', coachFacts('rabbit', none, none)[0] === 'no-hands', null);
 // Words for every fact.
-const missing = Object.keys(FACTS).filter((f) => !localLine('rabbit', [f]) || localLine('rabbit', [f]).length > 110);
-check('every fact has a short local line', missing.length === 0, missing);
+const missing = Object.keys(FACTS).filter((f) => !localLine('rabbit', [f]) || localLine('rabbit', [f]).length > 110 || /watch the ghost hand/i.test(localLine('rabbit', [f])));
+check('every fact has its own short local line', missing.length === 0, missing);
+// Plain grammar: no "wants to" or "should" left over from the fact descriptions.
+const awkward = Object.keys(FACTS).map((f) => localLine('bird', [f])).filter((l) => /\b(wants|want to be|should)\b/.test(l));
+check('local lines read naturally', awkward.length === 0, awkward);
 
 console.log(`\n${failed ? `${failed} failed` : 'all passed'}`);
 if (failed) process.exitCode = 1;
