@@ -1,5 +1,5 @@
 /**
- * "Dream up a new story": Claude writes the words of a new short bedtime story
+ * "Dream up a new story": the model (Claude or Muse Spark, llm.ts) writes the words of a new short bedtime story
  * for the shapes and theme the app picks; the server builds the story itself
  * (the same pattern as Counting Stars: Mo follows a finger, then for each shape
  * a request, a ride across the stage and a bow, then the finale), so the model
@@ -8,8 +8,9 @@
  * the shape's name in its request, a never-say list); a story that fails is
  * refused rather than shown.
  *
- * On when ANTHROPIC_API_KEY is set (DREAM_MODEL picks the model).
+ * On when the server has a model key (main.ts; DREAM_MODEL picks the model).
  */
+import type { Llm } from './llm.ts';
 
 export const DREAM_SHAPES = ['rabbit', 'fish', 'dog', 'bird', 'cup'] as const;
 export const THEMES: Readonly<Record<string, { words: string; scenery: string }>> = {
@@ -149,28 +150,19 @@ export function assembleStory(req: DreamRequest, reply: string): Record<string, 
 }
 
 export class Dreamer {
-  private key: string;
-  private api: string;
+  private llm: Llm;
   private model: string;
 
-  constructor(key: string, api = 'https://api.anthropic.com', model = 'claude-sonnet-5-5') {
-    this.key = key;
-    this.api = api;
+  constructor(llm: Llm, model: string) {
+    this.llm = llm;
     this.model = model;
   }
 
   /** A new story, or null if the model's words did not pass (one retry). */
   async dream(req: DreamRequest): Promise<Record<string, unknown> | null> {
     for (let attempt = 0; attempt < 2; attempt++) {
-      const res = await fetch(`${this.api}/v1/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': this.key, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: this.model, max_tokens: 1500, system: SYSTEM, messages: [{ role: 'user', content: prompt(req) }] }),
-        signal: AbortSignal.timeout(30000),
-      });
-      if (!res.ok) throw new Error(`claude ${res.status}`);
-      const body = (await res.json()) as { content?: { type: string; text?: string }[] };
-      const story = assembleStory(req, body.content?.find((c) => c.type === 'text')?.text ?? '');
+      const text = await this.llm.text({ model: this.model, system: SYSTEM, user: prompt(req), maxTokens: 1500, effort: 'medium', timeoutMs: 50000 });
+      const story = assembleStory(req, text);
       if (story) return story;
     }
     return null;

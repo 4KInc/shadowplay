@@ -16,7 +16,7 @@
     "test:coach": "esbuild scripts/recognition/coach-check.ts --bundle --platform=node --format=esm --alias:@iwsdk/core=./scripts/recognition/core-stub.mjs --alias:three=./node_modules/three/build/three.module.js --outfile=node_modules/.cache/coach-check.mjs --log-level=warning && node node_modules/.cache/coach-check.mjs",
     "test:recognition": "esbuild scripts/recognition/sweep.ts --bundle --platform=node --format=esm --alias:@iwsdk/core=./scripts/recognition/core-stub.mjs --alias:three=./node_modules/three/build/three.module.js --outfile=node_modules/.cache/recognition-sweep.mjs --log-level=warning && node node_modules/.cache/recognition-sweep.mjs",
     "server": "node server/main.ts",
-    "test:server": "node --test server/api.test.ts server/live.test.ts",
+    "test:server": "node --test server/api.test.ts server/live.test.ts server/llm.test.ts",
     "test": "npm run typecheck && npm run test:unit && npm run test:server && npm run test:recognition && npm run test:coach",
     "test:unit": "node --test tests/*.test.mjs"
   },
