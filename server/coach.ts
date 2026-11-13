@@ -11,8 +11,9 @@
 import { FACTS, localLine } from '../src/coach-vocab.ts';
 
 export const COACH_SHAPES = new Set(['rabbit', 'dog', 'fish', 'bird', 'cup', 'snail', 'swan', 'deer', 'crocodile']);
-const MAX_WORDS = 20;
-const LINE = /^[A-Za-z0-9 ,.!?'’;:-]{8,140}$/;
+const MAX_WORDS = 22;
+/** At most 110 characters: four lines of Mo's bubble (mo-coach.ts). */
+const LINE = /^[A-Za-z0-9 ,.!?'’;:-]{8,110}$/;
 /** Words Mo never says (a cheap last check after the model's own care). */
 const NEVER = /\b(kill|die|dead|blood|hate|stupid|dumb|ugly|scary|monster|password|address|phone|email|http|www)\b/i;
 
@@ -21,7 +22,7 @@ const SYSTEM = [
   'Someone (a child of 10 or older, or a grown-up) is trying to make a hand shadow shape for the story and is stuck.',
   'You are told the shape and what the hand tracker noticed about their hands.',
   'Reply with exactly one short, warm, encouraging tip in your own voice that tells them the one change to make, using the words a child understands (index finger, thumb, wrists).',
-  'At most 18 words. Plain words only: no emojis, no quotation marks, no lists, no questions about the person, no names, no brands.',
+  'At most 16 words. Plain words only: no emojis, no quotation marks, no lists, no questions about the person, no names, no brands.',
   'Never mention cameras, tracking, sensors or technology; talk about their hands and the shadow.',
   'Output only the line.',
 ].join(' ');

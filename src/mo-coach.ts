@@ -18,10 +18,12 @@ const TIP_AT = [9, 21, 33] as const;
 /** How long a tip stays up, seconds. */
 const TIP_SECONDS = 6;
 const W = 1024;
-const H = 320;
+const H = 384;
+/** The bubble holds four lines: the server keeps tips within that (110 characters, server/coach.ts). */
+const MAX_LINES = 4;
 
 /** For tests and diagnostics: Mo's last tip, where it came from, and how many so far. */
-export const coachRuntime = { line: '', source: '' as '' | 'ai' | 'local', tips: 0, facts: [] as string[], ms: 0 };
+export const coachRuntime = { line: '', source: '' as '' | 'ai' | 'local', tips: 0, facts: [] as string[], ms: 0, cut: false };
 
 function drawBubble(g: CanvasRenderingContext2D, text: string, highContrast: boolean): void {
   g.clearRect(0, 0, W, H);
@@ -38,7 +40,8 @@ function drawBubble(g: CanvasRenderingContext2D, text: string, highContrast: boo
     } else line = next;
   }
   if (line) lines.push(line);
-  const shown = lines.slice(0, 3);
+  const shown = lines.slice(0, MAX_LINES);
+  coachRuntime.cut = lines.length > MAX_LINES;
   const lineH = 62;
   const boxH = shown.length * lineH + 40;
   const boxW = Math.min(W - 20, Math.max(...shown.map((l) => g.measureText(l).width)) + 80);
