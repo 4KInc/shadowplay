@@ -46,8 +46,8 @@ Run the core checks (A and B) in at least three rooms; the rest once per headset
 | A6 | Frame rate holds at 72 (panel line 1 stays cream, not red) | [ ] | fps / p95 |
 | A7 | Quality level after 2 minutes (`q0`..`q3`; anything above `q0` means the headset could not hold 72) | [ ] | |
 | A7b | If the level stepped down: no visible pop or flicker when it changed, and shadows still look whole (edges not clipped) | [ ] | |
-| A9 | First launch only: time from Enter XR to the first creature (the rabbit) waking (summary: `first creature: N s`, target under 60 s). The ghost hand appears about 2 s after the rabbit is asked for | [ ] | seconds |
-| A10 | The first creature waking is unmistakable: chime, the lamp light swells, "A rabbit! Quick, and kind." | [ ] | |
+| A9 | First launch only (it opens *Counting Stars*): time from Enter XR to the first creature (the two-hand bird) waking (summary: `first creature: N s`, target under 60 s). The ghost hand appears about 2 s after the bird is asked for | [ ] | seconds (emulator, first launch = Counting Stars: bird asked at 23 s; first creature 23.5 s quick child, 48.5 s slow bot; was 50.7 / 76 s with The Moth) |
+| A10 | The first creature waking is unmistakable: chime, the lamp light swells, the bird flies Mo up ("Fly up, up, up.") | [ ] | |
 | A8 | Controllers in hand: story pauses and asks to put them down; resumes with hands | [ ] | |
 
 ## B. Shapes (every room)

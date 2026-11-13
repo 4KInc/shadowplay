@@ -31,20 +31,32 @@ async function run(persona) {
   await page.getByRole('button', { name: /Enter XR/i }).click();
   const captions = [];
   let woke = null;
+  let story = null;
+  let firstShape = null;
   let asked = null;
   let firstCaption = null;
   const deadline = Date.now() + 150_000;
   while (Date.now() < deadline) {
     await sleep(250);
-    const s = await page.evaluate(() => ({ beat: __sp.get('StoryState', 'beatId'), caption: __sp.get('StoryState', 'caption'), now: Date.now() }));
+    const s = await page.evaluate(() => ({
+      beat: __sp.get('StoryState', 'beatId'),
+      caption: __sp.get('StoryState', 'caption'),
+      target: __sp.get('ShapeRecognizer', 'target'),
+      matched: __sp.get('ShapeRecognizer', 'matchedShape'),
+      script: __sp.get('StoryState', 'script'),
+      now: Date.now(),
+    }));
+    story ??= s.script;
     const t = (s.now - xrAt) / 1000;
     if (s.caption && captions.at(-1) !== s.caption) {
       captions.push(s.caption);
       firstCaption ??= t;
     }
-    if (s.beat === 'want-rabbit') asked ??= t;
-    if (asked !== null && s.beat !== 'want-rabbit') {
+    // Whatever the first-launch story: the first shape asked for, and the first creature awake.
+    if (s.target && s.target !== 'none') asked ??= t;
+    if (asked !== null && s.matched && s.matched !== 'none') {
       woke = t;
+      firstShape = s.matched;
       break;
     }
   }
@@ -53,6 +65,8 @@ async function run(persona) {
   return {
     persona,
     firstCaptionS: firstCaption?.toFixed(1),
+    story: story?.replace(/^story\/|\.story\.json$/g, ''),
+    firstShape,
     askedS: asked?.toFixed(1),
     firstCreatureS: woke?.toFixed(1) ?? 'never',
     underTarget: woke !== null && woke < TARGET_SECONDS,
