@@ -70,9 +70,11 @@ screen; if the stage lands somewhere odd, pinch the book on the desk, then
   wall), and **Look to press** for limited hand mobility: rest the centre of
   your view on a button, the journal or the lamp switch to press it, and look
   at the ghost hand to make a shape, so a whole story can be told without hands
-  (head gaze: Quest 3 and 3S have no eye tracking). One-hand mode, forgiving
-  shapes, high contrast and Look to press are also on the first screen, before
-  entering XR.
+  (head gaze: Quest 3 and 3S have no eye tracking). **Voice commands** are the
+  spoken alternative: say the shape the story asks for, "open the journal",
+  "pause", "continue", "go on" or a button's name. One-hand mode, forgiving
+  shapes, high contrast, Look to press and Voice commands are also on the
+  first screen, before entering XR.
 - Pauses when you open the Quest menu or take the headset off, and picks up on
   the same line; a story left mid-way continues from its chapter next time.
 
@@ -100,7 +102,11 @@ are private to the family and deleted after 30 days.
   private family code and is deleted after 30 days.
 - The camera starts only after a grown-up allows it on that device. Video never
   leaves the device; only hand positions are used (and, in Live, sent).
-- The microphone opens only when the person presses Record with voice or Talk.
+- The microphone opens only when the person presses Record with voice or Talk,
+  or turns on Voice commands. With Voice commands on, a short spoken phrase is
+  understood by the browser's own speech recognition or, where the headset
+  browser has none, sent to a speech-to-text service and forgotten; commands
+  are ignored while a story is being recorded with voice or during Talk.
 - Live rooms hold one storyteller and one family member. The server relays only
   protocol messages and stores nothing.
 - Uploads are strictly validated; rate limits and room limits are per client.

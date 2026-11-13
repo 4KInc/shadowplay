@@ -336,8 +336,9 @@ export class StorySystem extends createSystem({
     if (this.attract) this.leaveAttract(stage);
 
     // Hands first: controllers but no hands pauses the story with a gentle note.
-    // (Not with Look to press: someone who cannot use their hands may well be holding controllers.)
-    this.controllerTime = handRuntime.controllersOnly && !accessRuntime.gazeDwell ? this.controllerTime + delta : 0;
+    // (Not with Look to press or voice commands: someone who cannot use their hands may well be holding controllers.)
+    const handsFree = accessRuntime.gazeDwell || accessRuntime.voiceState !== 'off';
+    this.controllerTime = handRuntime.controllersOnly && !handsFree ? this.controllerTime + delta : 0;
     const needHands = this.controllerTime > CONTROLLER_GRACE_SECONDS;
 
     const journalOpen = Boolean(first(this.queries.journals.entities)?.getValue(ShadowJournal, 'open'));
@@ -451,6 +452,7 @@ export class StorySystem extends createSystem({
     this.welcomeBack = false;
     this.holdTime = 0;
     this.gazeTime = 0;
+    accessRuntime.voiceNext = false;
     this.growFrom = 0;
     this.endAssist(story, stage);
     story.setValue(StoryState, 'beatIndex', index);
@@ -559,6 +561,12 @@ export class StorySystem extends createSystem({
     const t = this.beatTime;
     const index = story.getValue(StoryState, 'beatIndex') ?? 0;
     const done = index + 1;
+    if (GAZE_BEATS.has(beat.type) && accessRuntime.voiceNext) {
+      // Voice commands: "go on" does what the movement would.
+      accessRuntime.voiceNext = false;
+      if (beat.type === 'reveal') for (const p of this.queries.props.entities) p.setValue(HiddenProp, 'revealed', 1);
+      return done;
+    }
     if (GAZE_BEATS.has(beat.type) && accessRuntime.gazeDwell) {
       // Look to press: no hands needed; resting the gaze on the stage does what the movement would.
       this.gazeTime = accessRuntime.gazeOnStage ? this.gazeTime + delta : 0;

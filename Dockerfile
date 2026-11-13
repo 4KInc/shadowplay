@@ -14,6 +14,8 @@ WORKDIR /app
 ENV NODE_ENV=production PORT=8080 STATIC_DIR=/app/dist
 RUN echo '{"type":"module","private":true}' > package.json && npm install --no-save --omit=dev ws@8.22.0 && npm cache clean --force
 COPY server ./server
+# The voice-command phrases, shared with the app (phrase hints for speech-to-text).
+COPY src/voice-commands.ts ./src/voice-commands.ts
 COPY --from=build /app/dist ./dist
 USER node
 EXPOSE 8080

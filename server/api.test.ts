@@ -3,6 +3,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createServer, type Server } from 'node:http';
 import { after, before, test } from 'node:test';
 
 /** The real server in a child process, behind one trusted proxy hop (as on Cloud Run). */
@@ -19,9 +20,34 @@ mkdirSync(join(app, 'story'));
 writeFileSync(join(app, 'story', 'library.json'), JSON.stringify({ stories: [] }));
 let server: ChildProcess;
 
+/** A stand-in for Cloud Speech-to-Text: records what it was sent, answers "the bird". */
+const STT_PORT = PORT + 1000;
+const sttSeen: { config?: { encoding?: string; speechContexts?: { phrases: string[] }[] }; audio?: { content?: string } }[] = [];
+let stt: Server;
+
 before(async () => {
+  stt = createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      sttSeen.push(JSON.parse(body));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ results: [{ alternatives: [{ transcript: 'the bird' }] }] }));
+    });
+  });
+  await new Promise<void>((r) => stt.listen(STT_PORT, '127.0.0.1', r));
   server = spawn(process.execPath, ['server/main.ts'], {
-    env: { ...process.env, PORT: String(PORT), DATA_DIR: data, DIAG_DIR: join(data, 'diag'), STATIC_DIR: app, TRUSTED_PROXY_HOPS: '1' },
+    env: {
+      ...process.env,
+      PORT: String(PORT),
+      DATA_DIR: data,
+      DIAG_DIR: join(data, 'diag'),
+      STATIC_DIR: app,
+      TRUSTED_PROXY_HOPS: '1',
+      VOICE_STT: 'google',
+      STT_API: `http://127.0.0.1:${STT_PORT}`,
+      STT_TOKEN_URL: '',
+    },
     stdio: 'ignore',
   });
   for (let i = 0; i < 50; i++) {
@@ -32,6 +58,7 @@ before(async () => {
 });
 after(() => {
   server.kill();
+  stt.close();
   rmSync(data, { recursive: true, force: true });
 });
 
@@ -177,6 +204,28 @@ test('diagnostics are rate limited per client', async () => {
   for (let i = 0; i < 62; i++) statuses.push((await c.post('/api/diag', batch)).status);
   assert.equal(statuses.filter((s) => s === 204).length, 60);
   assert.equal(statuses.at(-1), 429);
+});
+
+test('voice: available, a short webm clip becomes text, with the command phrases as hints', async () => {
+  const c = as();
+  assert.deepEqual(await (await c.get('/api/voice')).json(), { available: true });
+  const clip = Buffer.alloc(4000, 7);
+  const headers = { 'X-Forwarded-For': '6.6.6.6, 10.9.9.9', 'Content-Type': 'audio/webm;codecs=opus' };
+  const res = await fetch(`${BASE}/api/voice`, { method: 'POST', headers, body: clip });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { text: 'the bird' });
+  const sent = sttSeen.at(-1)!;
+  assert.equal(sent.config?.encoding, 'WEBM_OPUS');
+  assert.ok(sent.config?.speechContexts?.[0].phrases.includes('rabbit'));
+  assert.equal(Buffer.from(sent.audio?.content ?? '', 'base64').length, clip.length);
+});
+
+test('voice: refuses other types, empty and over-long clips', async () => {
+  const send = (body: Buffer, type = 'audio/webm') =>
+    fetch(`${BASE}/api/voice`, { method: 'POST', headers: { 'X-Forwarded-For': '6.6.6.6, 10.9.9.8', 'Content-Type': type }, body });
+  assert.equal((await send(Buffer.alloc(4000), 'audio/wav')).status, 415);
+  assert.equal((await send(Buffer.alloc(50))).status, 400);
+  assert.equal((await send(Buffer.alloc(200 * 1024))).status, 413);
 });
 
 test('healthz', async () => {

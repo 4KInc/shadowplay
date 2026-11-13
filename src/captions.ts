@@ -13,6 +13,8 @@ import { ShapeRecognizer, StoryState } from './shadowplay-components.js';
 import { accessRuntime, stageRuntime, trackingRuntime } from './stage-runtime.js';
 
 const FADE_PER_SECOND = 4;
+/** How long a voice command's "Heard: ..." line stays up. */
+const HEARD_MS = 2500;
 const NUDGE_W = 1024;
 const NUDGE_H = 120;
 /** Hands keep dropping out of tracking during a shape request (usually too little light). */
@@ -127,7 +129,9 @@ export class CaptionSystem extends createSystem({
     }
     this.updateHint(Boolean(story.getValue(StoryState, 'hintVisible')), delta);
     const rec = this.queries.recognizers.entities.values().next().value;
-    const nudge = trackingRuntime.lightHint ? LIGHT_HINT : (NUDGE_TEXT[rec?.getValue(ShapeRecognizer, 'nudge') ?? 'none'] ?? '');
+    // Voice commands: what was understood, for a moment.
+    const heard = accessRuntime.voiceHeard && performance.now() - accessRuntime.voiceHeardAt < HEARD_MS ? accessRuntime.voiceHeard : '';
+    const nudge = trackingRuntime.lightHint ? LIGHT_HINT : heard || (NUDGE_TEXT[rec?.getValue(ShapeRecognizer, 'nudge') ?? 'none'] ?? '');
     this.updateNudge(nudge, delta);
   }
 

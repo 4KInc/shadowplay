@@ -92,6 +92,7 @@ export interface StoredSettings {
   oneHand: boolean;
   highContrast?: boolean;
   gazeDwell?: boolean;
+  voiceCommands?: boolean;
   placeholderVoice?: boolean;
 }
 

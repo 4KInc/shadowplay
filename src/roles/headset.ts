@@ -6,6 +6,7 @@ import { LampControlSystem } from '../lamp-control.js';
 import { FamilyControlsSystem } from '../live/family-controls.js';
 import { FamilyInboxSystem } from '../performance/replies.js';
 import { SettingsSystem } from '../settings.js';
+import { VoiceControlSystem } from '../voice-control.js';
 
 /** Systems only the storyteller's page needs (never loaded by the family viewer). */
 export function registerHeadset(world: World): void {
@@ -16,5 +17,6 @@ export function registerHeadset(world: World): void {
     .registerSystem(FamilyInboxSystem)
     .registerSystem(FamilyControlsSystem)
     .registerSystem(FamilySetupSystem)
-    .registerSystem(GazeDwellSystem);
+    .registerSystem(GazeDwellSystem)
+    .registerSystem(VoiceControlSystem);
 }
