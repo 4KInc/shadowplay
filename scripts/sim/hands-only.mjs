@@ -34,6 +34,8 @@ await page.goto(APP + '/', { waitUntil: 'load' });
 await page.waitForFunction(() => window.__sp, null, { timeout: 60000 });
 await page.getByRole('button', { name: /Enter XR/i }).click();
 await page.waitForFunction(() => window.IWER_DEVICE?.activeSession && window.__sp.view().ready, null, { timeout: 30000 });
+// The chapter buttons are The Moth's (a first launch opens Counting Stars).
+await page.evaluate(() => __sp.set('StoryState', 'script', 'story/the-moth.story.json'));
 await sleep(1500);
 
 const remote = (method, params) => page.evaluate(([m, p]) => IWER_DEVICE.remote.dispatch(m, p), [method, params]);

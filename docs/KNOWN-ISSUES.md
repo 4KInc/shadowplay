@@ -22,9 +22,11 @@ with the session that showed them.
 - **One-hand mode** covers the bird (an open hand) and the cup (one cupped
   hand). The deer and the crocodile still need two hands; after a minute, any
   steady hand in the light wakes them so nobody gets stuck.
-- **The Settings panel is tall.** It sits beside the stage and reaches above
-  and below the most comfortable viewing band; it is opened on purpose and the
-  text was kept large rather than shrunk.
+- **The Settings panel sits beside the stage, to the right.** It spans about
+  19 degrees up to 22 down (tightened from 27 up and 25 down) and reaches 33
+  degrees to the right; the text and buttons were kept large rather than
+  shrunk. From the seat, the desk lamp's head can cover the panel's lower
+  corner; drag the lamp aside if it does.
 - **Live is one storyteller and one family member**, and Live rooms run on a
   single server instance (in memory). That is plenty for judging; a larger
   launch would need a shared room service.
