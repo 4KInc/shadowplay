@@ -1,5 +1,6 @@
 import { createSystem, Entity, Quaternion, UIKit, UIKitMLAsset, Vector3 } from '@iwsdk/core';
-import { loadSettings, saveSettings } from './journal-store.js';
+import { loadSettings, saveDreamed, saveSettings } from './journal-store.js';
+import { isDreamed } from './story-script.js';
 import {
   HintModes,
   Settings,
@@ -67,6 +68,9 @@ interface LibraryStory {
   blurb: string;
 }
 const MOTH_SCRIPT = 'story/the-moth.story.json';
+/** "Dream a new one": what the app asks Mo for (server/dream.ts accepts exactly these). */
+const DREAM_THEMES = ['sea', 'forest', 'meadow', 'river', 'rain', 'sky'] as const;
+const DREAM_SHAPES = ['rabbit', 'fish', 'dog', 'bird', 'cup'] as const;
 
 /** Buttons with their own look (the rest are options and toggles). */
 const REPLAY_BUTTONS = new Set(['replay-button']);
@@ -103,6 +107,10 @@ export class SettingsSystem extends createSystem({
   private storyTitle: UIKit.Text | undefined;
   private storyBlurb: UIKit.Text | undefined;
   private storyStart: UIKit.Text | undefined;
+  /** Whether the server can dream up stories (null: not asked yet), and a dream in progress. */
+  private dreamAvailable: boolean | null = null;
+  private dreaming = false;
+  private dreams = 0;
   /** Last unlock list shown on the chapter buttons. */
   private shownUnlocks: string | null = null;
   private quat = new Quaternion();
@@ -167,6 +175,47 @@ export class SettingsSystem extends createSystem({
         this.shownScript = '';
       })
       .catch(() => undefined);
+  }
+
+  /**
+   * "Dream a new one": Mo (Claude, on the server) writes a new short story for
+   * a theme and two or three shapes picked here; it is kept on this device and
+   * told at once. Only where the server has AI.
+   */
+  private dream(): void {
+    const story = first(this.queries.stories.entities);
+    if (!story || this.dreaming || story.getValue(StoryState, 'followMode')) return;
+    if (!this.dreamAvailable) {
+      this.status?.setProperties({ text: 'Mo can dream up new stories only where the app has AI.' });
+      return;
+    }
+    const theme = DREAM_THEMES[Math.floor(Math.random() * DREAM_THEMES.length)];
+    const pool = [...DREAM_SHAPES].sort(() => Math.random() - 0.5);
+    const shapes = pool.slice(0, Math.random() < 0.5 ? 2 : 3);
+    this.dreaming = true;
+    this.status?.setProperties({ text: 'Mo is dreaming up a story...' });
+    dreamRuntime.asked = { theme, shapes };
+    const t0 = performance.now();
+    fetch('/api/dream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme, shapes }), signal: AbortSignal.timeout(45000) })
+      .then(async (r) => {
+        const script = r.ok ? ((await r.json()) as { version?: string; title?: string; beats?: unknown[] }) : null;
+        if (!script || script.version !== 'shadowplay.story.v1' || !Array.isArray(script.beats)) throw new Error(`dream ${r.status}`);
+        await saveDreamed(script);
+        dreamRuntime.ms = Math.round(performance.now() - t0);
+        dreamRuntime.title = script.title ?? '';
+        dreamRuntime.ok++;
+        for (const j of this.queries.journals.entities) j.setValue(ShadowJournal, 'open', false);
+        // A new path each time, so the story system loads the new one (only the latest is kept).
+        const current = story.getValue(StoryState, 'script') ?? '';
+        this.dreams = Math.max(this.dreams, isDreamed(current) ? Number(current.slice(8)) : 0) + 1;
+        story.setValue(StoryState, 'script', `dreamed:${this.dreams}`);
+        this.status?.setProperties({ text: `Mo dreamed "${script.title}"...` });
+      })
+      .catch(() => {
+        dreamRuntime.failed++;
+        this.status?.setProperties({ text: 'Mo could not dream one just now. Try again in a moment.' });
+      })
+      .finally(() => (this.dreaming = false));
   }
 
   /** Dim chapters the player has not reached yet. */
@@ -255,6 +304,11 @@ export class SettingsSystem extends createSystem({
       story.setValue(StoryState, 'script', chosen.script);
       this.status?.setProperties({ text: `Starting "${chosen.title}"...` });
     });
+    on('story-dream', () => this.dream());
+    fetch('/api/dream')
+      .then((r) => (r.ok ? (r.json() as Promise<{ available?: boolean }>) : { available: false }))
+      .then((r) => (this.dreamAvailable = Boolean(r.available)))
+      .catch(() => (this.dreamAvailable = false));
     this.storyTitle = panel.getElementById<UIKit.Text>('story-title') ?? undefined;
     this.storyBlurb = panel.getElementById<UIKit.Text>('story-blurb') ?? undefined;
     this.storyStart = panel.getElementById<UIKit.Text>('story-start-label') ?? undefined;
@@ -354,6 +408,9 @@ export class SettingsSystem extends createSystem({
       .addScaledVector(n, narrow ? 0.06 : 0.04);
   }
 }
+
+/** For tests and diagnostics: the last dream asked for, and how dreaming has gone. */
+export const dreamRuntime = { asked: null as { theme: string; shapes: string[] } | null, title: '', ms: 0, ok: 0, failed: 0 };
 
 function first<T>(set: Iterable<T>): T | undefined {
   for (const v of set) return v;

@@ -65,6 +65,11 @@ screen; if the stage lands somewhere odd, pinch the book on the desk, then
   screen in real time; talk to each other; **Take turns** so the child makes
   every other creature.
 - **Goodnights**: what your family sent back plays on your wall.
+- **Dream a new one** (Tonight's story): Mo dreams up a new short story for a
+  theme and two or three shapes the app picks. Claude writes the narration
+  lines; the app builds the story itself (the same pattern as Counting Stars)
+  and checks every line, so it plays like any other story, with captions. A
+  dreamed story stays on the headset (it can't be recorded or shared yet).
 - Accessibility: recognition tolerance, show-me hints, one-hand mode and a
   high-contrast mode (black-and-white panels and captions, solid shadows on the
   wall), and **Look to press** for limited hand mobility: rest the centre of
@@ -112,6 +117,8 @@ are private to the family and deleted after 30 days.
   should be curled down"), never names, video, audio or free text. Where the
   server has AI enabled, Claude (Anthropic) words Mo's tip from those; otherwise
   the app's own words are used. Nothing is stored.
+- A dreamed story: the app sends a theme and shape names only (never names or
+  anything typed or said), and keeps the story on the device.
 - Live rooms hold one storyteller and one family member. The server relays only
   protocol messages and stores nothing.
 - Uploads are strictly validated; rate limits and room limits are per client.
