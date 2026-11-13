@@ -24,6 +24,8 @@ export const stageRuntime = {
   quality: 0,
   /** The headset's answer to our 72 Hz request: '' (not asked yet), 'granted', 'refused', 'unsupported'. */
   frameRateRequest: '',
+  /** Where the lamp and journal stand: on the real desk Room Setup found ('surface'), or at the usual height ('estimate'). */
+  desk: 'estimate' as 'estimate' | 'surface',
   /** A creature just woke: the lamp light swells (1) and settles back (0) over about a second. */
   wakeFlare: 0,
   /**

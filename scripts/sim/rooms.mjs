@@ -231,6 +231,28 @@ for (const c of CASES) {
   await remote('set_input_mode', { mode: 'controller' }).catch(() => undefined);
 }
 
+// The lamp and journal stand on the real desk when Room Setup found one under them.
+{
+  const deskY = eye - 0.5;
+  const desk = {
+    orientation: 'horizontal',
+    label: 'table',
+    point: { x: 0, y: deskY, z: -0.3 },
+    normal: { x: 0, y: 1, z: 0 },
+    corners: [
+      { x: -0.8, y: deskY, z: -0.7 },
+      { x: 0.8, y: deskY, z: -0.7 },
+      { x: 0.8, y: deskY, z: 0.1 },
+      { x: -0.8, y: deskY, z: 0.1 },
+    ],
+  };
+  // (Planes are passed as they are: place() lifts only vertical planes to the eye height.)
+  const on = await place([flat(0, 'floor'), wall(), desk]);
+  check('a table in front: the lamp and journal stand on it', on.desk === 'surface' && Math.abs(on.lampY - deskY) < 0.005, { desk: on.desk, lampY: on.lampY, deskY: +deskY.toFixed(3) });
+  const off = await place([flat(0, 'floor'), wall()]);
+  check('no desk detected: the usual seated height', off.desk === 'estimate' && Math.abs(off.lampY - (eye - 0.45)) < 0.005, { desk: off.desk, lampY: off.lampY });
+}
+
 // Essential UI inside the comfortable field of view, with the journal (and settings) open.
 {
   await place([flat(0, 'floor'), wall()]);
