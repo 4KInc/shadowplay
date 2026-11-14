@@ -144,6 +144,9 @@ gcloud run deploy shadowplay --project $PROJECT --region $REGION --source . \
 # Check it (diagnostics beacon must land in the bucket):
 node scripts/sim/smoke.mjs https://devtest---shadowplay-1031148889398.us-central1.run.app \
   --diag-bucket gs://$BUCKET
+# The AI must be Gemini (a deploy without AI_PROVIDER quietly falls back to Claude):
+curl -s https://devtest---shadowplay-1031148889398.us-central1.run.app/api/coach   # expect {"available":true,"by":"gemini"}
+curl -s https://devtest---shadowplay-1031148889398.us-central1.run.app/api/voice   # expect {"available":true}
 ```
 
 - **Headset URL:** `https://devtest---shadowplay-1031148889398.us-central1.run.app/?diag`
@@ -254,6 +257,9 @@ gcloud monitoring policies create --project $PROJECT --policy-from-file=/tmp/sha
 # 4. Check it: the smoke test, the health endpoint, the judged revision serving.
 node scripts/sim/smoke.mjs https://shadowplay-1031148889398.us-central1.run.app
 curl -s https://shadowplay-1031148889398.us-central1.run.app/api/health
+curl -s https://shadowplay-1031148889398.us-central1.run.app/api/coach   # expect {"available":true,"by":"gemini"}
+curl -s https://shadowplay-1031148889398.us-central1.run.app/api/dream   # expect {"available":true,"by":"gemini"}
+curl -s https://shadowplay-1031148889398.us-central1.run.app/api/voice   # expect {"available":true}
 gcloud run services describe shadowplay --project $PROJECT --region $REGION \
   --format='value(status.traffic)'   # expect shadowplay-competition at 100
 ```

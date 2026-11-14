@@ -45,8 +45,9 @@ with the session that showed them.
   and synthetic audio, not yet with a real voice on a headset.
 - **Mo's tips are as good as the hand tracker's view.** The facts come from
   the same joint angles the recogniser uses, so a hand the headset sees poorly
-  gets a poorer tip. Worded by Claude where the server has a key, otherwise by
-  fixed lines. Tested with synthetic hands and a stand-in for the AI service.
+  gets a poorer tip. Worded by Gemini where the server has a key, otherwise by
+  fixed lines. Tested with synthetic hands, a stand-in for the AI service and
+  30 real Gemini tips (none fell back); not yet on a headset.
 - **Dreamed stories are captions only** (narration audio exists only for the
   library stories) and stay on the headset: they cannot be recorded, sent or
   told live yet. They need the server's AI key; without it the button says so.
