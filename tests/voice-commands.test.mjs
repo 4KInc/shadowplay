@@ -45,3 +45,15 @@ test('every command can be described, and phrase hints are unique', () => {
   }
   assert.equal(new Set(COMMAND_PHRASES).size, COMMAND_PHRASES.length);
 });
+
+test('dreaming by voice: the place and shapes named, in the order said', () => {
+  assert.deepEqual(parseCommand('Dream a story about the river with a fish and a bird'), { kind: 'dream', theme: 'river', shapes: ['fish', 'bird'] });
+  assert.deepEqual(parseCommand("Mo, dream about the stars with a bunny, a dog and a cup please"), { kind: 'dream', theme: 'sky', shapes: ['rabbit', 'dog', 'cup'] });
+  assert.deepEqual(parseCommand('dream a new story'), { kind: 'dream', theme: '', shapes: [] });
+  assert.deepEqual(parseCommand("let's dream in the forest"), { kind: 'dream', theme: 'forest', shapes: [] });
+  // Only shapes a dreamed story can ask for; at most three.
+  assert.deepEqual(parseCommand('dream with a swan, a fish, a bird, a dog and a rabbit').shapes, ['fish', 'bird', 'dog']);
+  // A story line that says "dream" is not a command.
+  assert.notEqual(parseCommand('The fish drifts off to dream')?.kind, 'dream');
+  assert.equal(parseCommand('Close your eyes and dream of the sea'), null);
+});

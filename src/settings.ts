@@ -110,6 +110,10 @@ export class SettingsSystem extends createSystem({
   /** Whether the server can dream up stories (null: not asked yet), and a dream in progress. */
   private dreamAvailable: boolean | null = null;
   private dreaming = false;
+  /** The dream chooser: open, and what it has picked. */
+  private choosing = false;
+  private dreamTheme: string = DREAM_THEMES[0];
+  private dreamShapes: string[] = [];
   private dreams = 0;
   /** Last unlock list shown on the chapter buttons. */
   private shownUnlocks: string | null = null;
@@ -140,6 +144,12 @@ export class SettingsSystem extends createSystem({
       this.voiceCommandsLabel?.setProperties({ text: `Voice commands: ${voiceCommands ? 'On' : 'Off'}`, color: voiceCommands ? palette().ink : palette().cream });
       if (this.applied) void saveSettings({ tolerance, hints, oneHand, highContrast, gazeDwell, voiceCommands, placeholderVoice: voice });
       this.applied = key;
+    }
+    if (dreamRuntime.request) {
+      const { theme, shapes } = dreamRuntime.request;
+      dreamRuntime.request = null;
+      this.closeDreamChooser();
+      this.dream(theme, shapes);
     }
     this.refreshStories();
     this.refreshChapters();
@@ -182,19 +192,71 @@ export class SettingsSystem extends createSystem({
    * a theme and two or three shapes picked here; it is kept on this device and
    * told at once. Only where the server has AI.
    */
-  private dream(): void {
+  /** "Dream a new one": open the chooser (a place and two or three shapes), starting from a random pick. */
+  private openDreamChooser(): void {
+    if (!this.dreamAvailable) {
+      this.status?.setProperties({ text: 'Mo can dream up new stories only where the app has AI.' });
+      return;
+    }
+    if (this.choosing) return this.closeDreamChooser();
+    this.choosing = true;
+    this.dreamTheme = DREAM_THEMES[Math.floor(Math.random() * DREAM_THEMES.length)];
+    this.dreamShapes = [...DREAM_SHAPES].sort(() => Math.random() - 0.5).slice(0, 2);
+    this.panel?.getElementById('dream-section')?.setProperties({ display: 'flex' });
+    this.status?.setProperties({ text: 'Pick a place and two or three shapes, then Dream it.' });
+    this.refreshDreamChooser();
+  }
+
+  private closeDreamChooser(): void {
+    this.choosing = false;
+    dreamRuntime.chooser = { ...dreamRuntime.chooser, open: false };
+    this.panel?.getElementById('dream-section')?.setProperties({ display: 'none' });
+  }
+
+  /** A shape in the chooser: on or off, kept in the order picked (the order the story asks for them). */
+  private toggleDreamShape(shape: string): void {
+    if (this.dreamShapes.includes(shape)) this.dreamShapes = this.dreamShapes.filter((s) => s !== shape);
+    else if (this.dreamShapes.length >= 3) this.status?.setProperties({ text: 'Three shapes at most: take one off first.' });
+    else this.dreamShapes = [...this.dreamShapes, shape];
+    this.refreshDreamChooser();
+  }
+
+  private refreshDreamChooser(): void {
+    dreamRuntime.chooser = { open: this.choosing, theme: this.dreamTheme, shapes: [...this.dreamShapes] };
+    const p = palette();
+    for (const t of DREAM_THEMES) this.buttons.get(`dream-theme-${t}`)?.setProperties(t === this.dreamTheme ? p.selected : p.unselected);
+    for (const sh of DREAM_SHAPES) this.buttons.get(`dream-shape-${sh}`)?.setProperties(this.dreamShapes.includes(sh) ? p.selected : p.unselected);
+  }
+
+  /** "Dream it" in the chooser. */
+  private dreamChosen(): void {
+    if (this.dreamShapes.length < 2) {
+      this.status?.setProperties({ text: 'Pick at least two shapes.' });
+      return;
+    }
+    this.closeDreamChooser();
+    this.dream(this.dreamTheme, this.dreamShapes);
+  }
+
+  /**
+   * Ask Mo for a story about `theme` with `shapes` (in order). Missing parts are
+   * picked at random (a voice command may name only a place, or nothing).
+   */
+  dream(theme?: string, shapes: readonly string[] = []): void {
     const story = first(this.queries.stories.entities);
     if (!story || this.dreaming || story.getValue(StoryState, 'followMode')) return;
     if (!this.dreamAvailable) {
       this.status?.setProperties({ text: 'Mo can dream up new stories only where the app has AI.' });
       return;
     }
-    const theme = DREAM_THEMES[Math.floor(Math.random() * DREAM_THEMES.length)];
-    const pool = [...DREAM_SHAPES].sort(() => Math.random() - 0.5);
-    const shapes = pool.slice(0, Math.random() < 0.5 ? 2 : 3);
+    theme = theme && (DREAM_THEMES as readonly string[]).includes(theme) ? theme : DREAM_THEMES[Math.floor(Math.random() * DREAM_THEMES.length)];
+    const chosen = [...new Set(shapes.filter((x) => (DREAM_SHAPES as readonly string[]).includes(x)))].slice(0, 3);
+    const rest = DREAM_SHAPES.filter((x) => !chosen.includes(x)).sort(() => Math.random() - 0.5);
+    // Two at least: a one-shape (or no-shape) request is topped up at random.
+    shapes = chosen.length >= 2 ? chosen : [...chosen, ...rest].slice(0, chosen.length ? 2 : Math.random() < 0.5 ? 2 : 3);
     this.dreaming = true;
     this.status?.setProperties({ text: 'Mo is dreaming up a story...' });
-    dreamRuntime.asked = { theme, shapes };
+    dreamRuntime.asked = { theme, shapes: [...shapes] };
     const t0 = performance.now();
     fetch('/api/dream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme, shapes }), signal: AbortSignal.timeout(60000) })
       .then(async (r) => {
@@ -304,7 +366,18 @@ export class SettingsSystem extends createSystem({
       story.setValue(StoryState, 'script', chosen.script);
       this.status?.setProperties({ text: `Starting "${chosen.title}"...` });
     });
-    on('story-dream', () => this.dream());
+    on('story-dream', () => this.openDreamChooser());
+    for (const t of DREAM_THEMES) {
+      on(`dream-theme-${t}`, () => {
+        this.dreamTheme = t;
+        this.refreshDreamChooser();
+      });
+    }
+    for (const sh of DREAM_SHAPES) on(`dream-shape-${sh}`, () => this.toggleDreamShape(sh));
+    on('dream-go', () => this.dreamChosen());
+    on('dream-cancel', () => this.closeDreamChooser());
+    panel.getElementById('dream-section')?.setProperties({ display: 'none' });
+    this.choosing = false;
     fetch('/api/dream')
       .then((r) => (r.ok ? (r.json() as Promise<{ available?: boolean }>) : { available: false }))
       .then((r) => (this.dreamAvailable = Boolean(r.available)))
@@ -410,7 +483,17 @@ export class SettingsSystem extends createSystem({
 }
 
 /** For tests and diagnostics: the last dream asked for, and how dreaming has gone. */
-export const dreamRuntime = { asked: null as { theme: string; shapes: string[] } | null, title: '', ms: 0, ok: 0, failed: 0 };
+export const dreamRuntime = {
+  asked: null as { theme: string; shapes: string[] } | null,
+  /** A dream asked for elsewhere (a voice command): taken by the Settings system on its next update. */
+  request: null as { theme: string; shapes: string[] } | null,
+  /** The chooser as shown (for tests and diagnostics). */
+  chooser: { open: false, theme: '', shapes: [] as string[] },
+  title: '',
+  ms: 0,
+  ok: 0,
+  failed: 0,
+};
 
 function first<T>(set: Iterable<T>): T | undefined {
   for (const v of set) return v;

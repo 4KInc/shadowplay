@@ -17,6 +17,8 @@ export type VoiceCommand =
   | { kind: 'press'; id: string }
   /** Ask Mo for a tip on the shape the story wants. */
   | { kind: 'help' }
+  /** Dream a new story: a place and shapes if named (the rest picked at random). */
+  | { kind: 'dream'; theme: string; shapes: string[] }
   /** Turn a setting on or off (null: toggle). */
   | { kind: 'setting'; which: 'oneHand' | 'highContrast' | 'gazeDwell' | 'forgiving' | 'voiceCommands'; on: boolean | null };
 
@@ -68,7 +70,6 @@ const PHRASES: readonly [string, VoiceCommand][] = [
   ['next story', { kind: 'press', id: 'story-next' }],
   ['previous story', { kind: 'press', id: 'story-prev' }],
   ['tell this story', { kind: 'press', id: 'story-start' }],
-  ['dream a new story', { kind: 'press', id: 'story-dream' }],
   ['a new story', { kind: 'press', id: 'story-dream' }],
   ['record a story', { kind: 'press', id: 'record-button' }],
   ['stop recording', { kind: 'press', id: 'record-button' }],
@@ -111,9 +112,41 @@ export function normalise(text: string): string {
     .replace(/( please)$/, '');
 }
 
+/** Places Mo can dream about (server/dream.ts THEMES), and how people say them. */
+const DREAM_THEMES: Readonly<Record<string, readonly string[]>> = {
+  sea: ['sea', 'ocean', 'beach', 'seaside'],
+  forest: ['forest', 'woods', 'trees', 'jungle'],
+  meadow: ['meadow', 'field', 'fields', 'grass'],
+  river: ['river', 'stream', 'lake'],
+  rain: ['rain', 'rainy', 'storm', 'puddles'],
+  sky: ['sky', 'stars', 'clouds', 'moon', 'space'],
+};
+/** Shapes a dreamed story can ask for (server/dream.ts DREAM_SHAPES). */
+const DREAM_SHAPE_IDS = new Set(['rabbit', 'fish', 'dog', 'bird', 'cup']);
+/** A dream request may be a longer sentence: "dream a story about the river with a fish and a bird". */
+const MAX_DREAM_WORDS = 16;
+
+/** "Dream ..." with the place and shapes named in it, in the order said. */
+function parseDream(said: string): VoiceCommand | null {
+  const words = said.split(' ');
+  // A command, not a story line that happens to say "dream": it starts with it.
+  if (!/^(mo )?(lets |let s |let us |can you |please )?dream\b/.test(said) || words.length > MAX_DREAM_WORDS) return null;
+  const padded = ` ${said} `;
+  const theme = Object.entries(DREAM_THEMES).find(([, names]) => names.some((n) => padded.includes(` ${n} `)))?.[0] ?? '';
+  const found: [number, string][] = [];
+  for (const [shape, names] of Object.entries(SHAPES)) {
+    if (!DREAM_SHAPE_IDS.has(shape)) continue;
+    const at = Math.min(...names.map((n) => padded.indexOf(` ${n} `)).filter((i) => i >= 0));
+    if (Number.isFinite(at)) found.push([at, shape]);
+  }
+  return { kind: 'dream', theme, shapes: found.sort((a, b) => a[0] - b[0]).map(([, s]) => s).slice(0, 3) };
+}
+
 /** The command in a short utterance, or null (unknown, or too long to be a command). */
 export function parseCommand(text: string): VoiceCommand | null {
   const said = normalise(text);
+  const dream = parseDream(said);
+  if (dream) return dream;
   if (!said || said.split(' ').length > MAX_WORDS) return null;
   const padded = ` ${said} `;
   // "Make a rabbit", "the bird", "rabbit please": the phrase anywhere, as whole words.
@@ -134,6 +167,8 @@ export function describe(command: VoiceCommand): string {
       return 'go on';
     case 'help':
       return 'help';
+    case 'dream':
+      return `dream${command.theme ? ` about the ${command.theme}` : ''}${command.shapes.length ? ` with ${command.shapes.join(', ')}` : ''}`;
     case 'press':
       return (PHRASES.find(([, c]) => c.kind === 'press' && c.id === command.id)?.[0]) ?? command.id;
     case 'setting':

@@ -1,4 +1,4 @@
-// "Dream a new one": pinching the button (hand ray) asks the server for a new
+// "Dream a new one": pinching the button (hand ray), then Dream it, asks the server for a new
 // story (answered here by the server's own story builder, server/dream.ts, from
 // a canned reply in place of the model's words); it is told at once, played to
 // the end by the demo player, still tonight's story after a reload, and
@@ -79,6 +79,8 @@ async function pinch(page, id) {
   const { context, page, asked } = await session(true);
   await enter(page);
   await pinch(page, 'story-dream');
+  // It opens the chooser (a place and two shapes already picked): Dream it.
+  await pinch(page, 'dream-go');
   await page.waitForFunction(() => /^dreamed:/.test(__sp.get('StoryState', 'script')) && __sp.get('StoryState', 'beatId')?.startsWith('dream-'), null, { timeout: 15000 });
   const d = await page.evaluate(() => ({ script: __sp.get('StoryState', 'script'), dream: __sp.view().dream, open: __sp.get('ShadowJournal', 'open') }));
   check('pinching "Dream a new one": a new story, told at once', asked.length === 1 && asked[0].shapes.length >= 2 && d.script === 'dreamed:1' && d.dream.title === 'The Lantern Tide' && d.open === false, { asked: asked[0], ...d });
