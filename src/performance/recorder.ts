@@ -1,6 +1,7 @@
 import { createSystem, Entity } from '@iwsdk/core';
 import { family } from '../family.js';
-import { loadRecording, saveRecording } from '../journal-store.js';
+import { loadDreamed, loadRecording, saveRecording } from '../journal-store.js';
+import { isDreamed, isStoryScript } from '../story-script.js';
 import { uploadStory, watchLink } from './sharing.js';
 import { PerformanceRecorder, StoryState } from '../shadowplay-components.js';
 import { handRuntime, stageRuntime } from '../stage-runtime.js';
@@ -121,6 +122,11 @@ export class PerformanceRecorderSystem extends createSystem({
   private async finishRecording(rec: Entity, story: Entity): Promise<void> {
     this.active = false;
     const audio = await this.finishAudio();
+    // A library story is named; a dreamed one travels with its own words; anything else
+    // (a story received from another device) is not this recording's to share on.
+    const told = story.getValue(StoryState, 'script') ?? '';
+    const dreamed = isDreamed(told) ? await loadDreamed() : null;
+    const script = isStoryScript(told) || dreamed ? told : '';
     const performance: Performance = {
       version: PERFORMANCE_VERSION,
       id: `perf-${this.startedAt.toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
@@ -129,7 +135,8 @@ export class PerformanceRecorderSystem extends createSystem({
       child: family.own.child,
       createdAt: this.startedAt,
       durationMs: Math.round(this.elapsed * 1000),
-      script: story.getValue(StoryState, 'script') ?? '',
+      script,
+      ...(dreamed ? { story: dreamed } : {}),
       frameHz: FRAME_HZ,
       hands: encodeHands(this.frames.subarray(0, this.frameCount * FRAME_STRIDE)),
       frameCount: this.frameCount,

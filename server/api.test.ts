@@ -135,6 +135,27 @@ test('a valid story round-trips, keeping only known fields', async () => {
   assert.equal(got.performance.shareCode, undefined);
 });
 
+test('a recording of a dreamed story carries its words, checked on the way in', async () => {
+  const { assembleStory } = await import('./dream.ts');
+  const req = { theme: 'sea', shapes: ['rabbit', 'cup'] };
+  const dreamed = assembleStory(req, cannedWords(req.shapes))!;
+  const c = as();
+  const res = await c.post('/api/stories', story({ script: 'dreamed:3', story: { ...dreamed, extra: 'dropped' } }));
+  assert.equal(res.status, 201);
+  const { code } = (await res.json()) as { code: string };
+  const back = (await (await c.get(`/api/stories/${code}`)).json()) as { performance: { script: string; story: { title: string; beats: unknown[] } } };
+  assert.equal(back.performance.script, 'dreamed:3');
+  assert.equal(back.performance.story.title, dreamed.title);
+  assert.equal(back.performance.story.beats.length, (dreamed.beats as unknown[]).length);
+  assert.equal('extra' in back.performance.story, false, 'stored as the checked copy');
+  // A dreamed story without its words, words without a dreamed story, and spoiled words are all refused.
+  assert.equal((await c.post('/api/stories', story({ script: 'dreamed:3' }))).status, 400);
+  assert.equal((await c.post('/api/stories', story({ story: dreamed }))).status, 400);
+  const spoiled = JSON.parse(JSON.stringify(dreamed));
+  spoiled.beats[3].text = 'Mo meets Mickey Mouse.';
+  assert.equal((await c.post('/api/stories', story({ script: 'dreamed:3', story: spoiled }))).status, 400);
+});
+
 test('malformed stories are refused', async () => {
   const c = as();
   const bad: Record<string, unknown>[] = [

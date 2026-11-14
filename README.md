@@ -69,7 +69,9 @@ screen; if the stage lands somewhere odd, pinch the book on the desk, then
   theme and two or three shapes the app picks. Gemini writes the narration
   lines; the app builds the story itself (the same pattern as Counting Stars)
   and checks every line, so it plays like any other story, with captions. A
-  dreamed story stays on the headset (it can't be recorded or shared yet).
+  dreamed story can be recorded and sent, or told live, like any other: its
+  words travel with it, and the server and the family's device check them
+  again before it plays.
 - Accessibility: recognition tolerance, show-me hints, one-hand mode and a
   high-contrast mode (black-and-white panels and captions, solid shadows on the
   wall), and **Look to press** for limited hand mobility: rest the centre of

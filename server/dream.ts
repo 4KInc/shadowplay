@@ -10,7 +10,7 @@
  *
  * On when the server has a model key (main.ts; DREAM_MODEL picks the model).
  */
-import { contentProblems } from './content-checks.ts';
+import { contentProblems } from '../src/story-checks.ts';
 import type { Llm } from './llm.ts';
 
 export const DREAM_SHAPES = ['rabbit', 'fish', 'dog', 'bird', 'cup'] as const;
