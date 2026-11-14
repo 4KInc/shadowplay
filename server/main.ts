@@ -27,7 +27,7 @@ import { MAX_CLIP_BYTES, SpeechToText } from './voice.ts';
  *   GET  /api/coach          { available }: whether Mo's tips are written by AI here
  *   POST /api/coach          { shape, facts, attempt } -> { line, source } (Mo the coach; no personal data)
  *   GET  /api/dream          { available }: whether new stories can be dreamed up here
- *   POST /api/dream          { theme, shapes } -> a new story script (words by Claude, built and checked here)
+ *   POST /api/dream          { theme, shapes } -> a new story script (words by the AI_PROVIDER model, built and checked here)
  *   POST /api/diag           device diagnostics from pages opened with ?diag (numbers and ids only)
  *   GET  /api/health (and /healthz locally: Cloud Run reserves paths ending in 'z')
  *   WS   /live                live rooms (see live.ts)
