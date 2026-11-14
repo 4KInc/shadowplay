@@ -1,7 +1,8 @@
 import { createSystem, Entity } from '@iwsdk/core';
 import { family } from '../family.js';
 import { loadRecording } from '../journal-store.js';
-import { isStoryScript, loadStoryScript, StoryBeat, storyRuntime } from '../story-script.js';
+import { checkSharedStory } from '../story-checks.js';
+import { isStoryScript, loadStoryScript, shareScript, StoryBeat, StoryScript, storyRuntime } from '../story-script.js';
 import {
   DeskLamp,
   HiddenProp,
@@ -116,8 +117,14 @@ export class PerformancePlayerSystem extends createSystem({
     try {
       perf = await loadRecording<Performance>(id);
       if (!perf) throw new Error(`No recording "${id}".`);
-      // A story this version does not know plays without changing the stage's story.
-      if (perf.script && !isStoryScript(perf.script)) perf = { ...perf, script: '' };
+      if (perf.story !== undefined) {
+        // A dreamed story carries its words: checked again here, then told from memory.
+        const checked = checkSharedStory(perf.story);
+        perf = { ...perf, script: checked ? shareScript(perf.id, checked as unknown as StoryScript) : '' };
+      } else if (perf.script && !isStoryScript(perf.script)) {
+        // A story this version does not know plays without changing the stage's story.
+        perf = { ...perf, script: '' };
+      }
       frames = decodeHands(perf.hands);
       if (frames.length < perf.frameCount * FRAME_STRIDE) throw new Error('This recording is damaged.');
       beats = perf.script ? (await loadStoryScript(perf.script).catch(() => null))?.beats ?? [] : [];

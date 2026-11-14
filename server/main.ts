@@ -9,6 +9,7 @@ import { checkPerformance, clientIp, decodeSafe, RateLimiter } from './guard.ts'
 import { attachLive, liveRoomCount } from './live.ts';
 import { DiskStore, GcsStore, type StoryStore } from './storage.ts';
 import { checkCoach, Coach } from './coach.ts';
+import { checkSharedStory } from '../src/story-checks.ts';
 import { checkDream, Dreamer } from './dream.ts';
 import { DEFAULTS, Llm } from './llm.ts';
 import { MAX_CLIP_BYTES, SpeechToText } from './voice.ts';
@@ -119,12 +120,14 @@ async function readBody(req: IncomingMessage, limit: number): Promise<string | n
 /** Keep only the fields the app records (never store or hand back anything extra). */
 const STORY_FIELDS = [
   'version', 'id', 'title', 'performer', 'child', 'createdAt', 'durationMs', 'script', 'frameHz',
-  'hands', 'frameCount', 'events', 'audio', 'audioType',
+  'hands', 'frameCount', 'events', 'audio', 'audioType', 'story',
 ] as const;
 
 function pick(perf: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const k of STORY_FIELDS) if (perf[k] !== undefined) out[k] = perf[k];
+  // A dreamed story's words: stored as the checked, rebuilt copy (never extra fields).
+  if (out.story !== undefined) out.story = checkSharedStory(out.story);
   return out;
 }
 

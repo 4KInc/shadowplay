@@ -18,6 +18,8 @@ COPY server ./server
 COPY src/voice-commands.ts ./src/voice-commands.ts
 # Mo the coach's fact words, shared with the app.
 COPY src/coach-vocab.ts ./src/coach-vocab.ts
+# Content and shared-story checks, shared with the app.
+COPY src/story-checks.ts ./src/story-checks.ts
 COPY --from=build /app/dist ./dist
 USER node
 EXPOSE 8080

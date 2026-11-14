@@ -1,3 +1,4 @@
+import { checkSharedStory } from '../src/story-checks.ts';
 import type { IncomingMessage } from 'node:http';
 
 /**
@@ -85,6 +86,10 @@ const FRAME_STRIDE = 151;
 const MAX_MINUTES = 16;
 const EVENT_TYPES = new Set(['snapshot', 'beat', 'wake', 'release', 'lamp', 'stage']);
 const SCRIPT_PATH = /^story\/[a-z0-9-]{1,40}\.story\.json$/;
+/** A dreamed story (only with the story itself embedded, checked like a new dream). */
+const DREAMED_PATH = /^dreamed:\d{1,6}$/;
+/** An embedded dreamed story is a few kilobytes; this leaves room and stops abuse. */
+const MAX_STORY_JSON = 32 * 1024;
 
 function shortString(v: unknown, max: number): boolean {
   return v === undefined || v === null || (typeof v === 'string' && v.length <= max);
@@ -132,8 +137,14 @@ export function checkPerformance(p: unknown, maxAudioChars: number): string | nu
   for (const [field, max] of [['id', 64], ['title', 80], ['performer', 40], ['child', 40], ['audioType', 64], ['shareCode', 40], ['replyTo', 40]] as const) {
     if (!shortString(o[field], max)) return 'Bad story details.';
   }
-  if (!(o.script === undefined || o.script === '' || (typeof o.script === 'string' && SCRIPT_PATH.test(o.script)))) {
+  const dreamed = typeof o.script === 'string' && DREAMED_PATH.test(o.script);
+  if (!(o.script === undefined || o.script === '' || dreamed || (typeof o.script === 'string' && SCRIPT_PATH.test(o.script)))) {
     return 'Unknown story.';
+  }
+  // A dreamed story carries its own words; the library stories never do.
+  if (dreamed !== (o.story !== undefined)) return 'Unknown story.';
+  if (o.story !== undefined) {
+    if (JSON.stringify(o.story).length > MAX_STORY_JSON || !checkSharedStory(o.story)) return 'This story could not be shared.';
   }
   if (!(o.audio === undefined || o.audio === null)) {
     if (typeof o.audio !== 'string' || !/^data:audio\/[a-z0-9.+-]+(;[a-z0-9=.+-]+)*;base64,/i.test(o.audio)) return 'Bad voice recording.';

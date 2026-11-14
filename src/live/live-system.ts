@@ -17,7 +17,9 @@ import {
   StageActor,
   StoryState,
 } from '../shadowplay-components.js';
-import { isStoryScript, loadStoryScript, StoryBeat, storyRuntime } from '../story-script.js';
+import { loadDreamed } from '../journal-store.js';
+import { checkSharedStory } from '../story-checks.js';
+import { isDreamed, isStoryScript, loadStoryScript, shareScript, StoryBeat, StoryScript, storyRuntime } from '../story-script.js';
 import { handOverride, handRuntime, JOINT_COUNT, secondHands, stageRuntime, xrSecond } from '../stage-runtime.js';
 import { LiveConnection } from './connection.js';
 import { HANDS_HZ, HEADER_BYTES, KIND_HANDS, KIND_VOICE, packBinary, PeerMessage, ServerMessage } from './protocol.js';
@@ -115,6 +117,8 @@ export class LiveSystem extends createSystem({
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   /** The server has accepted us at least once (so a drop is worth reconnecting). */
   private wasConnected = false;
+  /** Guest: dreamed stories received so far (each gets its own path, so the stage reloads). */
+  private sharedStories = 0;
   /** Host: the script last announced to the guest. */
   private sentScript = '';
 
@@ -293,8 +297,14 @@ export class LiveSystem extends createSystem({
     if (this.role !== 'guest') return; // Only the host's story drives a stage.
     if (m.type === 'hello') {
       family.borrow({ performer: m.performer, child: m.child });
-      this.hostScript = isStoryScript(m.script) ? m.script : '';
-      if (this.hostScript) first(this.queries.stories.entities)?.setValue(StoryState, 'script', m.script);
+      if (m.story !== undefined) {
+        // The host is telling a dreamed story: check its words, then tell it from memory.
+        const checked = checkSharedStory(m.story);
+        this.hostScript = checked ? shareScript(`live-${++this.sharedStories}`, checked as unknown as StoryScript) : '';
+      } else {
+        this.hostScript = isStoryScript(m.script) ? m.script : '';
+      }
+      if (this.hostScript) first(this.queries.stories.entities)?.setValue(StoryState, 'script', this.hostScript);
     }
     else if (m.type === 'state') this.pending.push(...m.events);
     else if (m.type === 'event') this.pending.push(m.event);
@@ -305,8 +315,14 @@ export class LiveSystem extends createSystem({
   }
 
   private sendHello(): void {
-    this.sentScript = storyRuntime.script;
-    this.conn?.send({ type: 'hello', performer: family.own.performer, child: family.own.child, script: storyRuntime.script });
+    const script = storyRuntime.script;
+    this.sentScript = script;
+    const hello = { type: 'hello' as const, performer: family.own.performer, child: family.own.child, script };
+    if (!isDreamed(script)) return void this.conn?.send(hello);
+    // A dreamed story goes with its words (a few kilobytes), so the family can see it too.
+    void loadDreamed().then((story) => {
+      if (this.sentScript === script) this.conn?.send(story ? { ...hello, story } : hello);
+    });
   }
 
   /** Host, duet on: every other shape request is the guest's, until that creature bows out. */

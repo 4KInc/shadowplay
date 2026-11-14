@@ -16,7 +16,8 @@ export const VOICE_RATE = 16000;
 export const HANDS_HZ = 20;
 
 export type PeerMessage =
-  | { type: 'hello'; performer: string; child: string; script: string }
+  /** `story`: a dreamed story's own words (its script is not a file the guest has). */
+  | { type: 'hello'; performer: string; child: string; script: string; story?: unknown }
   /** Host -> guest: everything to start mid-story (snapshot, beat, lamp, staging, awake creatures). */
   | { type: 'state'; events: TapEvent[] }
   | { type: 'event'; event: TapEvent }

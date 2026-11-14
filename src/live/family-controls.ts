@@ -3,10 +3,7 @@ import { FamilyInbox, LiveSession, PerformanceRecorder } from '../shadowplay-com
 import { playClick } from '../sfx.js';
 import { palette } from '../panel-palette.js';
 import { accessRuntime, gazeTargets, uiPresses } from '../stage-runtime.js';
-import { isDreamed, storyRuntime } from '../story-script.js';
 
-/** A dreamed story lives only on this headset: recordings and Live carry library stories. */
-const DREAMED_STAYS = "A dreamed story stays on this headset. Pick one from Tonight's story to record or go live.";
 
 const PANEL_NODE = 'settings-panel';
 
@@ -67,7 +64,6 @@ export class FamilyControlsSystem extends createSystem({
     };
     on('record-button', 'record-label', () => {
       if (live.getValue(LiveSession, 'role') !== 'off') return;
-      if (!rec.getValue(PerformanceRecorder, 'recording') && isDreamed(storyRuntime.script)) return this.say(DREAMED_STAYS);
       rec.setValue(PerformanceRecorder, 'recording', !rec.getValue(PerformanceRecorder, 'recording'));
     });
     on('send-button', 'send-label', () => {
@@ -81,7 +77,6 @@ export class FamilyControlsSystem extends createSystem({
     });
     on('live-button', 'live-label', () => {
       if (rec.getValue(PerformanceRecorder, 'recording')) return;
-      if (live.getValue(LiveSession, 'role') === 'off' && isDreamed(storyRuntime.script)) return this.say(DREAMED_STAYS);
       live.setValue(LiveSession, 'role', live.getValue(LiveSession, 'role') === 'off' ? 'host' : 'off');
     });
     on('duet-button', 'duet-label', () => live.setValue(LiveSession, 'duet', !live.getValue(LiveSession, 'duet')));

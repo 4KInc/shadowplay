@@ -41,6 +41,8 @@ export interface Performance {
   durationMs: number;
   /** Story script the beats refer to. */
   script: string;
+  /** A dreamed story's own script ('dreamed:<n>'), carried along so any device can tell it. */
+  story?: unknown;
   frameHz: number;
   /** Base64 of an Int16Array, FRAME_STRIDE values per frame. */
   hands: string;

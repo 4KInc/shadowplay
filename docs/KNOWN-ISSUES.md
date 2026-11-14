@@ -49,8 +49,9 @@ with the session that showed them.
   fixed lines. Tested with synthetic hands, a stand-in for the AI service and
   30 real Gemini tips (none fell back); not yet on a headset.
 - **Dreamed stories are captions only** (narration audio exists only for the
-  library stories) and stay on the headset: they cannot be recorded, sent or
-  told live yet. They need the server's AI key; without it the button says so.
+  library stories): when recorded or told live, the storyteller's own voice
+  is the narration. Only the latest dreamed story is kept on the headset.
+  Dreaming needs the server's AI key; without it the button says so.
 - **Live is one storyteller and one family member**, and Live rooms run on a
   single server instance (in memory). That is plenty for judging; a larger
   launch would need a shared room service.

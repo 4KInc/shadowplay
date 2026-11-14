@@ -9,7 +9,7 @@
  * On when the server has a model key (main.ts).
  */
 import { FACTS, localLine } from '../src/coach-vocab.ts';
-import { contentProblems } from './content-checks.ts';
+import { contentProblems } from '../src/story-checks.ts';
 import type { Llm } from './llm.ts';
 
 export const COACH_SHAPES = new Set(['rabbit', 'dog', 'fish', 'bird', 'cup', 'snail', 'swan', 'deer', 'crocodile']);

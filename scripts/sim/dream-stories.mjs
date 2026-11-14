@@ -1,8 +1,8 @@
 // "Dream a new one": pinching the button (hand ray) asks the server for a new
 // story (answered here by the server's own story builder, server/dream.ts, from
-// a canned reply in place of Claude's words); it is told at once, played to the
-// end by the demo player, resumed after a reload mid-story, and kept out of
-// Record (it lives on this headset only). Saying "dream a new story" asks for
+// a canned reply in place of the model's words); it is told at once, played to
+// the end by the demo player, still tonight's story after a reload, and
+// recordable (sending it: share-dreamed.mjs). Saying "dream a new story" asks for
 // another. Where the server has no AI, the button says so and nothing changes.
 //
 //   node scripts/sim/dream-stories.mjs [--gpu]
@@ -98,11 +98,15 @@ async function pinch(page, id) {
   const resumed = await page.evaluate(() => ({ script: __sp.get('StoryState', 'script'), beat: __sp.get('StoryState', 'beatId') }));
   check('after a reload the dreamed story is still tonight\'s story', resumed.script === 'dreamed:1' && resumed.beat.startsWith('dream-'), resumed);
 
-  // Record is refused for a dreamed story, with a reason.
+  // Record works for a dreamed story (it travels with its words; share-dreamed.mjs sends it).
+  await page.evaluate(() => __sp.set('PerformanceRecorder', 'withVoice', false));
   await pinch(page, 'record-button');
   const rec = await page.evaluate(() => ({ pressed: __sp.presses().includes('record-button'), recording: __sp.get('PerformanceRecorder', 'recording') }));
-  check('Record refused for a dreamed story', rec.pressed && rec.recording === false, rec);
-  await page.evaluate(() => __sp.set('ShadowJournal', 'open', false));
+  check('Record starts for a dreamed story', rec.pressed && rec.recording === true, rec);
+  await page.evaluate(() => {
+    __sp.set('PerformanceRecorder', 'recording', false);
+    __sp.set('ShadowJournal', 'open', false);
+  });
 
   // To the end.
   await page.evaluate(() => {

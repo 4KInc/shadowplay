@@ -72,6 +72,21 @@ export function isDreamed(path: string): boolean {
   return DREAMED.test(path);
 }
 
+/**
+ * A dreamed story received from another device, inside a recording or a live
+ * story ('shared:<key>'): already checked (story-checks.ts checkSharedStory),
+ * kept in memory while it plays. Never saved, never shared on.
+ */
+const SHARED = /^shared:[A-Za-z0-9_-]{1,80}$/;
+const sharedScripts = new Map<string, StoryScript>();
+
+/** Make a received story playable; answers the path to tell it by. */
+export function shareScript(key: string, script: StoryScript): string {
+  const path = `shared:${key.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 80)}`;
+  sharedScripts.set(path, script);
+  return path;
+}
+
 /** Only the app's own story files (a recording or a Live peer names one; never any other path). */
 const SCRIPT_PATH = /^story\/[a-z0-9-]{1,40}\.story\.json$/;
 
@@ -85,6 +100,10 @@ export async function loadStoryScript(path: string): Promise<StoryScript> {
   if (DREAMED.test(path)) {
     script = (await loadDreamed()) as StoryScript;
     if (!script) throw new Error('No dreamed story on this device');
+  } else if (SHARED.test(path)) {
+    const shared = sharedScripts.get(path);
+    if (!shared) throw new Error('That story is no longer here');
+    script = shared;
   } else {
     if (!SCRIPT_PATH.test(path)) throw new Error(`Unknown story "${path.slice(0, 60)}"`);
     url = `${import.meta.env.BASE_URL}${path.replace(/^\/+/u, '')}`;
