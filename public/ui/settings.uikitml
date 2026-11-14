@@ -201,6 +201,34 @@
     </button>
   </div>
 
+  <div id="dream-section" class="section">
+    <div class="label">Dream a story about</div>
+    <div class="row">
+      <button id="dream-theme-sea" class="option">Sea</button>
+      <button id="dream-theme-forest" class="option">Forest</button>
+      <button id="dream-theme-meadow" class="option">Meadow</button>
+      <button id="dream-theme-river" class="option">River</button>
+      <button id="dream-theme-rain" class="option">Rain</button>
+      <button id="dream-theme-sky" class="option">Sky</button>
+    </div>
+    <div class="label">With these shapes (two or three, in story order)</div>
+    <div class="row">
+      <button id="dream-shape-rabbit" class="option">Rabbit</button>
+      <button id="dream-shape-fish" class="option">Fish</button>
+      <button id="dream-shape-dog" class="option">Dog</button>
+      <button id="dream-shape-bird" class="option">Bird</button>
+      <button id="dream-shape-cup" class="option">Cup</button>
+    </div>
+    <div class="row">
+      <button id="dream-go" class="family">
+        <span id="dream-go-label" class="toggle-text">Dream it</span>
+      </button>
+      <button id="dream-cancel" class="family">
+        <span id="dream-cancel-label" class="toggle-text">Cancel</span>
+      </button>
+    </div>
+  </div>
+
   <div class="label">Shape recognition</div>
   <div class="row">
     <button id="tol-strict" class="option">Strict</button>

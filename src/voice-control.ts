@@ -12,6 +12,7 @@ import {
   ToleranceLevels,
 } from './shadowplay-components.js';
 import { accessRuntime, gazeTargets, stageRuntime } from './stage-runtime.js';
+import { dreamRuntime } from './settings.js';
 import { describe, parseCommand, type VoiceCommand } from './voice-commands.js';
 
 /** Speech onset: louder than this (RMS, 0-1) for ONSET_SECONDS starts a clip. */
@@ -283,6 +284,10 @@ export class VoiceControlSystem extends createSystem({
         return true;
       case 'help':
         accessRuntime.coachRequested = true;
+        return true;
+      case 'dream':
+        // The Settings system dreams it (it knows whether the server can).
+        dreamRuntime.request = { theme: c.theme, shapes: c.shapes };
         return true;
       case 'press': {
         const target = gazeTargets.get(c.id);

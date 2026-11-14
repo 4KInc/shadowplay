@@ -48,13 +48,18 @@ await sleep(1500);
 await hs.evaluate(() => __sp.set('ShadowJournal', 'open', true));
 await sleep(1000);
 await hs.evaluate(() => IWER_DEVICE.remote.dispatch('set_input_mode', { mode: 'hand' }));
-await sleep(400);
-const target = await hs.evaluate(() => __sp.where('story-dream'));
-await hs.evaluate((t) => IWER_DEVICE.remote.dispatch('look_at', { device: 'hand-right', target: { x: t[0], y: t[1], z: t[2] } }), target);
-await sleep(300);
-await hs.evaluate(() => IWER_DEVICE.remote.dispatch('set_select_value', { device: 'hand-right', value: 1 }));
-await sleep(250);
-await hs.evaluate(() => IWER_DEVICE.remote.dispatch('set_select_value', { device: 'hand-right', value: 0 }));
+// Hand tracking needs a moment after switching input, or the first pinch is missed.
+await sleep(800);
+// "Dream a new one" opens the chooser (a place and two shapes already picked); then "Dream it".
+for (const id of ['story-dream', 'dream-go']) {
+  const target = await hs.evaluate((id) => __sp.where(id), id);
+  await hs.evaluate((t) => IWER_DEVICE.remote.dispatch('look_at', { device: 'hand-right', target: { x: t[0], y: t[1], z: t[2] } }), target);
+  await sleep(300);
+  await hs.evaluate(() => IWER_DEVICE.remote.dispatch('set_select_value', { device: 'hand-right', value: 1 }));
+  await sleep(250);
+  await hs.evaluate(() => IWER_DEVICE.remote.dispatch('set_select_value', { device: 'hand-right', value: 0 }));
+  await sleep(600);
+}
 await hs.waitForFunction(() => /^dreamed:/.test(__sp.get('StoryState', 'script')) && (__sp.get('StoryState', 'beatId') ?? '').startsWith('dream-'), null, { timeout: 20000 });
 const title = await hs.evaluate(() => __sp.view().dream.title);
 await hs.evaluate(() => {

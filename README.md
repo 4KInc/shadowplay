@@ -66,7 +66,9 @@ screen; if the stage lands somewhere odd, pinch the book on the desk, then
   every other creature.
 - **Goodnights**: what your family sent back plays on your wall.
 - **Dream a new one** (Tonight's story): Mo dreams up a new short story for a
-  theme and two or three shapes the app picks. Gemini writes the narration
+  place (sea, forest, meadow, river, rain or sky) and two or three shapes the
+  storyteller picks, in the order the story should ask for them (or say
+  "dream a story about the river with a fish and a bird"). Gemini writes the narration
   lines; the app builds the story itself (the same pattern as Counting Stars)
   and checks every line, so it plays like any other story, with captions. A
   dreamed story can be recorded and sent, or told live, like any other: its
